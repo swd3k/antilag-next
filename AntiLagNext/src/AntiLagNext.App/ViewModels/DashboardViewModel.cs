@@ -72,19 +72,21 @@ public partial class DashboardViewModel : ViewModelBase
         _monitoringVm = monitoringVm;
 
         _timer.StateChanged += (_, s) =>
-            App.Current.Dispatcher.Invoke(() => RefreshStatusFromSystem(s));
+            App.Current.Dispatcher?.BeginInvoke(() => RefreshStatusFromSystem(s));
 
         _monitoring.SampleArrived += (_, s) =>
-            App.Current.Dispatcher.Invoke(() =>
+            App.Current.Dispatcher?.BeginInvoke(() =>
             {
                 LiveLatencyUs = s.SchedulingLatencyUs;
                 LiveTimerMs = s.TimerResolutionMs;
-                LatencyHint = s.SchedulingLatencyUs <= 50
-                    ? "Зелёная зона · low scheduling latency"
-                    : s.SchedulingLatencyUs <= 150
-                        ? "Жёлтая зона · приемлемо"
-                        : "Красная зона · высокий latency";
-            });
+                LatencyHint = s.SystemUnderLoad
+                    ? $"LOAD max {s.SchedulingLatencyMaxUs:F0} µs · med {s.SchedulingLatencyUs:F0}"
+                    : s.SchedulingLatencyUs <= 50
+                        ? "IDLE · low median (норма, если max растёт при вводе)"
+                        : s.SchedulingLatencyUs <= 150
+                            ? "Жёлтая · приемлемо"
+                            : "Высокий median";
+            }, System.Windows.Threading.DispatcherPriority.Background);
 
         LoadFromActiveProfile();
         RefreshSystemInfo();

@@ -8,7 +8,8 @@ using CommunityToolkit.Mvvm.Input;
 namespace AntiLagNext.App.ViewModels;
 
 /// <summary>
-/// Реалтайм-мониторинг + waveform + детектор «высокого мс» (latency spikes).
+/// Реалтайм-мониторинг. UI обновляется через BeginInvoke (не блокирует probe-поток).
+/// Idle-низкий + interactive-высокий — ожидаемо; график = median, Peak/max = worst case.
 /// </summary>
 public partial class MonitoringViewModel : ViewModelBase
 {
@@ -17,33 +18,28 @@ public partial class MonitoringViewModel : ViewModelBase
 
     private const int MaxSamples = 300;
     private const int MaxSpikes = 100;
-
-    /// <summary>Пороги (µs), как на графике DPC-style.</summary>
     public const double GreenThresholdUs = 50;
     public const double YellowThresholdUs = 150;
-
-    /// <summary>Сколько подряд red-сэмплов = «устойчивый» высокий latency.</summary>
     private const int SustainedRedTrigger = 3;
-
-    /// <summary>Минимум µs, чтобы записать одиночный spike (жёлтый/красный).</summary>
     private const double SpikeLogThresholdUs = YellowThresholdUs;
 
     private int _consecutiveRed;
     private DateTime? _sessionStarted;
     private double _lastLoggedSpikeUs;
     private DateTime _lastSpikeLogUtc = DateTime.MinValue;
+    private DateTime _lastProcessHintUtc = DateTime.MinValue;
+    private string? _cachedProcessHint;
 
-    // session counters (all samples, not just rolling window)
-    private int _totalSamples;
-    private int _totalYellow;
-    private int _totalRed;
-    private readonly List<double> _allLatencies = new(4096);
+    private int _totalSamples, _totalYellow, _totalRed, _underLoadSamples;
+    private readonly List<double> _allMedians = new(4096);
+    private readonly List<double> _allMaxes = new(4096);
 
     public ObservableCollection<MonitoringSample> Samples { get; } = new();
     public ObservableCollection<double> LatencySeries { get; } = new();
     public ObservableCollection<LatencySpike> Spikes { get; } = new();
 
     [ObservableProperty] private double _latestLatencyUs;
+    [ObservableProperty] private double _latestMaxLatencyUs;
     [ObservableProperty] private double _latestTimerMs;
     [ObservableProperty] private float _latestCpu;
     [ObservableProperty] private float _latestMemMb;
@@ -59,6 +55,10 @@ public partial class MonitoringViewModel : ViewModelBase
     [ObservableProperty] private int _spikeCount;
     [ObservableProperty] private double _percentInRed;
     [ObservableProperty] private bool _alertsEnabled = true;
+    [ObservableProperty] private bool _systemUnderLoad;
+    [ObservableProperty] private string _loadContextText = "IDLE / low load";
+    [ObservableProperty] private string _behaviorHint =
+        "Idle ≈ низкий latency — норма. При движении мыши/окнах/игре max растёт: это нагрузка системы, не «сломанный» AntiLag.";
 
     public MonitoringViewModel(IMonitoringService monitoring, ISettingsService settings)
     {
@@ -69,61 +69,73 @@ public partial class MonitoringViewModel : ViewModelBase
 
     private void OnSample(object? sender, MonitoringSample s)
     {
-        System.Windows.Application.Current?.Dispatcher.Invoke(() =>
+        // НЕ Invoke: блокировка UI-потока искажала бы следующий замер и тормозила ПК
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null) return;
+
+        _ = dispatcher.BeginInvoke(() =>
         {
             LatestLatencyUs = s.SchedulingLatencyUs;
+            LatestMaxLatencyUs = s.SchedulingLatencyMaxUs;
             LatestTimerMs = s.TimerResolutionMs;
             LatestCpu = s.CpuUsagePercent;
             LatestMemMb = s.UsedMemoryMb;
             PowerSourceText = s.PowerSource == Core.Enums.PowerSource.Ac ? "Сеть (AC)" : "Батарея (DC)";
+            SystemUnderLoad = s.SystemUnderLoad;
+            LoadContextText = s.SystemUnderLoad
+                ? $"LOAD · med {s.SchedulingLatencyUs:F0} · max {s.SchedulingLatencyMaxUs:F0} µs · CPU {s.CpuUsagePercent:F0}%"
+                : $"IDLE · med {s.SchedulingLatencyUs:F0} · max {s.SchedulingLatencyMaxUs:F0} µs";
 
             Samples.Add(s);
+            // График: median (стабильнее). Peak берём из max.
             LatencySeries.Add(s.SchedulingLatencyUs);
             while (Samples.Count > MaxSamples)
             {
                 Samples.RemoveAt(0);
-                if (LatencySeries.Count > 0)
-                    LatencySeries.RemoveAt(0);
+                if (LatencySeries.Count > 0) LatencySeries.RemoveAt(0);
             }
 
-            // Session stats
             _totalSamples++;
-            _allLatencies.Add(s.SchedulingLatencyUs);
-            var zone = ClassifyZone(s.SchedulingLatencyUs);
+            _allMedians.Add(s.SchedulingLatencyUs);
+            _allMaxes.Add(s.SchedulingLatencyMaxUs);
+            if (s.SystemUnderLoad) _underLoadSamples++;
+
+            // Классификация по max — иначе interactive spikes «прячутся» в median
+            var zone = ClassifyZone(Math.Max(s.SchedulingLatencyUs, s.SchedulingLatencyMaxUs * 0.85));
             if (zone == LatencyZone.Yellow) _totalYellow++;
             if (zone == LatencyZone.Red) _totalRed++;
 
+            PeakLatencyUs = Math.Max(PeakLatencyUs, s.SchedulingLatencyMaxUs);
             if (LatencySeries.Count > 0)
             {
-                PeakLatencyUs = Math.Max(PeakLatencyUs, s.SchedulingLatencyUs);
                 AvgLatencyUs = LatencySeries.Average();
                 P99LatencyUs = Percentile(LatencySeries, 0.99);
-                LatencyQuality = ZoneToQuality(zone);
+                LatencyQuality = ZoneToQuality(ClassifyZone(s.SchedulingLatencyUs));
             }
 
             ProcessSpikeDetection(s, zone);
             RefreshSessionSummary();
-        });
+        }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void ProcessSpikeDetection(MonitoringSample s, LatencyZone zone)
     {
-        if (zone == LatencyZone.Red)
+        // Для red/sustained смотрим worst-case max
+        double signal = Math.Max(s.SchedulingLatencyUs, s.SchedulingLatencyMaxUs);
+
+        if (ClassifyZone(signal) == LatencyZone.Red)
             _consecutiveRed++;
         else
             _consecutiveRed = 0;
 
-        bool isSpikeCandidate = s.SchedulingLatencyUs >= SpikeLogThresholdUs;
+        bool isSpikeCandidate = signal >= SpikeLogThresholdUs;
         bool sustainedRed = _consecutiveRed >= SustainedRedTrigger;
-
-        // Debounce: не логировать почти тот же пик каждые 200 мс
-        bool cooledDown = (DateTime.UtcNow - _lastSpikeLogUtc).TotalMilliseconds >= 400;
-        bool significantlyHigher = s.SchedulingLatencyUs >= _lastLoggedSpikeUs * 1.15
-                                   || s.SchedulingLatencyUs >= _lastLoggedSpikeUs + 50;
+        bool cooledDown = (DateTime.UtcNow - _lastSpikeLogUtc).TotalMilliseconds >= 500;
+        bool significantlyHigher = signal >= _lastLoggedSpikeUs * 1.2 || signal >= _lastLoggedSpikeUs + 80;
 
         if (!isSpikeCandidate && !sustainedRed)
         {
-            if (zone == LatencyZone.Green && HasActiveAlert)
+            if (zone == LatencyZone.Green && HasActiveAlert && !s.SystemUnderLoad)
             {
                 HasActiveAlert = false;
                 AlertBanner = string.Empty;
@@ -131,35 +143,34 @@ public partial class MonitoringViewModel : ViewModelBase
             return;
         }
 
-        if (!(cooledDown || significantlyHigher || sustainedRed && cooledDown))
+        if (!(cooledDown || significantlyHigher))
             return;
 
-        // Log spike event
         var spike = new LatencySpike
         {
             Timestamp = s.Timestamp.ToLocalTime(),
-            LatencyUs = s.SchedulingLatencyUs,
-            Zone = zone == LatencyZone.Green ? LatencyZone.Yellow : zone,
+            LatencyUs = signal,
+            Zone = ClassifyZone(signal) == LatencyZone.Green ? LatencyZone.Yellow : ClassifyZone(signal),
             CpuPercent = s.CpuUsagePercent,
-            TopProcessHint = TryGetTopProcessHint(),
+            TopProcessHint = s.SystemUnderLoad ? GetTopProcessHintCached() : null,
             SustainedRedCount = _consecutiveRed
         };
 
         Spikes.Insert(0, spike);
-        while (Spikes.Count > MaxSpikes)
-            Spikes.RemoveAt(Spikes.Count - 1);
+        while (Spikes.Count > MaxSpikes) Spikes.RemoveAt(Spikes.Count - 1);
 
         SpikeCount = Spikes.Count;
         _lastSpikeLogUtc = DateTime.UtcNow;
-        _lastLoggedSpikeUs = s.SchedulingLatencyUs;
+        _lastLoggedSpikeUs = signal;
 
-        if (AlertsEnabled && (zone == LatencyZone.Red || sustainedRed))
+        if (AlertsEnabled && (ClassifyZone(signal) == LatencyZone.Red || sustainedRed))
         {
             HasActiveAlert = true;
-            string hint = string.IsNullOrEmpty(spike.TopProcessHint) ? "" : $" · процесс: {spike.TopProcessHint}";
+            string hint = string.IsNullOrEmpty(spike.TopProcessHint) ? "" : $" · {spike.TopProcessHint}";
+            string load = s.SystemUnderLoad ? " [LOAD]" : " [IDLE]";
             AlertBanner = sustainedRed
-                ? $"⚠ Устойчивый высокий latency: {s.SchedulingLatencyUs:F0} µs ({spike.LatencyMs:F3} мс) ×{_consecutiveRed}{hint}"
-                : $"⚠ Высокий latency: {s.SchedulingLatencyUs:F0} µs ({spike.LatencyMs:F3} мс){hint}";
+                ? $"⚠ Sustained high latency{load}: {signal:F0} µs ({spike.LatencyMs:F3} мс) ×{_consecutiveRed}{hint}"
+                : $"⚠ High latency{load}: {signal:F0} µs ({spike.LatencyMs:F3} мс){hint}";
             StatusMessage = AlertBanner;
         }
     }
@@ -173,17 +184,18 @@ public partial class MonitoringViewModel : ViewModelBase
             return;
         }
 
-        double p99 = Percentile(_allLatencies, 0.99);
-        double med = Percentile(_allLatencies, 0.5);
-        double max = _allLatencies.Max();
-        double avg = _allLatencies.Average();
+        double p99 = Percentile(_allMedians, 0.99);
+        double med = Percentile(_allMedians, 0.5);
+        double max = _allMaxes.Count > 0 ? _allMaxes.Max() : 0;
+        double avg = _allMedians.Average();
         PercentInRed = 100.0 * _totalRed / _totalSamples;
         double pctYellow = 100.0 * _totalYellow / _totalSamples;
+        double pctLoad = 100.0 * _underLoadSamples / _totalSamples;
         var dur = _sessionStarted is { } t ? DateTime.UtcNow - t : TimeSpan.Zero;
 
         SessionSummary =
-            $"Сессия {dur:mm\\:ss} · сэмплов {_totalSamples} · max {max:F0} µs · p99 {p99:F0} µs · med {med:F0} µs · " +
-            $"avg {avg:F0} µs · red {PercentInRed:F1}% · yellow {pctYellow:F1}% · пиков в журнале: {Spikes.Count}";
+            $"Сессия {dur:mm\\:ss} · n={_totalSamples} · median~{med:F0} · p99~{p99:F0} · max {max:F0} µs · " +
+            $"avg {avg:F0} · red {PercentInRed:F1}% · yellow {pctYellow:F1}% · under load {pctLoad:F0}% · spikes {Spikes.Count}";
     }
 
     private static LatencyZone ClassifyZone(double us)
@@ -195,9 +207,9 @@ public partial class MonitoringViewModel : ViewModelBase
 
     private static string ZoneToQuality(LatencyZone z) => z switch
     {
-        LatencyZone.Green => "Отлично (зелёная зона)",
-        LatencyZone.Yellow => "Приемлемо (жёлтая зона)",
-        _ => "Плохо — высокий latency"
+        LatencyZone.Green => "Отлично (зелёная · median)",
+        LatencyZone.Yellow => "Приемлемо (жёлтая)",
+        _ => "Высокий median — смотрите LOAD/max"
     };
 
     private static double Percentile(IReadOnlyList<double> data, double p)
@@ -212,35 +224,47 @@ public partial class MonitoringViewModel : ViewModelBase
         return sorted[lo] * (1 - t) + sorted[hi] * t;
     }
 
-    /// <summary>Эвристика: процесс с наибольшим WorkingSet (не доказательство DPC-виновника).</summary>
+    /// <summary>Кэш 3с — полный Process.GetProcesses на каждый spike жрёт CPU и сам поднимает latency.</summary>
+    private string? GetTopProcessHintCached()
+    {
+        if ((DateTime.UtcNow - _lastProcessHintUtc).TotalSeconds < 3 && _cachedProcessHint != null)
+            return _cachedProcessHint;
+
+        _lastProcessHintUtc = DateTime.UtcNow;
+        _cachedProcessHint = TryGetTopProcessHint();
+        return _cachedProcessHint;
+    }
+
     private static string? TryGetTopProcessHint()
     {
         try
         {
             Process? top = null;
             long topWs = 0;
+            int self = Environment.ProcessId;
             foreach (var p in Process.GetProcesses())
             {
                 try
                 {
+                    if (p.Id == self) continue;
                     long ws = p.WorkingSet64;
                     if (ws > topWs)
                     {
                         topWs = ws;
+                        top?.Dispose();
                         top = p;
+                        continue;
                     }
                 }
                 catch { /* access denied */ }
-                finally
-                {
-                    try { p.Dispose(); } catch { /* ignore */ }
-                }
+                try { p.Dispose(); } catch { /* ignore */ }
             }
 
             if (top == null) return null;
             string name = top.ProcessName;
             double mb = topWs / (1024.0 * 1024.0);
-            return $"{name}.exe ~{mb:F0} МБ RAM";
+            try { top.Dispose(); } catch { /* ignore */ }
+            return $"{name}.exe ~{mb:F0} МБ RAM (эвристика)";
         }
         catch
         {
@@ -254,11 +278,12 @@ public partial class MonitoringViewModel : ViewModelBase
         if (_sessionStarted is null)
             _sessionStarted = DateTime.UtcNow;
 
-        var ms = Math.Clamp(_settings.Current.MonitoringIntervalMs, 50, 5000);
-        if (ms > 200) ms = Math.Min(ms, 200);
+        var ms = Math.Clamp(_settings.Current.MonitoringIntervalMs, 80, 5000);
+        // С пачкой 7×1ms проб интервал &lt;120ms почти всегда overlapping — поднимаем пол
+        if (ms < 120) ms = 120;
         _monitoring.Start(TimeSpan.FromMilliseconds(ms));
         IsRunning = true;
-        StatusMessage = $"Детектор высокого latency · каждые {ms} мс · yellow≥{YellowThresholdUs:F0} µs · red≥sustained";
+        StatusMessage = $"Probe HiPri · period {ms} ms · 7×1ms batch · median+max · idle≠load";
     }
 
     [RelayCommand]
@@ -276,20 +301,19 @@ public partial class MonitoringViewModel : ViewModelBase
         Samples.Clear();
         LatencySeries.Clear();
         Spikes.Clear();
-        _allLatencies.Clear();
-        _totalSamples = 0;
-        _totalYellow = 0;
-        _totalRed = 0;
+        _allMedians.Clear();
+        _allMaxes.Clear();
+        _totalSamples = _totalYellow = _totalRed = _underLoadSamples = 0;
         _consecutiveRed = 0;
         _sessionStarted = IsRunning ? DateTime.UtcNow : null;
-        PeakLatencyUs = 0;
-        AvgLatencyUs = 0;
-        P99LatencyUs = 0;
+        PeakLatencyUs = AvgLatencyUs = P99LatencyUs = 0;
         SpikeCount = 0;
         PercentInRed = 0;
         LatencyQuality = "—";
         HasActiveAlert = false;
         AlertBanner = string.Empty;
+        SystemUnderLoad = false;
+        LoadContextText = "IDLE / low load";
         SessionSummary = "Нет данных. Нажмите «Старт».";
         StatusMessage = "Журнал и график очищены";
     }

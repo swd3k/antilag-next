@@ -41,9 +41,17 @@
 
     <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
       <StackPanel>
-        <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" Margin="0,0,0,8" />
+        <DockPanel Margin="0,0,0,8">
+          <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" VerticalAlignment="Center" />
+          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+            <TextBlock Text="{Binding LoadContextText}" FontSize="10" FontFamily="Consolas" FontWeight="Bold"
+                       Foreground="{StaticResource AccentBrush}" />
+          </Border>
+        </DockPanel>
         <TextBlock Text="{Binding SessionSummary}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
                    Foreground="{StaticResource PrimaryText}" LineHeight="18" />
+        <TextBlock Text="{Binding BehaviorHint}" TextWrapping="Wrap" FontSize="11" Margin="0,10,0,0"
+                   Foreground="{StaticResource MutedText}" LineHeight="16" />
       </StackPanel>
     </Border>
 
@@ -64,29 +72,35 @@
           <ctrl:LatencyWaveform Height="230" Values="{Binding LatencySeries}"
                                 MaxValue="400" GreenThreshold="50" YellowThreshold="150" UnitLabel="µs" />
         </Border>
-        <UniformGrid Columns="4">
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+        <UniformGrid Columns="5">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
             <StackPanel>
-              <TextBlock Text="NOW" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding LatestLatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" Foreground="{StaticResource AccentBrush}" />
+              <TextBlock Text="MEDIAN" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding LatestLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource AccentBrush}" />
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
+            <StackPanel>
+              <TextBlock Text="MAX NOW" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding LatestMaxLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource WarningBrush}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
             <StackPanel>
               <TextBlock Text="PEAK" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding PeakLatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" />
+              <TextBlock Text="{Binding PeakLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" />
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
             <StackPanel>
               <TextBlock Text="P99" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding P99LatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" />
+              <TextBlock Text="{Binding P99LatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource MetricChip}" Margin="0" HorizontalAlignment="Stretch">
             <StackPanel>
               <TextBlock Text="RED %" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding PercentInRed, StringFormat={}{0:F1}%}" FontSize="18" FontFamily="Consolas" Foreground="{StaticResource DangerBrush}" />
+              <TextBlock Text="{Binding PercentInRed, StringFormat={}{0:F1}%}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource DangerBrush}" />
             </StackPanel>
           </Border>
         </UniformGrid>

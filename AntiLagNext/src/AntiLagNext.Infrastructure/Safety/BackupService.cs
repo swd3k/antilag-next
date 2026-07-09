@@ -180,14 +180,39 @@ public sealed class BackupService : IBackupService
     {
         try
         {
-            if (record?.SourceFilePath is not { Length: > 0 } path || !File.Exists(path))
+            if (record?.SourceFilePath is not { Length: > 0 } path)
                 return OperationResult.Fail("Файл бэкапа не найден.");
+
+            // Path traversal guard: only files under BackupDirectory
+            if (!IsPathInsideDirectory(path, BackupDirectory))
+                return OperationResult.Fail("Отказ: путь бэкапа вне каталога приложения.");
+
+            if (!File.Exists(path))
+                return OperationResult.Fail("Файл бэкапа не найден.");
+
             File.Delete(path);
             return OperationResult.Ok("Бэкап удалён.");
         }
         catch (Exception ex)
         {
             return OperationResult.Fail("Не удалось удалить бэкап.", detail: ex.Message, ex: ex);
+        }
+    }
+
+    private static bool IsPathInsideDirectory(string path, string directory)
+    {
+        try
+        {
+            string fullPath = Path.GetFullPath(path);
+            string fullDir = Path.GetFullPath(directory)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                + Path.DirectorySeparatorChar;
+            return fullPath.StartsWith(fullDir, StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(Path.GetDirectoryName(fullPath), Path.GetFullPath(directory), StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
         }
     }
 
@@ -254,10 +279,16 @@ public sealed class BackupService : IBackupService
     /// </summary>
     private static void RestoreRegistryEntry(RegistryBackupEntry entry)
     {
-        using var key = entry.RootHive?.OpenSubKey(entry.KeyPath, writable: true);
+        if (!IsSafeRegistryPath(entry.Hive, entry.KeyPath, entry.ValueName))
+            throw new InvalidOperationException("Небезопасный путь реестра в бэкапе.");
+
+        var root = entry.RootHive
+            ?? throw new InvalidOperationException("Неизвестный hive: " + entry.Hive);
+
+        using var key = root.OpenSubKey(entry.KeyPath, writable: true);
         if (key == null)
         {
-            // Ключа нет — возможно, был удалён. Если значение было — пересоздавать не будем.
+            // Не создаём произвольные ключи из чужого JSON — только уже существующие.
             return;
         }
 
@@ -269,7 +300,40 @@ public sealed class BackupService : IBackupService
         }
 
         var value = DeserializeRegistryValue(entry.SerializedValue, entry.ValueKind);
-        key.SetValue(entry.ValueName, value, (RegistryValueKind)entry.ValueKind);
+        var kind = (RegistryValueKind)entry.ValueKind;
+        if (!Enum.IsDefined(typeof(RegistryValueKind), kind) || kind == RegistryValueKind.Unknown)
+            throw new InvalidOperationException("Некорректный ValueKind в бэкапе.");
+
+        key.SetValue(entry.ValueName, value, kind);
+    }
+
+    /// <summary>
+    /// Защита от malicious backup JSON: только HKLM/HKCU, без .., ограниченная длина.
+    /// </summary>
+    private static bool IsSafeRegistryPath(string hive, string keyPath, string valueName)
+    {
+        if (hive is not ("HKLM" or "HKCU"))
+            return false;
+        if (string.IsNullOrWhiteSpace(keyPath) || keyPath.Length > 512)
+            return false;
+        if (keyPath.Contains("..", StringComparison.Ordinal) || keyPath.Contains('\0'))
+            return false;
+        if (valueName is { Length: > 256 } || valueName.Contains('\0'))
+            return false;
+        // Только известные префиксы, которые трогает AntiLag Next
+        string[] allowed =
+        {
+            @"SOFTWARE\Microsoft\GameBar",
+            @"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR",
+            @"System\GameConfigStore",
+            @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
+            @"SYSTEM\CurrentControlSet\Services\nvlddmkm",
+            @"SYSTEM\CurrentControlSet\Services\amdkmdag",
+            @"SYSTEM\CurrentControlSet\Control\Class",
+            @"Software\AntiLagNext",
+            @"SOFTWARE\AntiLagNext",
+        };
+        return allowed.Any(a => keyPath.StartsWith(a, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
@@ -293,17 +357,27 @@ public sealed class BackupService : IBackupService
     /// <summary>Десериализовать сохранённое значение реестра в объект нужного типа.</summary>
     private static object DeserializeRegistryValue(string? serialized, int kind) => (RegistryValueKind)kind switch
     {
-        RegistryValueKind.DWord => int.Parse(serialized ?? "0"),
-        RegistryValueKind.QWord => long.Parse(serialized ?? "0"),
-        RegistryValueKind.String => serialized ?? string.Empty,
-        RegistryValueKind.ExpandString => serialized ?? string.Empty,
-        RegistryValueKind.MultiString => (serialized ?? string.Empty).Split('\0'),
+        RegistryValueKind.DWord => int.TryParse(serialized, out int d) ? d : 0,
+        RegistryValueKind.QWord => long.TryParse(serialized, out long q) ? q : 0L,
+        RegistryValueKind.String => Truncate(serialized ?? string.Empty, 4096),
+        RegistryValueKind.ExpandString => Truncate(serialized ?? string.Empty, 4096),
+        RegistryValueKind.MultiString => (serialized ?? string.Empty).Split('\0', StringSplitOptions.None).Take(64).ToArray(),
         RegistryValueKind.Binary => serialized is null ? Array.Empty<byte>() : ConvertHexStringToBytes(serialized),
-        _ => serialized ?? string.Empty
+        _ => Truncate(serialized ?? string.Empty, 4096)
     };
+
+    private static string Truncate(string s, int max) => s.Length <= max ? s : s[..max];
 
     private static byte[] ConvertHexStringToBytes(string hex)
     {
+        if (hex.Length == 0 || hex.Length % 2 != 0 || hex.Length > 8192)
+            return Array.Empty<byte>();
+        for (int i = 0; i < hex.Length; i++)
+        {
+            char c = hex[i];
+            bool ok = c is >= '0' and <= '9' or >= 'a' and <= 'f' or >= 'A' and <= 'F';
+            if (!ok) return Array.Empty<byte>();
+        }
         var bytes = new byte[hex.Length / 2];
         for (int i = 0; i < bytes.Length; i++)
             bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);

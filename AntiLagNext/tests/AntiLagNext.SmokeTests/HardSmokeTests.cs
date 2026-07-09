@@ -179,6 +179,8 @@ public class HardSmokeTests : IDisposable
             last!.TimerResolutionMs.Should().BeGreaterThan(0);
             last.UsedMemoryMb.Should().BeGreaterThan(0);
             last.CpuUsagePercent.Should().BeInRange(0, 100);
+            last.ProbeCount.Should().BeGreaterThan(0);
+            last.SchedulingLatencyMaxUs.Should().BeGreaterThanOrEqualTo(last.SchedulingLatencyUs - 0.01);
         }
         finally
         {
