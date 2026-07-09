@@ -4,46 +4,84 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
   <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="260" />
+      <ColumnDefinition Width="320" />
       <ColumnDefinition Width="*" />
     </Grid.ColumnDefinitions>
 
-    <DockPanel Grid.Column="0" Margin="0,0,12,0">
-      <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
-        <Button Content="+" Command="{Binding AddCustomProfileCommand}"
-                Style="{StaticResource MaterialDesignFloatingActionMiniButton}" Margin="0,0,8,0"
-                ToolTip="Новый профиль" />
-        <Button Content="Сохранить" Command="{Binding SaveProfilesCommand}"
-                Style="{StaticResource MaterialDesignOutlinedButton}" />
-      </StackPanel>
-      <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-               DisplayMemberPath="Name" />
-    </DockPanel>
+    <Border Grid.Column="0" Background="{StaticResource CardBackground}"
+            BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1" CornerRadius="20" Margin="0,0,20,0">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="20,16" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
+          <DockPanel>
+            <StackPanel>
+              <TextBlock Text="GAME PROFILES" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="Пресеты и auto-switch" FontSize="10" FontFamily="Consolas"
+                         Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+            </StackPanel>
+            <Button DockPanel.Dock="Right" Content="VIEW ALL" Style="{StaticResource GhostButton}"
+                    Command="{Binding SaveProfilesCommand}" VerticalAlignment="Center" />
+          </DockPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Padding="12">
+          <Button Style="{StaticResource PrimaryButton}" Command="{Binding AddCustomProfileCommand}" HorizontalAlignment="Stretch">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,8,0" />
+              <TextBlock Text="NEW PROFILE" VerticalAlignment="Center" />
+            </StackPanel>
+          </Button>
+        </Border>
+        <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
+                 Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <DockPanel>
+                <Border Width="40" Height="40" CornerRadius="12" Margin="0,0,14,0"
+                        Background="#1A06B6D4">
+                  <materialDesign:PackIcon Kind="GamepadVariant" Width="20" Height="20"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           Foreground="{StaticResource AccentBrush}" />
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
+                  <TextBlock Text="{Binding Kind}" FontSize="11" FontFamily="Consolas"
+                             Foreground="{StaticResource MutedText}" Margin="0,2,0,0" />
+                </StackPanel>
+              </DockPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
 
     <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
-      <StackPanel DataContext="{Binding SelectedProfile}">
-        <TextBlock Text="{Binding Name}" FontSize="18" FontWeight="Bold" />
-        <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,8,0,12"
-                   Foreground="{StaticResource MutedText}" />
+      <StackPanel>
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
+          <StackPanel DataContext="{Binding SelectedProfile}">
+            <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="Light" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,8,0,0"
+                       Foreground="{StaticResource MutedText}" FontSize="13" LineHeight="20" />
+          </StackPanel>
+        </Border>
 
-        <TextBlock Text="Игры (авто-переключение)" FontWeight="SemiBold" Margin="0,8,0,4" />
-        <ListBox ItemsSource="{Binding GameExecutables}" Height="100" Margin="0,0,0,8" />
-        <DockPanel DataContext="{Binding DataContext, RelativeSource={RelativeSource AncestorType=UserControl}}">
-          <Button DockPanel.Dock="Right" Content="Добавить" Command="{Binding AddGameExeCommand}" Margin="8,0,0,0" />
-          <TextBox materialDesign:HintAssist.Hint="game.exe"
-                   Text="{Binding NewGameExe, UpdateSourceTrigger=PropertyChanged}" />
-        </DockPanel>
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
+          <StackPanel>
+            <TextBlock Text="GAME EXES (AUTO-SWITCH)" FontSize="10" FontWeight="Bold"
+                       Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
+            <ListBox ItemsSource="{Binding SelectedProfile.GameExecutables}" Height="120"
+                     Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}" />
+            <DockPanel Margin="0,12,0,0">
+              <Button DockPanel.Dock="Right" Content="ADD" Style="{StaticResource PrimaryButton}"
+                      Command="{Binding AddGameExeCommand}" Padding="16,10" Margin="10,0,0,0" />
+              <TextBox materialDesign:HintAssist.Hint="game.exe"
+                       Text="{Binding NewGameExe, UpdateSourceTrigger=PropertyChanged}" />
+            </DockPanel>
+          </StackPanel>
+        </Border>
 
-        <TextBlock Text="Исключения очистки памяти" FontWeight="SemiBold" Margin="0,16,0,4"
-                   DataContext="{Binding SelectedProfile, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-        <ListBox ItemsSource="{Binding MemoryCleanupExclusions}" Height="100" Margin="0,0,0,8"
-                 DataContext="{Binding SelectedProfile, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-
-        <Button Content="Применить профиль" Margin="0,16,0,0"
-                Style="{StaticResource MaterialDesignRaisedButton}"
-                Command="{Binding DataContext.ApplySelectedCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" />
-        <TextBlock Text="{Binding DataContext.StatusMessage, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                   Margin="0,8,0,0" TextWrapping="Wrap" />
+        <Button Content="APPLY PROFILE" Style="{StaticResource PrimaryButton}"
+                Command="{Binding ApplySelectedCommand}" HorizontalAlignment="Left" MinWidth="180" />
+        <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0" FontFamily="Consolas" FontSize="11"
+                   Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
   </Grid>

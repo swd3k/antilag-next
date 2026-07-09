@@ -1,70 +1,114 @@
 <UserControl x:Class="AntiLagNext.App.Views.MonitoringView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:ctrl="clr-namespace:AntiLagNext.App.Controls">
   <StackPanel>
-    <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-      <Button Content="Старт" Command="{Binding StartCommand}"
-              Style="{StaticResource MaterialDesignRaisedButton}" Margin="0,0,8,0" />
-      <Button Content="Стоп" Command="{Binding StopCommand}"
-              Style="{StaticResource MaterialDesignOutlinedButton}" />
-      <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Margin="16,0,0,0" />
-    </StackPanel>
+    <DockPanel Margin="0,0,0,20">
+      <StackPanel Orientation="Horizontal">
+        <Button Content="START" Command="{Binding StartCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" />
+        <Button Content="STOP" Command="{Binding StopCommand}" Style="{StaticResource DangerOutlineButton}" Margin="0,0,10,0" />
+        <Button Content="CLEAR" Command="{Binding ClearCommand}" Style="{StaticResource GhostButton}" Margin="0,0,10,0" />
+        <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleAlertsCommand}">
+          <TextBlock FontSize="10" FontWeight="Bold">
+            <TextBlock.Style>
+              <Style TargetType="TextBlock">
+                <Setter Property="Text" Value="ALERTS ON" />
+                <Style.Triggers>
+                  <DataTrigger Binding="{Binding AlertsEnabled}" Value="False">
+                    <Setter Property="Text" Value="ALERTS OFF" />
+                  </DataTrigger>
+                </Style.Triggers>
+              </Style>
+            </TextBlock.Style>
+          </TextBlock>
+        </Button>
+      </StackPanel>
+      <TextBlock DockPanel.Dock="Right" Text="{Binding StatusMessage}" VerticalAlignment="Center"
+                 Foreground="{StaticResource MutedText}" FontSize="11" FontFamily="Consolas"
+                 TextWrapping="Wrap" MaxWidth="400" TextAlignment="Right" HorizontalAlignment="Right" />
+    </DockPanel>
 
-    <UniformGrid Columns="2" Rows="2">
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="4">
-        <StackPanel>
-          <TextBlock Text="Scheduling latency" Foreground="{StaticResource MutedText}" />
-          <TextBlock FontSize="28" FontWeight="Bold">
-            <Run Text="{Binding LatestLatencyUs, StringFormat=F1}" /><Run Text=" мкс" FontSize="14" />
-          </TextBlock>
-          <TextBlock Text="Прокси DPC/ISR (waitable timer + QPC)" FontSize="11" Foreground="{StaticResource MutedText}" />
-        </StackPanel>
-      </Border>
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="4">
-        <StackPanel>
-          <TextBlock Text="Timer resolution" Foreground="{StaticResource MutedText}" />
-          <TextBlock FontSize="28" FontWeight="Bold">
-            <Run Text="{Binding LatestTimerMs, StringFormat=F3}" /><Run Text=" мс" FontSize="14" />
-          </TextBlock>
-        </StackPanel>
-      </Border>
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="4">
-        <StackPanel>
-          <TextBlock Text="CPU (app proxy)" Foreground="{StaticResource MutedText}" />
-          <TextBlock FontSize="28" FontWeight="Bold">
-            <Run Text="{Binding LatestCpu, StringFormat=F1}" /><Run Text=" %" FontSize="14" />
-          </TextBlock>
-        </StackPanel>
-      </Border>
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="4">
-        <StackPanel>
-          <TextBlock Text="RAM used" Foreground="{StaticResource MutedText}" />
-          <TextBlock FontSize="28" FontWeight="Bold">
-            <Run Text="{Binding LatestMemMb, StringFormat=F0}" /><Run Text=" МБ" FontSize="14" />
-          </TextBlock>
-          <TextBlock Text="{Binding PowerSourceText}" FontSize="11" Foreground="{StaticResource MutedText}" />
-        </StackPanel>
-      </Border>
-    </UniformGrid>
+    <Border Margin="0,0,0,16" CornerRadius="14" Padding="14"
+            Background="#33F43F5E" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1"
+            Visibility="{Binding HasActiveAlert, Converter={StaticResource BoolToVis}}">
+      <DockPanel>
+        <Button DockPanel.Dock="Right" Content="DISMISS" Style="{StaticResource GhostButton}"
+                Command="{Binding DismissAlertCommand}" />
+        <TextBlock Text="{Binding AlertBanner}" TextWrapping="Wrap" FontWeight="SemiBold" VerticalAlignment="Center" />
+      </DockPanel>
+    </Border>
 
-    <TextBlock Text="Последние сэмплы" FontWeight="SemiBold" Margin="0,16,0,8" />
-    <ListView ItemsSource="{Binding Samples}" Height="280"
-              materialDesign:DataGridAssist.CellPadding="4">
-      <ListView.View>
-        <GridView>
-          <GridViewColumn Header="Время" Width="160"
-                          DisplayMemberBinding="{Binding Timestamp, StringFormat=HH:mm:ss.fff}" />
-          <GridViewColumn Header="Latency мкс" Width="100"
-                          DisplayMemberBinding="{Binding SchedulingLatencyUs, StringFormat=F1}" />
-          <GridViewColumn Header="Timer мс" Width="90"
-                          DisplayMemberBinding="{Binding TimerResolutionMs, StringFormat=F3}" />
-          <GridViewColumn Header="CPU %" Width="70"
-                          DisplayMemberBinding="{Binding CpuUsagePercent, StringFormat=F1}" />
-          <GridViewColumn Header="RAM МБ" Width="90"
-                          DisplayMemberBinding="{Binding UsedMemoryMb, StringFormat=F0}" />
-        </GridView>
-      </ListView.View>
-    </ListView>
+    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
+      <StackPanel>
+        <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" Margin="0,0,0,8" />
+        <TextBlock Text="{Binding SessionSummary}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
+                   Foreground="{StaticResource PrimaryText}" LineHeight="18" />
+      </StackPanel>
+    </Border>
+
+    <Border Style="{StaticResource GlassCard}" Padding="24" Margin="0,0,0,16" CornerRadius="20">
+      <DockPanel>
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+          <StackPanel>
+            <TextBlock Text="Latency History" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource MutedText}" />
+            <TextBlock Text="SCHEDULING / DPC PROXY" FontSize="10" FontFamily="Consolas"
+                       Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+          </StackPanel>
+          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+            <TextBlock Text="{Binding LatencyQuality}" FontSize="11" FontWeight="SemiBold"
+                       Foreground="{StaticResource AccentBrush}" />
+          </Border>
+        </DockPanel>
+        <Border CornerRadius="12" ClipToBounds="True" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1" Margin="0,0,0,14">
+          <ctrl:LatencyWaveform Height="230" Values="{Binding LatencySeries}"
+                                MaxValue="400" GreenThreshold="50" YellowThreshold="150" UnitLabel="µs" />
+        </Border>
+        <UniformGrid Columns="4">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+            <StackPanel>
+              <TextBlock Text="NOW" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding LatestLatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" Foreground="{StaticResource AccentBrush}" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+            <StackPanel>
+              <TextBlock Text="PEAK" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding PeakLatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
+            <StackPanel>
+              <TextBlock Text="P99" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding P99LatencyUs, StringFormat={}{0:F0} µs}" FontSize="18" FontFamily="Consolas" />
+            </StackPanel>
+          </Border>
+          <Border Style="{StaticResource MetricChip}" Margin="0" HorizontalAlignment="Stretch">
+            <StackPanel>
+              <TextBlock Text="RED %" FontSize="10" Foreground="{StaticResource MutedText}" />
+              <TextBlock Text="{Binding PercentInRed, StringFormat={}{0:F1}%}" FontSize="18" FontFamily="Consolas" Foreground="{StaticResource DangerBrush}" />
+            </StackPanel>
+          </Border>
+        </UniformGrid>
+      </DockPanel>
+    </Border>
+
+    <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderBrushSubtle}"
+            BorderThickness="1" CornerRadius="20" Padding="8" MinHeight="200">
+      <DockPanel>
+        <Border DockPanel.Dock="Top" Padding="16,12" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
+          <TextBlock Text="HIGH LATENCY LOG" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+        </Border>
+        <ListBox ItemsSource="{Binding Spikes}" Style="{StaticResource ModernListBox}"
+                 ItemContainerStyle="{StaticResource ModernListBoxItem}" MaxHeight="240">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding DisplayLine}" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                         TextWrapping="Wrap" Foreground="{StaticResource PrimaryText}" />
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+    </Border>
   </StackPanel>
 </UserControl>

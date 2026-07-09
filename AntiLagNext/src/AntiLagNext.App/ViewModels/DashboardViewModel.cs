@@ -1,16 +1,13 @@
 using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
-using AntiLagNext.Core.Settings;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
 
 namespace AntiLagNext.App.ViewModels;
 
-/// <summary>
-/// Главная панель: переключатели оптимизаций, статус, применить / сбросить.
-/// </summary>
+/// <summary>Главная панель — layout mockup SYSTEM STATUS + реальные метрики.</summary>
 public partial class DashboardViewModel : ViewModelBase
 {
     private readonly IProfileService _profiles;
@@ -21,6 +18,8 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IGpuManager _gpu;
     private readonly ISettingsService _settings;
     private readonly IBenchmarkService _benchmark;
+    private readonly IMonitoringService _monitoring;
+    private readonly MonitoringViewModel _monitoringVm;
 
     [ObservableProperty] private bool _enableTimer = true;
     [ObservableProperty] private double _timerTargetMs = 0.5;
@@ -37,8 +36,17 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private string _gpuVendor = "—";
     [ObservableProperty] private string _benchmarkSummary = string.Empty;
     [ObservableProperty] private bool _optimizationsActive;
+    [ObservableProperty] private string _activeProfileName = "—";
+    [ObservableProperty] private string _powerSchemeName = "—";
+    [ObservableProperty] private double _liveLatencyUs;
+    [ObservableProperty] private double _liveTimerMs;
+    [ObservableProperty] private string _primaryCtaLabel = "ENABLE OPTIMIZATION";
+    [ObservableProperty] private string _latencyHint = "Запустите мониторинг для live-данных";
 
     public Array ParkingModes => Enum.GetValues(typeof(CoreParkingMode));
+
+    /// <summary>Серия latency с Monitoring (общий сервис сэмплов).</summary>
+    public System.Collections.ObjectModel.ObservableCollection<double> LatencySeries => _monitoringVm.LatencySeries;
 
     public DashboardViewModel(
         IProfileService profiles,
@@ -48,7 +56,9 @@ public partial class DashboardViewModel : ViewModelBase
         ICoreParkingManager parking,
         IGpuManager gpu,
         ISettingsService settings,
-        IBenchmarkService benchmark)
+        IBenchmarkService benchmark,
+        IMonitoringService monitoring,
+        MonitoringViewModel monitoringVm)
     {
         _profiles = profiles;
         _safety = safety;
@@ -58,17 +68,33 @@ public partial class DashboardViewModel : ViewModelBase
         _gpu = gpu;
         _settings = settings;
         _benchmark = benchmark;
+        _monitoring = monitoring;
+        _monitoringVm = monitoringVm;
 
         _timer.StateChanged += (_, s) =>
             App.Current.Dispatcher.Invoke(() => RefreshStatusFromSystem(s));
 
+        _monitoring.SampleArrived += (_, s) =>
+            App.Current.Dispatcher.Invoke(() =>
+            {
+                LiveLatencyUs = s.SchedulingLatencyUs;
+                LiveTimerMs = s.TimerResolutionMs;
+                LatencyHint = s.SchedulingLatencyUs <= 50
+                    ? "Зелёная зона · low scheduling latency"
+                    : s.SchedulingLatencyUs <= 150
+                        ? "Жёлтая зона · приемлемо"
+                        : "Красная зона · высокий latency";
+            });
+
         LoadFromActiveProfile();
         RefreshSystemInfo();
+        UpdateCta();
     }
 
     public void LoadFromActiveProfile()
     {
         var p = _settings.Current.GetActiveProfile();
+        ActiveProfileName = p.Name;
         EnableTimer = p.EnableTimer;
         TimerTargetMs = p.TimerTargetMs;
         EnablePowerScheme = p.EnablePowerScheme;
@@ -103,10 +129,35 @@ public partial class DashboardViewModel : ViewModelBase
             else schemeName = g.ToString()[..8] + "…";
         }
 
+        PowerSchemeName = schemeName;
         OptimizationsActive = s.IsActive || schemeName is "High Performance" or "Ultimate Performance";
+        LiveTimerMs = s.IsActive && s.ActualMs > 0 ? s.ActualMs : LiveTimerMs;
         StatusLine = s.IsActive
-            ? $"Оптимизации активны: таймер {s.ActualMs:F3} мс, питание {schemeName}"
-            : $"Состояние: таймер {(s.IsActive ? s.ActualMs.ToString("F3") + " мс" : "по умолчанию")}, питание {schemeName}";
+            ? $"Оптимизации активны · таймер {s.ActualMs:F3} мс · {schemeName}"
+            : $"Standby · таймер по умолчанию · {schemeName}";
+        UpdateCta();
+    }
+
+    private void UpdateCta()
+    {
+        PrimaryCtaLabel = OptimizationsActive ? "RE-CALIBRATE SYSTEM" : "ENABLE OPTIMIZATION";
+    }
+
+    partial void OnOptimizationsActiveChanged(bool value) => UpdateCta();
+
+    /// <summary>Master CTA: Apply when off, re-apply active profile when on (or Reset via secondary).</summary>
+    [RelayCommand]
+    private async Task ToggleMasterAsync()
+    {
+        if (OptimizationsActive)
+        {
+            // Re-calibrate = apply active profile / current toggles again
+            await ApplyAsync();
+        }
+        else
+        {
+            await ApplyAsync();
+        }
     }
 
     [RelayCommand]
@@ -118,9 +169,15 @@ public partial class DashboardViewModel : ViewModelBase
         try
         {
             var profile = BuildProfileFromToggles();
+            // Prefer named active profile if custom toggles match load
+            var active = _settings.Current.GetActiveProfile();
+            profile.Name = active.Name;
+            profile.MemoryCleanupExclusions = active.MemoryCleanupExclusions;
+            profile.GameExecutables = active.GameExecutables;
+
             var result = await _profiles.ApplyAsync(profile);
             StatusMessage = result.Message;
-            OptimizationsActive = result.Success;
+            OptimizationsActive = result.Success || _timer.CurrentState.IsActive;
             RefreshStatusFromSystem(_timer.CurrentState);
             Log.Information("Apply: {Msg}", result.Message);
         }
@@ -167,7 +224,6 @@ public partial class DashboardViewModel : ViewModelBase
             {
                 BenchmarkSummary = result.Value.Summary;
                 StatusMessage = $"Рекомендация: {result.Value.RecommendedProfile}";
-                // Применить рекомендованный профиль в toggles
                 var preset = OptimizationProfile.CreatePreset(result.Value.RecommendedProfile);
                 EnableTimer = preset.EnableTimer;
                 TimerTargetMs = preset.TimerTargetMs;
@@ -177,6 +233,7 @@ public partial class DashboardViewModel : ViewModelBase
                 EnableGameMode = preset.EnableGameModeTweak;
                 EnableHags = preset.EnableHags;
                 EnableGpuLowLatency = preset.EnableGpuLowLatency;
+                ActiveProfileName = preset.Name;
 
                 _settings.Current.FirstRunCompleted = true;
                 _settings.Save();

@@ -6,20 +6,10 @@
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <!-- Material Design: тёмная тема по умолчанию -->
-        <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="DeepPurple" SecondaryColor="Lime" />
+        <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="Cyan" SecondaryColor="Lime" />
         <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
+        <ResourceDictionary Source="Themes/DesignSystem.xaml" />
       </ResourceDictionary.MergedDictionaries>
-
-      <!-- Общие стили -->
-      <SolidColorBrush x:Key="NavBackground" Color="#1E1E2E" />
-      <SolidColorBrush x:Key="ContentBackground" Color="#121218" />
-      <SolidColorBrush x:Key="CardBackground" Color="#1A1A28" />
-      <SolidColorBrush x:Key="AccentBrush" Color="#7C4DFF" />
-      <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50" />
-      <SolidColorBrush x:Key="WarningBrush" Color="#FFC107" />
-      <SolidColorBrush x:Key="DangerBrush" Color="#F44336" />
-      <SolidColorBrush x:Key="MutedText" Color="#9E9EBE" />
     </ResourceDictionary>
   </Application.Resources>
 </Application>

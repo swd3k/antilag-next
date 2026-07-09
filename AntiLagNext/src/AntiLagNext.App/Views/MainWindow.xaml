@@ -5,100 +5,171 @@
         xmlns:vm="clr-namespace:AntiLagNext.App.ViewModels"
         xmlns:views="clr-namespace:AntiLagNext.App.Views"
         Title="AntiLag Next"
-        Height="720" Width="1100"
-        MinHeight="560" MinWidth="900"
+        Height="800" Width="1280"
+        MinHeight="640" MinWidth="1000"
         WindowStartupLocation="CenterScreen"
         Icon="pack://application:,,,/Assets/app.ico"
-        Background="{DynamicResource MaterialDesign.Brush.Background}"
-        TextElement.Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
+        Background="{StaticResource ContentBackground}"
+        TextElement.Foreground="{StaticResource PrimaryText}"
+        FontFamily="Segoe UI Variable, Segoe UI"
         StateChanged="OnStateChanged"
         Closing="OnClosing">
 
   <Window.Resources>
-    <BooleanToVisibilityConverter x:Key="BoolToVis" />
-    <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
-      <views:DashboardView />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type vm:ProfilesViewModel}">
-      <views:ProfilesView />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type vm:MonitoringViewModel}">
-      <views:MonitoringView />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type vm:BackupsViewModel}">
-      <views:BackupsView />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type vm:TipsViewModel}">
-      <views:TipsView />
-    </DataTemplate>
-    <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
-      <views:SettingsView />
-    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:DashboardViewModel}"><views:DashboardView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:ProfilesViewModel}"><views:ProfilesView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:MonitoringViewModel}"><views:MonitoringView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:BackupsViewModel}"><views:BackupsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:TipsViewModel}"><views:TipsView /></DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SettingsViewModel}"><views:SettingsView /></DataTemplate>
   </Window.Resources>
 
   <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="220" />
+      <ColumnDefinition Width="256" />
       <ColumnDefinition Width="*" />
     </Grid.ColumnDefinitions>
 
-    <Border Grid.Column="0" Background="{StaticResource NavBackground}" Padding="8">
+    <!-- ===== SIDEBAR (mockup) ===== -->
+    <Border Grid.Column="0" Background="{StaticResource NavBackground}"
+            BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,1,0">
       <DockPanel>
-        <StackPanel DockPanel.Dock="Top" Margin="8,12,8,16">
-          <Image Source="pack://application:,,,/Assets/logo.png"
-                 Width="72" Height="72" Stretch="Uniform"
-                 HorizontalAlignment="Center" Margin="0,0,0,8" />
-          <TextBlock Text="AntiLag Next" FontSize="20" FontWeight="Bold"
-                     Foreground="White" HorizontalAlignment="Center" />
-          <TextBlock Text="latency · fps · control" FontSize="11"
-                     Foreground="{StaticResource MutedText}" HorizontalAlignment="Center" Margin="0,4,0,0" />
-        </StackPanel>
+        <!-- Brand -->
+        <Border DockPanel.Dock="Top" Height="64" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1" Padding="20,0">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Width="32" Height="32" CornerRadius="8" Background="{StaticResource AccentBrush}" Margin="0,0,12,0">
+              <Border.Effect>
+                <DropShadowEffect Color="#06B6D4" BlurRadius="15" ShadowDepth="0" Opacity="0.45" />
+              </Border.Effect>
+              <Image Source="pack://application:,,,/Assets/logo.png" Margin="4" Stretch="Uniform" />
+            </Border>
+            <TextBlock VerticalAlignment="Center" FontSize="18" FontWeight="Light" Foreground="White">
+              <Run Text="ANTILAG " /><Run Text="NEXT" FontWeight="Medium" Foreground="{StaticResource AccentBrush}" />
+            </TextBlock>
+          </StackPanel>
+        </Border>
 
-        <StackPanel DockPanel.Dock="Bottom" Margin="8">
-          <TextBlock Text="{Binding Dashboard.StatusLine}" TextWrapping="Wrap"
-                     FontSize="11" Foreground="{StaticResource MutedText}" Margin="0,0,0,8" />
-        </StackPanel>
-
-        <StackPanel>
-          <Button Content="Панель" Style="{StaticResource MaterialDesignFlatButton}"
-                  Command="{Binding NavigateCommand}" CommandParameter="Dashboard"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
-          <Button Content="Профили" Style="{StaticResource MaterialDesignFlatButton}"
-                  Command="{Binding NavigateCommand}" CommandParameter="Profiles"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
-          <Button Content="Мониторинг" Style="{StaticResource MaterialDesignFlatButton}"
-                  Command="{Binding NavigateCommand}" CommandParameter="Monitoring"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
-          <Button Content="Бэкапы" Style="{StaticResource MaterialDesignFlatButton}"
-                  Command="{Binding NavigateCommand}" CommandParameter="Backups"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
-          <Button Content="Подсказки" Style="{StaticResource MaterialDesignFlatButton}"
-                  Command="{Binding NavigateCommand}" CommandParameter="Tips"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
-          <Button Content="Настройки" Style="{StaticResource MaterialDesignFlatButton}"
+        <!-- Settings at bottom -->
+        <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,1,0,0" Padding="12,12">
+          <Button Style="{StaticResource NavItemButton}"
                   Command="{Binding NavigateCommand}" CommandParameter="Settings"
-                  HorizontalContentAlignment="Left" Margin="0,2" Height="40" />
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Settings}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Settings}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="CogOutline" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Settings" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
+        </Border>
+
+        <!-- Status chip -->
+        <Border DockPanel.Dock="Bottom" Margin="12,0,12,8" Padding="12" CornerRadius="12"
+                Background="#8018181B" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+          <StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+              <Ellipse Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center"
+                       Fill="{Binding Dashboard.OptimizationsActive, Converter={StaticResource StatusBrush}}" />
+              <TextBlock Text="SYSTEM" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" VerticalAlignment="Center" />
+            </StackPanel>
+            <TextBlock Text="{Binding Dashboard.StatusLine}" TextWrapping="Wrap" FontSize="11"
+                       Foreground="{StaticResource PrimaryText}" FontFamily="Cascadia Mono, Consolas" />
+          </StackPanel>
+        </Border>
+
+        <!-- Nav -->
+        <StackPanel Margin="12,20,12,0">
+          <Button Style="{StaticResource NavItemButton}"
+                  Command="{Binding NavigateCommand}" CommandParameter="Dashboard"
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Dashboard}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Dashboard}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="ChartTimelineVariant" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Dashboard" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
+
+          <Button Style="{StaticResource NavItemButton}"
+                  Command="{Binding NavigateCommand}" CommandParameter="Profiles"
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Profiles}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Profiles}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="GamepadVariantOutline" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Games &amp; Profiles" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
+
+          <Button Style="{StaticResource NavItemButton}"
+                  Command="{Binding NavigateCommand}" CommandParameter="Monitoring"
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Monitoring}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Monitoring}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="ChartBar" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Analytics" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
+
+          <Button Style="{StaticResource NavItemButton}"
+                  Command="{Binding NavigateCommand}" CommandParameter="Backups"
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Backups}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Backups}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="DatabaseClockOutline" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Backups" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
+
+          <Button Style="{StaticResource NavItemButton}"
+                  Command="{Binding NavigateCommand}" CommandParameter="Tips"
+                  Background="{Binding CurrentNavKey, Converter={StaticResource NavBg}, ConverterParameter=Tips}"
+                  Foreground="{Binding CurrentNavKey, Converter={StaticResource NavFg}, ConverterParameter=Tips}">
+            <StackPanel Orientation="Horizontal">
+              <materialDesign:PackIcon Kind="LightbulbOnOutline" Width="20" Height="20" Margin="0,0,12,0" VerticalAlignment="Center" />
+              <TextBlock Text="Tips" VerticalAlignment="Center" FontSize="13" />
+            </StackPanel>
+          </Button>
         </StackPanel>
       </DockPanel>
     </Border>
 
-    <DockPanel Grid.Column="1" Background="{StaticResource ContentBackground}">
-      <Border DockPanel.Dock="Top" Padding="20,16" Background="{StaticResource CardBackground}">
-        <TextBlock Text="{Binding CurrentPageTitle}" FontSize="22" FontWeight="SemiBold" VerticalAlignment="Center" />
-      </Border>
+    <!-- ===== MAIN ===== -->
+    <Grid Grid.Column="1" Background="{StaticResource ContentBackground}">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="*" />
+      </Grid.RowDefinitions>
 
-      <Border DockPanel.Dock="Top" Background="#2D1B4E" Padding="16" Margin="16,12,16,0"
+      <!-- First-run banner -->
+      <Border Grid.Row="0" Margin="28,20,28,0" CornerRadius="16" Padding="18"
+              BorderBrush="#4006B6D4" BorderThickness="1"
               Visibility="{Binding ShowFirstRunBanner, Converter={StaticResource BoolToVis}}">
+        <Border.Background>
+          <SolidColorBrush Color="#1A06B6D4" />
+        </Border.Background>
         <DockPanel>
-          <Button DockPanel.Dock="Right" Content="Запустить бенчмарк"
-                  Style="{StaticResource MaterialDesignRaisedButton}"
-                  Command="{Binding RunFirstBenchmarkCommand}" Margin="12,0,0,0" />
-          <TextBlock TextWrapping="Wrap" VerticalAlignment="Center"
-                     Text="Первый запуск: короткий бенчмарк latency/таймера подберёт профиль с пояснениями на русском." />
+          <Button DockPanel.Dock="Right" Content="RUN BENCHMARK" Style="{StaticResource PrimaryButton}"
+                  Command="{Binding RunFirstBenchmarkCommand}" Margin="16,0,0,0" />
+          <StackPanel VerticalAlignment="Center">
+            <TextBlock Text="FIRST RUN" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" />
+            <TextBlock Text="Короткий бенчмарк latency/таймера подберёт профиль с пояснениями."
+                       TextWrapping="Wrap" Foreground="{StaticResource MutedText}" Margin="0,4,0,0" FontSize="12" />
+          </StackPanel>
         </DockPanel>
       </Border>
 
-      <ContentControl Content="{Binding CurrentPage}" Margin="16" />
-    </DockPanel>
+      <!-- Page header + content -->
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="28,24,28,28">
+        <StackPanel MaxWidth="1120" HorizontalAlignment="Left">
+          <DockPanel Margin="0,0,0,24" LastChildFill="False">
+            <StackPanel>
+              <TextBlock Text="{Binding CurrentPageOverline}" Style="{StaticResource OverlineLabel}" />
+              <TextBlock Text="{Binding CurrentPageTitle}" Style="{StaticResource PageTitle}" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding CurrentPageSubtitle}" Style="{StaticResource PageSubtitle}" />
+            </StackPanel>
+          </DockPanel>
+
+          <ContentControl Content="{Binding CurrentPage}" />
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
   </Grid>
 </Window>

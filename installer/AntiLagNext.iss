@@ -1,0 +1,99 @@
+; AntiLag Next — Inno Setup script
+; Параметры командной строки ISCC:
+;   /DArch=x86|x64|amd64
+;   /DSourceDir=...  (папка publish)
+;   /DOutName=...    (имя Setup.exe без расширения)
+
+#ifndef Arch
+  #define Arch "x64"
+#endif
+
+#ifndef SourceDir
+  #define SourceDir "..\dist\AntiLagNext-x64-64bit"
+#endif
+
+#ifndef OutName
+  #define OutName "AntiLagNext-Setup-x64"
+#endif
+
+#define MyAppName "AntiLag Next"
+#define MyAppVersion "1.0.0"
+#define MyAppPublisher "AntiLag Next Contributors"
+#define MyAppURL "https://github.com/"
+#define MyAppExeName "AntiLagNext.exe"
+
+#if Arch == "x86"
+  #define MyArchLabel "32-bit (x86)"
+  #define MyArchitecturesAllowed "x86compatible"
+  #define MyArchitecturesInstallIn64BitMode ""
+#elif Arch == "amd64"
+  #define MyArchLabel "AMD64 (64-bit)"
+  #define MyArchitecturesAllowed "x64compatible"
+  #define MyArchitecturesInstallIn64BitMode "x64compatible"
+#else
+  #define MyArchLabel "64-bit (x64)"
+  #define MyArchitecturesAllowed "x64compatible"
+  #define MyArchitecturesInstallIn64BitMode "x64compatible"
+#endif
+
+[Setup]
+AppId={{B5C6D7E8-ALN1-4A2B-9C0D-E1F2A3B4C5D6}-{{Arch}}
+AppName={#MyAppName}
+AppVersion={#MyAppVersion}
+AppVerName={#MyAppName} {#MyAppVersion} ({#MyArchLabel})
+AppPublisher={#MyAppPublisher}
+AppPublisherURL={#MyAppURL}
+DefaultDirName={autopf}\AntiLagNext
+DefaultGroupName={#MyAppName}
+DisableProgramGroupPage=yes
+LicenseFile=..\LICENSE
+OutputDir=..\dist\installers
+OutputBaseFilename={#OutName}
+SetupIconFile=..\AntiLagNext\src\AntiLagNext.App\Assets\app.ico
+Compression=lzma2/ultra64
+SolidCompression=yes
+WizardStyle=modern
+PrivilegesRequired=admin
+PrivilegesRequiredOverridesAllowed=dialog
+MinVersion=10.0
+#if MyArchitecturesInstallIn64BitMode != ""
+ArchitecturesAllowed={#MyArchitecturesAllowed}
+ArchitecturesInstallIn64BitMode={#MyArchitecturesInstallIn64BitMode}
+#else
+ArchitecturesAllowed={#MyArchitecturesAllowed}
+#endif
+UninstallDisplayIcon={app}\{#MyAppExeName}
+UninstallDisplayName={#MyAppName} ({#MyArchLabel})
+VersionInfoVersion={#MyAppVersion}
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoDescription={#MyAppName} Setup ({#MyArchLabel})
+VersionInfoProductName={#MyAppName}
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+Name: "quicklaunchicon"; Description: "Запускать при входе в Windows"; GroupDescription: "Автозапуск:"; Flags: unchecked
+
+[Files]
+Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+[Icons]
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[Registry]
+; Автозапуск (опционально) — держит timer resolution в сессии
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AntiLagNext"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: quicklaunchicon
+
+[Run]
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
+
+[Code]
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+end;

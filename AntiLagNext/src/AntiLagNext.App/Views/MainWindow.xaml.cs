@@ -26,6 +26,9 @@ public partial class MainWindow : Window
         DataContext = vm;
         Loaded += OnLoaded;
         Closed += OnClosed;
+        // Active nav highlight on first show
+        if (vm is MainViewModel mvm)
+            mvm.NavigateCommand.Execute("Dashboard");
         InitTray();
     }
 

@@ -1,116 +1,199 @@
 <UserControl x:Class="AntiLagNext.App.Views.DashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
-  <ScrollViewer VerticalScrollBarVisibility="Auto">
-    <StackPanel>
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-        <StackPanel>
-          <TextBlock Text="{Binding StatusLine}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
-          <TextBlock Margin="0,8,0,0" Foreground="{StaticResource MutedText}">
-            <Run Text="CPU: " /><Run Text="{Binding CpuTopology}" />
-          </TextBlock>
-          <TextBlock Foreground="{StaticResource MutedText}">
-            <Run Text="GPU: " /><Run Text="{Binding GpuVendor}" />
-          </TextBlock>
-        </StackPanel>
-      </Border>
-
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
-        <StackPanel>
-          <TextBlock Text="Оптимизации" FontSize="14" FontWeight="Bold" Margin="0,0,0,12" />
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableTimer}" />
-            <StackPanel>
-              <TextBlock Text="Разрешение таймера" FontWeight="SemiBold" />
-              <TextBlock Text="Подбор стабильного 0.5–1.0 мс (NtSetTimerResolution + QPC)"
-                         FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-          <DockPanel Margin="0,4" IsEnabled="{Binding EnableTimer}">
-            <TextBlock Text="Цель, мс:" VerticalAlignment="Center" Width="80" />
-            <Slider Minimum="0.5" Maximum="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True"
-                    Value="{Binding TimerTargetMs}" Width="200" VerticalAlignment="Center" />
-            <TextBlock Text="{Binding TimerTargetMs, StringFormat=F1}" Margin="8,0,0,0" VerticalAlignment="Center" />
-          </DockPanel>
-
-          <Separator Margin="0,10" />
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnablePowerScheme}" />
-            <StackPanel>
-              <TextBlock Text="Схема High Performance" FontWeight="SemiBold" />
-              <TextBlock Text="PowerSetActiveScheme — без powercfg.exe"
-                         FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-          <CheckBox Content="Ultimate Performance (если доступна)"
-                    IsChecked="{Binding UseUltimatePerformance}"
-                    IsEnabled="{Binding EnablePowerScheme}" Margin="0,4" />
-
-          <Separator Margin="0,10" />
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableCoreParking}" />
-            <StackPanel>
-              <TextBlock Text="Парковка ядер" FontWeight="SemiBold" />
-              <TextBlock Text="CPMINCORES; учёт P/E-cores"
-                         FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-          <ComboBox ItemsSource="{Binding ParkingModes}" SelectedItem="{Binding ParkingMode}"
-                    IsEnabled="{Binding EnableCoreParking}" Width="280" Margin="0,4" />
-
-          <Separator Margin="0,10" />
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableGameMode}" />
-            <TextBlock Text="Game Mode + отключение Game DVR" VerticalAlignment="Center" FontWeight="SemiBold" />
-          </DockPanel>
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableHags}" />
-            <StackPanel>
-              <TextBlock Text="HAGS" FontWeight="SemiBold" />
-              <TextBlock Text="Hardware-accelerated GPU Scheduling (может потребовать reboot)"
-                         FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableGpuLowLatency}" />
-            <TextBlock Text="GPU Low Latency (NVIDIA/AMD)" VerticalAlignment="Center" FontWeight="SemiBold" />
-          </DockPanel>
-
-          <DockPanel Margin="0,6">
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
-                          IsChecked="{Binding EnableMemoryCleanup}" />
-            <TextBlock Text="Очистка Working Set фоновых процессов" VerticalAlignment="Center" FontWeight="SemiBold" />
-          </DockPanel>
-        </StackPanel>
-      </Border>
-
-      <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-        <Button Content="Применить оптимизации" Style="{StaticResource MaterialDesignRaisedButton}"
-                Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
-        <Button Content="Сбросить всё" Style="{StaticResource MaterialDesignOutlinedButton}"
-                Command="{Binding ResetAllCommand}" Margin="0,0,8,0" />
-        <Button Content="Бенчмарк" Style="{StaticResource MaterialDesignFlatButton}"
-                Command="{Binding RunBenchmarkCommand}" />
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             xmlns:ctrl="clr-namespace:AntiLagNext.App.Controls">
+  <StackPanel>
+    <!-- Header row: title already in shell; CTA like mockup -->
+    <DockPanel Margin="0,0,0,28">
+      <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Bottom">
+        <Button Content="{Binding PrimaryCtaLabel}" Style="{StaticResource PrimaryButton}"
+                Command="{Binding ToggleMasterCommand}" Margin="0,0,10,0" MinWidth="200" />
+        <Button Content="RESET ALL" Style="{StaticResource DangerOutlineButton}"
+                Command="{Binding ResetAllCommand}" MinWidth="120" />
       </StackPanel>
+      <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Bottom"
+                 Foreground="{StaticResource AccentBrush}" FontSize="12"
+                 FontFamily="Cascadia Mono, Consolas" TextWrapping="Wrap" MaxWidth="420" />
+    </DockPanel>
 
-      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,0,0,8" />
-
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16">
-        <TextBlock Text="{Binding BenchmarkSummary}" TextWrapping="Wrap" />
+    <!-- 3 metric cards -->
+    <UniformGrid Columns="3" Margin="0,0,0,24">
+      <Border Style="{StaticResource MetricCard}" Margin="0,0,16,0">
+        <Grid>
+          <materialDesign:PackIcon Kind="ChartTimelineVariant" Width="56" Height="56"
+                                   HorizontalAlignment="Right" VerticalAlignment="Top"
+                                   Foreground="{StaticResource AccentBrush}" Opacity="0.12" />
+          <StackPanel>
+            <DockPanel Margin="0,0,0,8">
+              <TextBlock Text="SCHEDULING LATENCY" FontSize="10" FontWeight="Bold"
+                         Foreground="{StaticResource MutedText}" />
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right">
+                <materialDesign:PackIcon Kind="Refresh" Width="12" Height="12" Margin="0,0,4,0"
+                                         Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center" />
+                <TextBlock Text="LIVE" FontSize="10" FontFamily="Consolas"
+                           Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center" />
+              </StackPanel>
+            </DockPanel>
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="{Binding LiveLatencyUs, StringFormat=F0}" FontSize="36" FontWeight="Normal"
+                         FontFamily="Cascadia Mono, Consolas" Foreground="{StaticResource AccentBrush}" />
+              <TextBlock Text=" µs" FontSize="14" FontFamily="Consolas" Foreground="{StaticResource DimText}"
+                         VerticalAlignment="Bottom" Margin="0,0,0,8" />
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+              <materialDesign:PackIcon Kind="Flash" Width="12" Height="12" Margin="0,0,4,0"
+                                       Foreground="{StaticResource AccentBrush}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding LatencyHint}" FontSize="11" FontFamily="Consolas"
+                         Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" />
+            </StackPanel>
+          </StackPanel>
+        </Grid>
       </Border>
-    </StackPanel>
-  </ScrollViewer>
+
+      <Border Style="{StaticResource MetricCard}" Margin="0,0,16,0">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock Text="TIMER RESOLUTION" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+            <materialDesign:PackIcon Kind="TimerOutline" Width="18" Height="18"
+                                     DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                     Foreground="{StaticResource MutedText}" />
+          </DockPanel>
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="{Binding LiveTimerMs, StringFormat=F3}" FontSize="36"
+                       FontFamily="Cascadia Mono, Consolas" Foreground="{StaticResource PrimaryText}" />
+            <TextBlock Text=" ms" FontSize="14" FontFamily="Consolas" Foreground="{StaticResource DimText}"
+                       VerticalAlignment="Bottom" Margin="0,0,0,8" />
+          </StackPanel>
+          <TextBlock Text="NtSetTimerResolution · target toggle ниже"
+                     FontSize="11" FontFamily="Consolas" Foreground="{StaticResource MutedText}" Margin="0,8,0,0" />
+        </StackPanel>
+      </Border>
+
+      <Border Style="{StaticResource MetricCard}">
+        <StackPanel>
+          <DockPanel Margin="0,0,0,8">
+            <TextBlock Text="ACTIVE PROFILE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+            <materialDesign:PackIcon Kind="ShieldCheck" Width="18" Height="18"
+                                     DockPanel.Dock="Right" HorizontalAlignment="Right"
+                                     Foreground="{StaticResource SuccessBrush}" />
+          </DockPanel>
+          <TextBlock Text="{Binding ActiveProfileName}" FontSize="24" FontFamily="Cascadia Mono, Consolas"
+                     Foreground="{StaticResource PrimaryText}" TextTrimming="CharacterEllipsis" />
+          <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <materialDesign:PackIcon Kind="LightningBolt" Width="12" Height="12" Margin="0,0,4,0"
+                                     Foreground="{StaticResource SuccessBrush}" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding PowerSchemeName}" FontSize="11" FontFamily="Consolas"
+                       Foreground="{StaticResource SuccessBrush}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </UniformGrid>
+
+    <!-- Chart + opt toggles -->
+    <Grid Margin="0,0,0,24">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border Grid.Column="0" Style="{StaticResource GlassCard}" Margin="0,0,20,0" Padding="24" CornerRadius="20">
+        <DockPanel>
+          <StackPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <TextBlock Text="Latency History" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource MutedText}" />
+            <TextBlock Text="LIVE SCHEDULING PROXY" FontSize="10" FontFamily="Consolas"
+                       Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+          </StackPanel>
+          <Border CornerRadius="12" ClipToBounds="True" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+            <ctrl:LatencyWaveform Height="220"
+                                  Values="{Binding LatencySeries}"
+                                  MaxValue="400"
+                                  GreenThreshold="50"
+                                  YellowThreshold="150"
+                                  UnitLabel="µs" />
+          </Border>
+        </DockPanel>
+      </Border>
+
+      <Border Grid.Column="1" Background="{StaticResource CardBackground}"
+              BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1" CornerRadius="20">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" Padding="20,16" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
+            <DockPanel>
+              <StackPanel>
+                <TextBlock Text="OPTIMIZATION TOGGLES" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+                <TextBlock Text="Текущие переключатели" FontSize="10" FontFamily="Consolas"
+                           Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+              </StackPanel>
+              <Button DockPanel.Dock="Right" Content="BENCHMARK" Style="{StaticResource GhostButton}"
+                      Command="{Binding RunBenchmarkCommand}" VerticalAlignment="Center" />
+            </DockPanel>
+          </Border>
+          <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8,4">
+            <StackPanel>
+              <Border Style="{StaticResource OptRow}" Margin="8,8,8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableTimer}" />
+                  <TextBlock Text="Timer resolution" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnablePowerScheme}" />
+                  <TextBlock Text="High Performance" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableCoreParking}" />
+                  <TextBlock Text="Core parking" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableGameMode}" />
+                  <TextBlock Text="Game Mode / DVR" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableHags}" />
+                  <TextBlock Text="HAGS" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableGpuLowLatency}" />
+                  <TextBlock Text="GPU Low Latency" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+              <Border Style="{StaticResource OptRow}" Margin="8,4,8,8">
+                <DockPanel>
+                  <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                                IsChecked="{Binding EnableMemoryCleanup}" />
+                  <TextBlock Text="Memory trim" FontWeight="SemiBold" VerticalAlignment="Center" FontSize="13" />
+                </DockPanel>
+              </Border>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+      </Border>
+    </Grid>
+
+    <!-- Benchmark result -->
+    <Border Style="{StaticResource GlassCard}"
+            Visibility="{Binding BenchmarkSummary, Converter={StaticResource StringToVis}}">
+      <StackPanel>
+        <TextBlock Text="BENCHMARK RESULT" FontSize="10" FontWeight="Bold" Foreground="{StaticResource AccentBrush}" Margin="0,0,0,8" />
+        <TextBlock Text="{Binding BenchmarkSummary}" TextWrapping="Wrap" Foreground="{StaticResource MutedText}"
+                   FontSize="12" LineHeight="20" />
+      </StackPanel>
+    </Border>
+  </StackPanel>
 </UserControl>

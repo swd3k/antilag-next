@@ -28,7 +28,16 @@ public partial class MainViewModel : ViewModelBase
     private ViewModelBase _currentPage;
 
     [ObservableProperty]
-    private string _currentPageTitle = "Панель оптимизаций";
+    private string _currentPageTitle = "SYSTEM STATUS";
+
+    [ObservableProperty]
+    private string _currentPageSubtitle = "Панель оптимизаций · latency и производительность";
+
+    [ObservableProperty]
+    private string _currentPageOverline = "SYSTEM PROTOCOL";
+
+    [ObservableProperty]
+    private string _currentNavKey = "Dashboard";
 
     [ObservableProperty]
     private bool _showFirstRunBanner;
@@ -164,33 +173,46 @@ public partial class MainViewModel : ViewModelBase
     [RelayCommand]
     private void Navigate(string page)
     {
+        CurrentNavKey = page;
         switch (page)
         {
             case "Dashboard":
                 CurrentPage = Dashboard;
-                CurrentPageTitle = "Панель оптимизаций";
+                CurrentPageOverline = "SYSTEM PROTOCOL";
+                CurrentPageTitle = "SYSTEM STATUS";
+                CurrentPageSubtitle = "Панель · оптимизации latency и производительности";
                 break;
             case "Profiles":
                 Profiles.Reload();
                 CurrentPage = Profiles;
-                CurrentPageTitle = "Профили";
+                CurrentPageOverline = "PROFILES";
+                CurrentPageTitle = "GAMES & PROFILES";
+                CurrentPageSubtitle = "Игровой · офисный · свои пресеты и список exe";
                 break;
             case "Monitoring":
                 CurrentPage = Monitoring;
-                CurrentPageTitle = "Мониторинг";
+                CurrentPageOverline = "ANALYTICS";
+                CurrentPageTitle = "LATENCY MONITOR";
+                CurrentPageSubtitle = "Scheduling / DPC proxy · пики · session stats";
                 break;
             case "Backups":
                 Backups.Reload();
                 CurrentPage = Backups;
-                CurrentPageTitle = "История бэкапов";
+                CurrentPageOverline = "SAFETY";
+                CurrentPageTitle = "BACKUP HISTORY";
+                CurrentPageSubtitle = "Снимки реестра и power plan · точечный откат";
                 break;
             case "Tips":
                 CurrentPage = Tips;
-                CurrentPageTitle = "Подсказки";
+                CurrentPageOverline = "GUIDE";
+                CurrentPageTitle = "TIPS & TRADEOFFS";
+                CurrentPageSubtitle = "Что даёт каждый твик и какая цена";
                 break;
             case "Settings":
                 CurrentPage = Settings;
-                CurrentPageTitle = "Настройки";
+                CurrentPageOverline = "CONFIG";
+                CurrentPageTitle = "SETTINGS";
+                CurrentPageSubtitle = "Трей, restore point, auto-switch, мониторинг";
                 break;
         }
     }

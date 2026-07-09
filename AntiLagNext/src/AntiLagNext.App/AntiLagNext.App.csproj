@@ -8,7 +8,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- RID задаётся при publish: -r win-x86 | win-x64 | win-arm64 -->
     <SelfContained>false</SelfContained>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>

@@ -6,42 +6,47 @@
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
-      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-      <Button Content="Обновить" Style="{StaticResource MaterialDesignOutlinedButton}"
-              Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-      <Button Content="Восстановить выбранный" Style="{StaticResource MaterialDesignRaisedButton}"
-              Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,0" />
-      <Button Content="Удалить" Style="{StaticResource MaterialDesignFlatButton}"
-              Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" />
-      <Button Content="Папка бэкапов" Style="{StaticResource MaterialDesignFlatButton}"
-              Command="{Binding OpenFolderCommand}" />
+    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
+      <Button Content="REFRESH" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+      <Button Content="RESTORE" Style="{StaticResource PrimaryButton}" Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,0" />
+      <Button Content="DELETE" Style="{StaticResource DangerOutlineButton}" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" />
+      <Button Content="OPEN FOLDER" Style="{StaticResource GhostButton}" Command="{Binding OpenFolderCommand}" />
     </StackPanel>
 
     <Grid Grid.Row="1">
       <Grid.ColumnDefinitions>
-        <ColumnDefinition Width="1.4*" />
+        <ColumnDefinition Width="1.3*" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="8" Margin="0,0,8,0">
-        <ListBox ItemsSource="{Binding Backups}"
-                 SelectedItem="{Binding SelectedBackup}"
-                 DisplayMemberPath="DisplaySummary"
-                 BorderThickness="0"
-                 Background="Transparent" />
+      <Border Grid.Column="0" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderBrushSubtle}"
+              BorderThickness="1" CornerRadius="20" Margin="0,0,16,0">
+        <ListBox ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
+                 Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock Text="{Binding OperationName}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding DisplaySummary}" FontSize="11" FontFamily="Consolas"
+                           Foreground="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
       </Border>
 
-      <Border Grid.Column="1" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-          <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />
-        </ScrollViewer>
+      <Border Grid.Column="1" Style="{StaticResource GlassCard}" CornerRadius="20">
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Top" Text="SNAPSHOT DETAIL" FontSize="10" FontWeight="Bold"
+                     Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
+          <ScrollViewer>
+            <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" FontFamily="Cascadia Mono, Consolas"
+                       FontSize="12" Foreground="{StaticResource MutedText}" LineHeight="18" />
+          </ScrollViewer>
+        </DockPanel>
       </Border>
     </Grid>
-
-    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,12,0,0" TextWrapping="Wrap"
-               Foreground="{StaticResource MutedText}" />
   </Grid>
 </UserControl>
