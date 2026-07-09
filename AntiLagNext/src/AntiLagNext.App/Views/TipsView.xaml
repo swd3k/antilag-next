@@ -1,0 +1,23 @@
+<UserControl x:Class="AntiLagNext.App.Views.TipsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <ItemsControl ItemsSource="{Binding Tips}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+            <StackPanel>
+              <TextBlock Text="{Binding Title}" FontSize="15" FontWeight="Bold" />
+              <TextBlock Margin="0,8,0,0" TextWrapping="Wrap">
+                <Run FontWeight="SemiBold" Text="Польза: " /><Run Text="{Binding Benefit}" />
+              </TextBlock>
+              <TextBlock Margin="0,4,0,0" TextWrapping="Wrap" Foreground="{StaticResource WarningBrush}">
+                <Run FontWeight="SemiBold" Text="Цена: " /><Run Text="{Binding Tradeoff}" />
+              </TextBlock>
+            </StackPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </ScrollViewer>
+</UserControl>

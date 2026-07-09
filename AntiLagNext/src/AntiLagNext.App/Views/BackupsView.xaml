@@ -1,0 +1,47 @@
+<UserControl x:Class="AntiLagNext.App.Views.BackupsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+      <Button Content="Обновить" Style="{StaticResource MaterialDesignOutlinedButton}"
+              Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+      <Button Content="Восстановить выбранный" Style="{StaticResource MaterialDesignRaisedButton}"
+              Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,0" />
+      <Button Content="Удалить" Style="{StaticResource MaterialDesignFlatButton}"
+              Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" />
+      <Button Content="Папка бэкапов" Style="{StaticResource MaterialDesignFlatButton}"
+              Command="{Binding OpenFolderCommand}" />
+    </StackPanel>
+
+    <Grid Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="1.4*" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+
+      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="8" Margin="0,0,8,0">
+        <ListBox ItemsSource="{Binding Backups}"
+                 SelectedItem="{Binding SelectedBackup}"
+                 DisplayMemberPath="DisplaySummary"
+                 BorderThickness="0"
+                 Background="Transparent" />
+      </Border>
+
+      <Border Grid.Column="1" Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+          <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" />
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <TextBlock Grid.Row="2" Text="{Binding StatusMessage}" Margin="0,12,0,0" TextWrapping="Wrap"
+               Foreground="{StaticResource MutedText}" />
+  </Grid>
+</UserControl>

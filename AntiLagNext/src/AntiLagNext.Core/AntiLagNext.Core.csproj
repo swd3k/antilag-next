@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AntiLagNext.Core — доменный слой и контракты.
+  Не зависит ни от UI, ни от платформы, ни от Infrastructure (чистый .NET 8).
+  Содержит: модели данных, интерфейсы сервисов оптимизации, настройки приложения.
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>AntiLagNext.Core</RootNamespace>
+    <AssemblyName>AntiLagNext.Core</AssemblyName>
+    <!-- Это библиотека классов — генерируем документацию API -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Microsoft.Win32.Registry нужен для RegistryBackupEntry.RootHive (маппинг кустов реестра).
+       На Windows входит в состав, но явная ссылка делает Core переносимым и для тестов. -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore AntiLagNext/AntiLagNext.sln
+
+      - name: Build
+        run: dotnet build AntiLagNext/AntiLagNext.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test AntiLagNext/tests/AntiLagNext.Core.Tests/AntiLagNext.Core.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Smoke tests (Win32)
+        run: dotnet test AntiLagNext/tests/AntiLagNext.SmokeTests/AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
+
+      - name: Publish
+        run: >
+          dotnet publish AntiLagNext/src/AntiLagNext.App/AntiLagNext.App.csproj
+          -c Release -r win-x64 --self-contained false
+          -o dist/AntiLagNext
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntiLagNext-win-x64
+          path: dist/AntiLagNext

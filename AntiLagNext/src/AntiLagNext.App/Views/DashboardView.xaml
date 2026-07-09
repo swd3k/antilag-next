@@ -1,0 +1,116 @@
+<UserControl x:Class="AntiLagNext.App.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+  <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <StackPanel>
+      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="{Binding StatusLine}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" />
+          <TextBlock Margin="0,8,0,0" Foreground="{StaticResource MutedText}">
+            <Run Text="CPU: " /><Run Text="{Binding CpuTopology}" />
+          </TextBlock>
+          <TextBlock Foreground="{StaticResource MutedText}">
+            <Run Text="GPU: " /><Run Text="{Binding GpuVendor}" />
+          </TextBlock>
+        </StackPanel>
+      </Border>
+
+      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+        <StackPanel>
+          <TextBlock Text="Оптимизации" FontSize="14" FontWeight="Bold" Margin="0,0,0,12" />
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableTimer}" />
+            <StackPanel>
+              <TextBlock Text="Разрешение таймера" FontWeight="SemiBold" />
+              <TextBlock Text="Подбор стабильного 0.5–1.0 мс (NtSetTimerResolution + QPC)"
+                         FontSize="11" Foreground="{StaticResource MutedText}" />
+            </StackPanel>
+          </DockPanel>
+          <DockPanel Margin="0,4" IsEnabled="{Binding EnableTimer}">
+            <TextBlock Text="Цель, мс:" VerticalAlignment="Center" Width="80" />
+            <Slider Minimum="0.5" Maximum="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                    Value="{Binding TimerTargetMs}" Width="200" VerticalAlignment="Center" />
+            <TextBlock Text="{Binding TimerTargetMs, StringFormat=F1}" Margin="8,0,0,0" VerticalAlignment="Center" />
+          </DockPanel>
+
+          <Separator Margin="0,10" />
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnablePowerScheme}" />
+            <StackPanel>
+              <TextBlock Text="Схема High Performance" FontWeight="SemiBold" />
+              <TextBlock Text="PowerSetActiveScheme — без powercfg.exe"
+                         FontSize="11" Foreground="{StaticResource MutedText}" />
+            </StackPanel>
+          </DockPanel>
+          <CheckBox Content="Ultimate Performance (если доступна)"
+                    IsChecked="{Binding UseUltimatePerformance}"
+                    IsEnabled="{Binding EnablePowerScheme}" Margin="0,4" />
+
+          <Separator Margin="0,10" />
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableCoreParking}" />
+            <StackPanel>
+              <TextBlock Text="Парковка ядер" FontWeight="SemiBold" />
+              <TextBlock Text="CPMINCORES; учёт P/E-cores"
+                         FontSize="11" Foreground="{StaticResource MutedText}" />
+            </StackPanel>
+          </DockPanel>
+          <ComboBox ItemsSource="{Binding ParkingModes}" SelectedItem="{Binding ParkingMode}"
+                    IsEnabled="{Binding EnableCoreParking}" Width="280" Margin="0,4" />
+
+          <Separator Margin="0,10" />
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableGameMode}" />
+            <TextBlock Text="Game Mode + отключение Game DVR" VerticalAlignment="Center" FontWeight="SemiBold" />
+          </DockPanel>
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableHags}" />
+            <StackPanel>
+              <TextBlock Text="HAGS" FontWeight="SemiBold" />
+              <TextBlock Text="Hardware-accelerated GPU Scheduling (может потребовать reboot)"
+                         FontSize="11" Foreground="{StaticResource MutedText}" />
+            </StackPanel>
+          </DockPanel>
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableGpuLowLatency}" />
+            <TextBlock Text="GPU Low Latency (NVIDIA/AMD)" VerticalAlignment="Center" FontWeight="SemiBold" />
+          </DockPanel>
+
+          <DockPanel Margin="0,6">
+            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                          IsChecked="{Binding EnableMemoryCleanup}" />
+            <TextBlock Text="Очистка Working Set фоновых процессов" VerticalAlignment="Center" FontWeight="SemiBold" />
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+        <Button Content="Применить оптимизации" Style="{StaticResource MaterialDesignRaisedButton}"
+                Command="{Binding ApplyCommand}" Margin="0,0,8,0" />
+        <Button Content="Сбросить всё" Style="{StaticResource MaterialDesignOutlinedButton}"
+                Command="{Binding ResetAllCommand}" Margin="0,0,8,0" />
+        <Button Content="Бенчмарк" Style="{StaticResource MaterialDesignFlatButton}"
+                Command="{Binding RunBenchmarkCommand}" />
+      </StackPanel>
+
+      <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Margin="0,0,0,8" />
+
+      <Border Background="{StaticResource CardBackground}" CornerRadius="8" Padding="16">
+        <TextBlock Text="{Binding BenchmarkSummary}" TextWrapping="Wrap" />
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

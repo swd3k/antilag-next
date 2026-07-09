@@ -1,0 +1,49 @@
+# Build
+**/bin/
+**/obj/
+**/out/
+**/publish/
+dist/
+*.zip
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.DotSettings.user
+
+# Native
+**/cmake-build-*/
+**/build/
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
+!Directory.Build.props
+
+# Logs / local data
+*.log
+logs/
+data/
+**/AntiLagNext.portable
+
+# OS / IDE
+Thumbs.db
+Desktop.ini
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Secrets / local
+*.pfx
+*.snk
+.env
+.env.*
+
+# AI / agent session clutter
+.zcode/
+.rsrc/
+.text
