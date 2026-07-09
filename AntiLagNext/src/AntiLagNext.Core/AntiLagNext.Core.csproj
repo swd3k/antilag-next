@@ -10,8 +10,9 @@
     <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>AntiLagNext.Core</RootNamespace>
     <AssemblyName>AntiLagNext.Core</AssemblyName>
-    <!-- Это библиотека классов — генерируем документацию API -->
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Registry helpers are Windows-only; Core stays net8.0 for unit tests -->
+    <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
   <!-- Microsoft.Win32.Registry нужен для RegistryBackupEntry.RootHive (маппинг кустов реестра).
