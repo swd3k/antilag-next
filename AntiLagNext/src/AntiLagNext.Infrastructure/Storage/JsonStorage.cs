@@ -16,7 +16,10 @@ public static class JsonStorage
         Converters = { new JsonStringEnumConverter() }
     };
 
-    /// <summary>Сохранить объект в файл атомарно.</summary>
+    /// <summary>
+    /// Сохранить объект в файл атомарно: write → .tmp, then File.Replace / Move.
+    /// Never delete the target before the write succeeds (crash-safe).
+    /// </summary>
     public static void Save<T>(string path, T value)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -24,13 +27,18 @@ public static class JsonStorage
         using (var fs = File.Create(tmp))
         {
             JsonSerializer.Serialize(fs, value, Options);
+            fs.Flush(flushToDisk: true);
         }
-        // Atomic move (если целевой на другом томе — fallback на replace)
+
         if (File.Exists(path))
         {
-            File.Delete(path);
+            // Atomic replace on same volume; no window where target is missing
+            File.Replace(tmp, path, destinationBackupFileName: null, ignoreMetadataErrors: true);
         }
-        File.Move(tmp, path);
+        else
+        {
+            File.Move(tmp, path);
+        }
     }
 
     /// <summary>Загрузить объект из файла; null/default если файла нет.</summary>

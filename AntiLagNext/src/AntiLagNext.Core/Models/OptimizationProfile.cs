@@ -74,7 +74,7 @@ public sealed class OptimizationProfile
         {
             Name = "Игровой",
             Kind = ProfileKind.Gaming,
-            Description = "Максимальная отзывчивость: таймер 0.5 мс, High Performance, парковка отключена, Game Mode/HAGS. Выше энергопотребление и температура.",
+            Description = "Максимальная отзывчивость: таймер 0.5 мс, High Performance, все ядра активны, Game Mode/HAGS. Выше энергопотребление и температура.",
             EnableTimer = true,
             TimerTargetMs = 0.5,
             EnablePowerScheme = true,
@@ -91,7 +91,7 @@ public sealed class OptimizationProfile
         {
             Name = "Офисный",
             Kind = ProfileKind.Office,
-            Description = "Мягкие настройки для повседневной работы: таймер 1.0 мс, High Performance, парковка P-cores активна, E-cores не трогаем. Тише и прохладнее.",
+            Description = "Мягкие настройки для повседневной работы: таймер 1.0 мс, High Performance, P-cores активны, E-cores в покое. Тише и прохладнее.",
             EnableTimer = true,
             TimerTargetMs = 1.0,
             EnablePowerScheme = true,
@@ -103,6 +103,23 @@ public sealed class OptimizationProfile
             EnableMemoryCleanup = false,
             EnableGpuLowLatency = false,
             MaxPreRenderedFrames = 0,
+        },
+        ProfileKind.MaxPerformance => new OptimizationProfile
+        {
+            Name = "Максимальная производительность",
+            Kind = ProfileKind.MaxPerformance,
+            Description = "Ultimate Performance (если доступна), таймер 0.5 мс, все ядра, Game Mode/HAGS/GPU LLM. Максимум тепла и потребления.",
+            EnableTimer = true,
+            TimerTargetMs = 0.5,
+            EnablePowerScheme = true,
+            UseUltimatePerformance = true,
+            EnableCoreParkingControl = true,
+            CoreParkingMode = CoreParkingMode.AllActive,
+            EnableGameModeTweak = true,
+            EnableHags = true,
+            EnableMemoryCleanup = true,
+            EnableGpuLowLatency = true,
+            MaxPreRenderedFrames = 1,
         },
         _ => new OptimizationProfile
         {

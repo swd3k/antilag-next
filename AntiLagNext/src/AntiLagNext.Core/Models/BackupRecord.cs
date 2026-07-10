@@ -71,8 +71,23 @@ public sealed class PowerBackupEntry
 }
 
 /// <summary>
+/// Снимок типа запуска службы Windows (SCM Start type) перед изменением.
+/// </summary>
+public sealed class ServiceBackupEntry
+{
+    /// <summary>Имя службы (как в SCM, напр. "SysMain").</summary>
+    public string ServiceName { get; set; } = string.Empty;
+
+    /// <summary>Исходный Start type: 2=Auto, 3=Manual, 4=Disabled (SERVICE_* constants).</summary>
+    public int OriginalStartType { get; set; }
+
+    /// <summary>Была ли служба запущена до изменения (для info; restore only adjusts Start).</summary>
+    public bool WasRunning { get; set; }
+}
+
+/// <summary>
 /// Полная запись бэкапа для одной операции «Перед изменениями».
-/// Содержит снимок всех изменённых значений реестра и power-plan, а также активную схему до изменений.
+/// Содержит снимок всех изменённых значений реестра, power-plan и служб.
 /// </summary>
 public sealed class BackupRecord
 {
@@ -91,6 +106,9 @@ public sealed class BackupRecord
     /// <summary>Изменённые значения power-plan.</summary>
     public List<PowerBackupEntry> PowerEntries { get; set; } = new();
 
+    /// <summary>Изменённые типы запуска служб.</summary>
+    public List<ServiceBackupEntry> ServiceEntries { get; set; } = new();
+
     /// <summary>Создана ли точка восстановления системы (System Restore Point).</summary>
     public bool SystemRestorePointCreated { get; set; }
 
@@ -105,6 +123,6 @@ public sealed class BackupRecord
     [JsonIgnore]
     public string DisplaySummary =>
         $"{CreatedUtc.ToLocalTime():yyyy-MM-dd HH:mm} · {OperationName} · " +
-        $"рег:{RegistryEntries.Count} power:{PowerEntries.Count}" +
+        $"рег:{RegistryEntries.Count} power:{PowerEntries.Count} svc:{ServiceEntries.Count}" +
         (SystemRestorePointCreated ? " · RP✓" : "");
 }

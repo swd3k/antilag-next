@@ -10,21 +10,29 @@
     </ItemsControl.ItemsPanel>
     <ItemsControl.ItemTemplate>
       <DataTemplate>
-        <Border Style="{StaticResource GlassCard}" Margin="0,0,16,16" CornerRadius="20" MinHeight="170">
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,16,16" CornerRadius="16"
+                Padding="18" MinHeight="200" VerticalAlignment="Stretch">
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-              <Border Width="36" Height="36" CornerRadius="10" Background="#1A06B6D4" Margin="0,0,12,0">
+              <Border Width="36" Height="36" CornerRadius="10" Background="#1A00BFFF" Margin="0,0,12,0">
                 <materialDesign:PackIcon Kind="LightbulbOnOutline" Width="18" Height="18"
                                          HorizontalAlignment="Center" VerticalAlignment="Center"
-                                         Foreground="{StaticResource AccentBrush}" />
+                                         Foreground="{DynamicResource AccentBrush}" />
               </Border>
-              <TextBlock Text="{Binding Title}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"
-                         VerticalAlignment="Center" />
+              <TextBlock Text="{Binding Title, Mode=OneWay}" FontSize="14" FontWeight="SemiBold"
+                         TextWrapping="Wrap" VerticalAlignment="Center" LineHeight="20"
+                         Foreground="{DynamicResource PrimaryText}" />
             </StackPanel>
-            <TextBlock Text="BENEFIT" FontSize="10" FontWeight="Bold" Foreground="{StaticResource SuccessBrush}" Margin="0,0,0,4" />
-            <TextBlock Text="{Binding Benefit}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource PrimaryText}" LineHeight="18" />
-            <TextBlock Text="TRADEOFF" FontSize="10" FontWeight="Bold" Foreground="{StaticResource WarningBrush}" Margin="0,12,0,4" />
-            <TextBlock Text="{Binding Tradeoff}" TextWrapping="Wrap" FontSize="12" Foreground="{StaticResource MutedText}" LineHeight="18" />
+            <TextBlock FontSize="10" FontWeight="Bold"
+                       Foreground="{DynamicResource SuccessBrush}" Margin="0,0,0,4"
+                       Text="{Binding DataContext.LabelBenefit, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            <TextBlock Text="{Binding Benefit, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource PrimaryText}" LineHeight="18" MinHeight="40" />
+            <TextBlock FontSize="10" FontWeight="Bold"
+                       Foreground="{DynamicResource WarningBrush}" Margin="0,12,0,4"
+                       Text="{Binding DataContext.LabelTradeoff, RelativeSource={RelativeSource AncestorType=UserControl}}" />
+            <TextBlock Text="{Binding Tradeoff, Mode=OneWay}" TextWrapping="Wrap" FontSize="12"
+                       Foreground="{DynamicResource MutedText}" LineHeight="18" />
           </StackPanel>
         </Border>
       </DataTemplate>

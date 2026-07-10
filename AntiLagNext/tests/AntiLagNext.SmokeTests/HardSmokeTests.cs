@@ -113,7 +113,10 @@ public class HardSmokeTests : IDisposable
         var settings = Core.Settings.AppSettings.CreateDefault();
         var backup = new BackupService();
         var timer = new TimerManager();
-        var safety = new SafetyService(backup, timer, power, settings);
+        var gate = new AntiLagNext.Infrastructure.Services.SystemMutationGate();
+        var plugins = new AntiLagNext.Infrastructure.Plugins.PluginCatalog(settings, backup);
+        await plugins.LoadAsync();
+        var safety = new SafetyService(backup, timer, power, plugins, settings, gate);
 
         var before = await safety.BeforeChangesAsync("SmokeTest", CancellationToken.None);
         before.Success.Should().BeTrue(before.Message);
@@ -205,12 +208,19 @@ public class HardSmokeTests : IDisposable
         var settings = Core.Settings.AppSettings.CreateDefault();
         var backup = new BackupService();
         var timer = new TimerManager();
-        var safety = new SafetyService(backup, timer, power, settings);
+        var gate = new AntiLagNext.Infrastructure.Services.SystemMutationGate();
+        var plugins = new AntiLagNext.Infrastructure.Plugins.PluginCatalog(settings, backup);
+        await plugins.LoadAsync();
+        // Disable extension plugins for smoke (avoid HKLM MMCSS without cleanup)
+        foreach (var p in plugins.Plugins.Where(x => !x.AppliedByCore))
+            p.IsEnabled = false;
+
+        var safety = new SafetyService(backup, timer, power, plugins, settings, gate);
         var parking = new CoreParkingManager(power);
         var gameMode = new GameModeManager(backup);
         var memory = new MemoryManager();
         var gpu = new GpuManager(backup);
-        var profiles = new ProfileService(safety, timer, power, parking, gameMode, memory, gpu, backup);
+        var profiles = new ProfileService(safety, timer, power, parking, gameMode, memory, gpu, backup, plugins, gate);
 
         // Office profile is mild
         var office = OptimizationProfile.CreatePreset(Core.Enums.ProfileKind.Office);
@@ -228,8 +238,29 @@ public class HardSmokeTests : IDisposable
         // May partially fail without admin — must not throw
         apply.Should().NotBeNull();
         apply.Message.Should().NotBeNullOrWhiteSpace();
+        apply.Success.Should().BeTrue(apply.Message + " | " + apply.Detail);
 
         var reset = await profiles.RevertAsync();
+        reset.Should().NotBeNull();
+        timer.CurrentState.IsActive.Should().BeFalse("Reset must release timer");
+        AntiLagNext.Infrastructure.Storage.ActiveStateStore.IsActive().Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ResetAll_WithoutPriorApply_DoesNotThrow()
+    {
+        var power = new PowerManager();
+        var settings = Core.Settings.AppSettings.CreateDefault();
+        var backup = new BackupService();
+        var timer = new TimerManager();
+        var gate = new AntiLagNext.Infrastructure.Services.SystemMutationGate();
+        var plugins = new AntiLagNext.Infrastructure.Plugins.PluginCatalog(settings, backup);
+        await plugins.LoadAsync();
+        foreach (var p in plugins.Plugins.Where(x => !x.AppliedByCore))
+            p.IsEnabled = false;
+        var safety = new SafetyService(backup, timer, power, plugins, settings, gate);
+
+        var reset = await safety.ResetAllAsync();
         reset.Should().NotBeNull();
         timer.CurrentState.IsActive.Should().BeFalse();
     }

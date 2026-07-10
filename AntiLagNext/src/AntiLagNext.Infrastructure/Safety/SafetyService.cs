@@ -1,46 +1,49 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Models;
+using AntiLagNext.Core.Plugins;
 using AntiLagNext.Core.Settings;
 using AntiLagNext.Infrastructure.Native;
+using AntiLagNext.Infrastructure.Services;
+using AntiLagNext.Infrastructure.Storage;
 using Microsoft.Win32;
 
 namespace AntiLagNext.Infrastructure.Safety;
 
 /// <summary>
-/// Реализация <see cref="ISafetyService"/>: единая точка безопасности перед любыми изменениями.
-///
-/// Поток работы:
-/// 1. BeforeChangesAsync: создаёт точку восстановления (если включено в настройках и служба
-///    System Restore активна), открывает сессию бэкапа. Возвращает GUID сессии.
-/// 2. Сервисы оптимизации (Timer/Power/CoreParking/...) регистрируют в сессии снимки значений
-///    через IBackupService, затем изменяют систему.
-/// 3. CommitChanges: сохраняет сессию на диск.
-/// 4. ResetAllAsync: загружает последний бэкап и восстанавливает все значения, отпускает таймер,
-///    закрывает точку восстановления.
+/// Безопасность: restore point + backup session + полный Reset (timer, backup, plugins, active-state).
 /// </summary>
 public sealed class SafetyService : ISafetyService
 {
     private readonly IBackupService _backup;
     private readonly ITimerManager _timer;
     private readonly IPowerManager _power;
+    private readonly IPluginCatalog _plugins;
     private readonly AppSettings _settings;
+    private readonly SystemMutationGate _mutationGate;
     private DateTime _lastRestorePointUtc = DateTime.MinValue;
+    private long _lastSequenceNumber;
 
-    public SafetyService(IBackupService backup, ITimerManager timer, IPowerManager power, AppSettings settings)
+    public SafetyService(
+        IBackupService backup,
+        ITimerManager timer,
+        IPowerManager power,
+        IPluginCatalog plugins,
+        AppSettings settings,
+        SystemMutationGate mutationGate)
     {
         _backup = backup;
         _timer = timer;
         _power = power;
+        _plugins = plugins;
         _settings = settings;
+        _mutationGate = mutationGate;
     }
 
     public async Task<OperationResult<Guid>> BeforeChangesAsync(string operationName, CancellationToken cancellationToken = default)
     {
         try
         {
-            // 1. Точка восстановления (если включено)
             bool rpCreated = false;
             string? rpError = null;
             if (_settings.CreateRestorePoint)
@@ -50,9 +53,8 @@ public sealed class SafetyService : ISafetyService
                 rpError = rp.error;
             }
 
-            // 2. Сессия бэкапа
             var activeScheme = _power.GetActiveScheme();
-            string? schemeBefore = activeScheme.Success ? activeScheme.Value!.ToString() : null;
+            string? schemeBefore = activeScheme.Success ? activeScheme.Value.ToString() : null;
             var sessionId = _backup.BeginSession(operationName, schemeBefore);
             _backup.SetRestorePointStatus(sessionId, rpCreated, rpError);
 
@@ -73,65 +75,125 @@ public sealed class SafetyService : ISafetyService
             : OperationResult.Fail("Не удалось зафиксировать бэкап.", detail: result.Detail);
     }
 
-    public async Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default)
+    public Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default)
+        => _mutationGate.RunAsync(() => ResetAllCoreAsync(cancellationToken), cancellationToken);
+
+    private async Task<OperationResult> ResetAllCoreAsync(CancellationToken cancellationToken)
     {
+        var messages = new List<string>();
+        var errors = new List<string>();
+
         try
         {
-            var errors = new List<string>();
+            ApplySessionGuard.MarkComplete();
 
-            // 1. Отпустить таймер
+            // 1. Extension plugins first (MMCSS, mouse accel, process prio)
+            try
+            {
+                var pr = await _plugins.RevertAllExtensionsAsync(cancellationToken).ConfigureAwait(false);
+                if (pr.Success) messages.Add(pr.Message);
+                else errors.Add(pr.Message);
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Plugins: " + ex.Message);
+            }
+
+            // 2. Timer release (always)
             try
             {
                 var rel = _timer.Release();
-                if (!rel.Success) errors.Add($"Таймер: {rel.Message}");
+                if (rel.Success) messages.Add(rel.Message);
+                else errors.Add("Timer: " + rel.Message);
             }
-            catch (Exception ex) { errors.Add($"Таймер: {ex.Message}"); }
-
-            // 2. Восстановить значения из последнего бэкапа
-            var latest = _backup.LoadLatest();
-            if (latest.Success && latest.Value != null)
+            catch (Exception ex)
             {
-                var restore = await _backup.RestoreAsync(latest.Value, cancellationToken);
-                if (!restore.Success) errors.Add(restore.Message);
+                errors.Add("Timer: " + ex.Message);
             }
 
-            // 3. Если бэкапа нет — явно переключить на Balanced (минимально-безопасный откат)
-            else
+            // 3. Restore last JSON backup (registry + power + original scheme)
+            bool restoredFromBackup = false;
+            try
+            {
+                var latest = _backup.LoadLatest();
+                if (latest.Success && latest.Value != null)
+                {
+                    var restore = await _backup.RestoreAsync(latest.Value, cancellationToken).ConfigureAwait(false);
+                    if (restore.Success)
+                    {
+                        messages.Add(restore.Message);
+                        restoredFromBackup = true;
+                    }
+                    else
+                    {
+                        errors.Add(restore.Message + (restore.Detail is { } d ? " · " + d : ""));
+                        // Partial restore still counts as attempt
+                        restoredFromBackup = true;
+                    }
+                }
+                else
+                {
+                    messages.Add("Бэкап JSON не найден — soft fallback.");
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add("Backup restore: " + ex.Message);
+            }
+
+            // 4. If no scheme restored — Balanced (safe default)
+            if (!restoredFromBackup)
             {
                 var setActive = _power.SetActiveScheme(PowerGuids.SchemeBalanced);
-                if (!setActive.Success) errors.Add(setActive.Message);
+                if (setActive.Success) messages.Add("Схема: Balanced");
+                else errors.Add(setActive.Message);
+            }
+            else
+            {
+                // Ensure ActiveSchemeGuidBefore was applied; if backup had no scheme field, leave as-is
+                var latest = _backup.LoadLatest();
+                if (latest.Success && latest.Value is { ActiveSchemeGuidBefore: { Length: > 0 } schemeStr }
+                    && Guid.TryParse(schemeStr, out var scheme))
+                {
+                    var set = _power.SetActiveScheme(scheme);
+                    if (set.Success) messages.Add("Активная схема восстановлена");
+                    else errors.Add("Схема: " + set.Message);
+                }
             }
 
-            // 4. Завершить точку восстановления (END_SYSTEM_CHANGE)
+            // 5. End restore point transaction
             TryEndRestorePoint();
 
+            // 6. Clear "we applied optimizations" flag (UI must not treat stock HP plan as "our" state)
+            ActiveStateStore.MarkInactive();
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            string summary = errors.Count == 0
+                ? "Все оптимизации сброшены (таймер, бэкап, плагины)."
+                : "Сброс выполнен частично.";
+
+            if (messages.Count > 0)
+                summary += " " + string.Join(" · ", messages.Take(6));
+
             return errors.Count == 0
-                ? OperationResult.Ok("Все оптимизации сброшены, система возвращена к исходному состоянию.")
-                : OperationResult.Fail("Сброс выполнен частично.", detail: string.Join("; ", errors));
+                ? OperationResult.Ok(summary)
+                : OperationResult.Fail(summary, detail: string.Join("; ", errors));
         }
         catch (Exception ex)
         {
+            ActiveStateStore.MarkInactive();
             return OperationResult.Fail("Сбой при сбросе оптимизаций.", detail: ex.Message, ex: ex);
         }
     }
 
-    /// <summary>
-    /// Создать точку восстановления (BEGIN_SYSTEM_CHANGE).
-    /// Учитывает квоту SystemRestorePointCreationFrequency (по умолчанию 24 ч на Win10 1809+).
-    /// </summary>
     private (bool success, string? error) TryCreateRestorePoint(string description)
     {
-        // Квота: между точками должно пройти достаточно времени (читаем из реестра, дефолт 86400 с = 24 ч,
-        // но многие системы имеют 0/10с — мы проверяем минимально 10 с между нашими точками).
         if ((DateTime.UtcNow - _lastRestorePointUtc).TotalSeconds < 10)
-        {
-            return (false, "Слишком частое создание точки (квота). Точка пропущена, бэкап всё равно создан.");
-        }
+            return (false, "Слишком частое создание точки (квота).");
 
         if (!IsSystemRestoreEnabled())
-        {
-            return (false, "Восстановление системы отключено. Включите службу в rstrui.exe для создания точек.");
-        }
+            return (false, "System Restore отключён.");
 
         try
         {
@@ -151,8 +213,6 @@ public sealed class SafetyService : ISafetyService
             }
 
             _lastRestorePointUtc = DateTime.UtcNow;
-            // sequence number сохраняется внутри SrClient; для END_SYSTEM_CHANGE используется
-            // тот же llSequenceNumber, что вернулся в status. Мы храним его статически.
             _lastSequenceNumber = status.llSequenceNumber;
             return (true, null);
         }
@@ -162,9 +222,6 @@ public sealed class SafetyService : ISafetyService
         }
     }
 
-    private long _lastSequenceNumber;
-
-    /// <summary>Завершить точку восстановления (END_SYSTEM_CHANGE) — необязательная, но корректная операция.</summary>
     private void TryEndRestorePoint()
     {
         if (_lastSequenceNumber == 0) return;
@@ -183,23 +240,19 @@ public sealed class SafetyService : ISafetyService
         catch { /* best-effort */ }
     }
 
-    /// <summary>
-    /// Проверить, включено ли восстановление системы (читаем флаг в реестре).
-    /// </summary>
     private static bool IsSystemRestoreEnabled()
     {
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey(
                 @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore", writable: false);
-            if (key?.GetValue("RPSessionInterval") is int sessionInterval)
-                return sessionInterval >= 0; // 0 = включено, но квота; ключ может отсутствовать = включено по умолчанию
-            // Дополнительная проверка: настройка DisableConfig
+            if (key?.GetValue("RPSessionInterval") is int)
+                return true;
             using var cfg = Registry.LocalMachine.OpenSubKey(
                 @"SOFTWARE\Policies\Microsoft\Windows NT\SystemRestore", writable: false);
             if (cfg?.GetValue("DisableConfig") is int disabled)
                 return disabled == 0;
-            return true; // По умолчанию считаем включённым; SRSetRestorePoint скажет точно
+            return true;
         }
         catch
         {
@@ -207,7 +260,6 @@ public sealed class SafetyService : ISafetyService
         }
     }
 
-    /// <summary>Описание точки восстановления ограничено 256 символами Windows.</summary>
     private static string TruncateDescription(string description)
         => description.Length <= 256 ? description : description[..256];
 }

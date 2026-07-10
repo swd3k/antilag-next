@@ -149,6 +149,9 @@ public interface IBackupService
     /// <summary>Добавить в сессию снимок значения power-plan.</summary>
     void SnapshotPowerValue(Guid sessionId, PowerBackupEntry entry);
 
+    /// <summary>Добавить в сессию снимок Start type службы Windows.</summary>
+    void SnapshotService(Guid sessionId, ServiceBackupEntry entry);
+
     /// <summary>Зафиксировать статус точки восстановления в сессии.</summary>
     void SetRestorePointStatus(Guid sessionId, bool created, string? error);
 

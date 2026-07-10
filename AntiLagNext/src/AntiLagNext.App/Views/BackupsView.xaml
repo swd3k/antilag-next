@@ -5,45 +5,65 @@
   <Grid>
     <Grid.RowDefinitions>
       <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
 
-    <StackPanel Orientation="Horizontal" Margin="0,0,0,20">
-      <Button Content="REFRESH" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
-      <Button Content="RESTORE" Style="{StaticResource PrimaryButton}" Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,0" />
-      <Button Content="DELETE" Style="{StaticResource DangerOutlineButton}" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0" />
-      <Button Content="OPEN FOLDER" Style="{StaticResource GhostButton}" Command="{Binding OpenFolderCommand}" />
+    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+      <Button Content="{Binding LabelRefresh}" Style="{StaticResource GhostButton}" Command="{Binding RefreshCommand}" Margin="0,0,8,0" />
+      <Button Content="{Binding LabelRestore}" Style="{StaticResource PrimaryButton}" Command="{Binding RestoreSelectedCommand}" Margin="0,0,8,0"
+              IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}" />
+      <Button Content="{Binding LabelDelete}" Style="{StaticResource DangerOutlineButton}" Command="{Binding DeleteSelectedCommand}" Margin="0,0,8,0"
+              IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}" />
+      <Button Content="{Binding LabelOpenFolder}" Style="{StaticResource GhostButton}" Command="{Binding OpenFolderCommand}" />
     </StackPanel>
 
-    <Grid Grid.Row="1">
+    <TextBlock Grid.Row="1" Text="{Binding StatusMessage}" Margin="0,0,0,16"
+               FontFamily="Cascadia Mono, Consolas" FontSize="11"
+               Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap"
+               Visibility="{Binding StatusMessage, Converter={StaticResource StringToVis}}" />
+
+    <Grid Grid.Row="2">
       <Grid.ColumnDefinitions>
         <ColumnDefinition Width="1.3*" />
         <ColumnDefinition Width="*" />
       </Grid.ColumnDefinitions>
 
-      <Border Grid.Column="0" Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderBrushSubtle}"
+      <Border Grid.Column="0" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource BorderBrushSubtle}"
               BorderThickness="1" CornerRadius="20" Margin="0,0,16,0">
-        <ListBox ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
-                 Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <StackPanel>
-                <TextBlock Text="{Binding OperationName}" FontWeight="SemiBold" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding DisplaySummary}" FontSize="11" FontFamily="Consolas"
-                           Foreground="{StaticResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
-              </StackPanel>
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid>
+          <ListBox ItemsSource="{Binding Backups}" SelectedItem="{Binding SelectedBackup}"
+                   Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                   Visibility="{Binding Backups.Count, Converter={StaticResource CountNonZeroToVis}}">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel>
+                  <TextBlock Text="{Binding OperationName}" FontWeight="SemiBold" TextWrapping="Wrap"
+                             Foreground="{DynamicResource PrimaryText}" />
+                  <TextBlock Text="{Binding DisplaySummary}" FontSize="11" FontFamily="Consolas"
+                             Foreground="{DynamicResource MutedText}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24"
+                      Visibility="{Binding Backups.Count, Converter={StaticResource CountZeroToVis}}">
+            <materialDesign:PackIcon Kind="DatabaseOffOutline" Width="36" Height="36"
+                                     HorizontalAlignment="Center" Foreground="{DynamicResource DimText}" />
+            <TextBlock Text="{Binding LabelEmpty}" TextWrapping="Wrap" TextAlignment="Center"
+                       Margin="0,12,0,0" MaxWidth="280" FontSize="13"
+                       Foreground="{DynamicResource MutedText}" />
+          </StackPanel>
+        </Grid>
       </Border>
 
       <Border Grid.Column="1" Style="{StaticResource GlassCard}" CornerRadius="20">
         <DockPanel>
-          <TextBlock DockPanel.Dock="Top" Text="SNAPSHOT DETAIL" FontSize="10" FontWeight="Bold"
-                     Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
+          <TextBlock DockPanel.Dock="Top" Text="{Binding LabelDetail}" FontSize="10" FontWeight="Bold"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
           <ScrollViewer>
             <TextBlock Text="{Binding DetailText}" TextWrapping="Wrap" FontFamily="Cascadia Mono, Consolas"
-                       FontSize="12" Foreground="{StaticResource MutedText}" LineHeight="18" />
+                       FontSize="12" Foreground="{DynamicResource MutedText}" LineHeight="18" />
           </ScrollViewer>
         </DockPanel>
       </Border>

@@ -15,10 +15,15 @@
     <!-- Версии и метаданные продукта -->
     <Version>1.0.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <Company>AntiLag Next</Company>
+    <Company>swd3k</Company>
     <Product>AntiLag Next</Product>
-    <Authors>AntiLag Next Contributors</Authors>
-    <Copyright>Copyright © 2026 AntiLag Next</Copyright>
+    <Authors>swd3k</Authors>
+    <Copyright>Copyright © 2026 swd3k</Copyright>
+    <PackageProjectUrl>https://github.com/swd3k/antilag-next</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/swd3k/antilag-next</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageTags>windows;latency;gaming;performance;timer;powrprof</PackageTags>
   </PropertyGroup>
 
 </Project>

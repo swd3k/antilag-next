@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using AntiLagNext.Core.Localization;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace AntiLagNext.App.ViewModels;
@@ -6,47 +7,67 @@ namespace AntiLagNext.App.ViewModels;
 /// <summary>Справочник подсказок: что повышает отзывчивость и какие есть побочные эффекты.</summary>
 public partial class TipsViewModel : ViewModelBase
 {
-    public ObservableCollection<TipItem> Tips { get; } = new()
+    private readonly ILocalizationService _loc;
+
+    public ObservableCollection<TipItem> Tips { get; } = new();
+
+    [ObservableProperty] private string _labelBenefit = "Benefit";
+    [ObservableProperty] private string _labelTradeoff = "Tradeoff";
+
+    public TipsViewModel(ILocalizationService loc)
     {
-        new("Разрешение таймера (0.5–1.0 мс)",
-            "Снижает джиттер Sleep/таймеров и стабилизирует frame pacing. Windows 11 22H2+ — per-process.",
-            "Выше энергопотребление CPU (больше прерываний таймера)."),
+        _loc = loc;
+        _loc.CultureChanged += (_, _) => Reload();
+        Reload();
+    }
 
-        new("High / Ultimate Performance",
-            "Отключает агрессивные C-states и throttling, CPU быстрее отвечает на нагрузку.",
-            "Сильнее греется и шумит, быстрее разряжается батарея."),
-
-        new("Отключение Core Parking",
-            "Ядра не «засыпают» — меньше latency при внезапной нагрузке (игры, звук).",
-            "На ноутбуках заметно выше температура. На hybrid CPU можно оставить E-cores."),
-
-        new("Game Mode + отключение Game DVR",
-            "Game Mode отдаёт ресурсы foreground-игре; DVR часто даёт micro-stutter.",
-            "Потеря записи клипов Xbox Game Bar."),
-
-        new("HAGS (Hardware-accelerated GPU Scheduling)",
-            "GPU сам планирует работу — меньше latency на DX12/Vulkan (зависит от драйвера).",
-            "Может ухудшить стабильность на старых драйверах; нужна перезагрузка."),
-
-        new("GPU Low Latency / Reflex / Anti-Lag",
-            "Сокращает очередь кадров между CPU и GPU (input → display).",
-            "Лучше включать в игре; registry — best-effort без NVAPI SDK."),
-
-        new("Empty Working Set",
-            "Освобождает RAM у фоновых процессов — полезно при нехватке памяти.",
-            "Не снижает input lag напрямую; может вызвать краткие паузы при «разворачивании»."),
-
-        new("Точка восстановления + JSON-бэкап",
-            "Перед изменениями AntiLag Next сохраняет значения и (по возможности) restore point.",
-            "Квота Windows: часто не чаще 1 точки / 24 ч — бэкап JSON всё равно создаётся."),
-    };
+    public void Reload()
+    {
+        LabelBenefit = _loc.T("tips.benefit");
+        LabelTradeoff = _loc.T("tips.tradeoff");
+        Tips.Clear();
+        Tips.Add(new TipItem(
+            _loc.T("tip.timer.title"),
+            _loc.T("tip.timer.benefit"),
+            _loc.T("tip.timer.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.power.title"),
+            _loc.T("tip.power.benefit"),
+            _loc.T("tip.power.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.cores.title"),
+            _loc.T("tip.cores.benefit"),
+            _loc.T("tip.cores.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.gamemode.title"),
+            _loc.T("tip.gamemode.benefit"),
+            _loc.T("tip.gamemode.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.hags.title"),
+            _loc.T("tip.hags.benefit"),
+            _loc.T("tip.hags.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.gpu.title"),
+            _loc.T("tip.gpu.benefit"),
+            _loc.T("tip.gpu.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.mem.title"),
+            _loc.T("tip.mem.benefit"),
+            _loc.T("tip.mem.tradeoff")));
+        Tips.Add(new TipItem(
+            _loc.T("tip.backup.title"),
+            _loc.T("tip.backup.benefit"),
+            _loc.T("tip.backup.tradeoff")));
+    }
 }
 
 public sealed class TipItem
 {
-    public string Title { get; }
-    public string Benefit { get; }
-    public string Tradeoff { get; }
+    // set-аксессоры нужны: MaterialDesign/WPF может поднять Mode=TwoWay на Text,
+    // а get-only свойства тогда валят XamlParseException при открытии Tips.
+    public string Title { get; set; }
+    public string Benefit { get; set; }
+    public string Tradeoff { get; set; }
 
     public TipItem(string title, string benefit, string tradeoff)
     {

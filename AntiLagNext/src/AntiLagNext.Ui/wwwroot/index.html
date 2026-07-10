@@ -1,0 +1,1950 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AntiLag Next</title>
+  <style>
+    :root, [data-theme="dark"] {
+      --obsidian: #0c0d11;
+      --panel: #12141a;
+      --bar: #16181f;
+      --border: #252830;
+      --muted: #6b7280;
+      --text: #f3f4f6;
+      --dim: #9ca3af;
+      --cyan: #1b95f8;
+      --green: #34d399; /* softer than neon for readability */
+      --red: #f87171;
+      --amber: #fbbf24;
+      --yellow: #fbbf24;
+      --hover: #1c1f28;
+      --card-shadow: 0 1px 0 rgba(255,255,255,.04), 0 8px 24px rgba(0,0,0,.35);
+      --focus: color-mix(in srgb, var(--cyan) 55%, transparent);
+      --foot-h: 44px;
+      --hdr-h: 36px;
+      --radius: 12px;
+      --space: 8px;
+      --skel-base: #1c1f28;
+      --skel-shine: #2a2f3a;
+      /* Chart bar fills (vivid) + outline */
+      --chart-green: #34d399;
+      --chart-yellow: #fbbf24;
+      --chart-red: #f87171;
+      --chart-bar-stroke: rgba(0, 0, 0, 0.55);
+    }
+    /* Light theme: WCAG AA-oriented contrast (text ≥4.5:1 on panel/bg) */
+    [data-theme="light"] {
+      --obsidian: #eef1f6;
+      --panel: #ffffff;
+      --bar: #e4e8ef;
+      --border: #b8c0cc; /* ~3:1 UI chrome vs white */
+      --muted: #475569;  /* ~7:1 on white — labels/notes */
+      --text: #0f172a;   /* ~16:1 */
+      --dim: #334155;    /* secondary UI text ≥7:1 */
+      --cyan: #0a6fc2;   /* darker brand blue on light surfaces */
+      --green: #047857; /* text/status — keep AA */
+      --red: #b91c1c;
+      --amber: #b45309;
+      --yellow: #a16207;
+      --hover: #e2e8f0;
+      --card-shadow: 0 1px 2px rgba(15,23,42,.08), 0 10px 24px rgba(15,23,42,.08);
+      --focus: color-mix(in srgb, var(--cyan) 50%, transparent);
+      --hdr-h: 36px;
+      --skel-base: #e2e8f0;
+      --skel-shine: #f8fafc;
+      /* Bright chart bars (UI text tokens stay darker for contrast) */
+      --chart-green: #22c55e;
+      --chart-yellow: #eab308;
+      --chart-red: #ef4444;
+      --chart-bar-stroke: rgba(15, 23, 42, 0.22);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--obsidian); color: var(--text);
+      overflow: hidden;
+      user-select: none; /* chrome; selectable regions override below */
+      -webkit-font-smoothing: antialiased;
+    }
+    /* P1: allow copy of metrics, logs, notes, errors */
+    .selectable, .latency, .metric-val, .log-table, .log-row, .note, .toast, .hint,
+    #latencyPeak, #timerMs, #cpuNote, #metricNote, #profileName, #optFlag {
+      user-select: text;
+      -webkit-user-select: text;
+      cursor: text;
+    }
+    /* Accessibility: visible keyboard focus */
+    :focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 2px;
+    }
+    button:focus:not(:focus-visible) { outline: none; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    /* Subtle scrollbars (modern desktop UX) */
+    .content::-webkit-scrollbar { width: 10px; }
+    .content::-webkit-scrollbar-thumb {
+      background: color-mix(in srgb, var(--muted) 45%, transparent);
+      border-radius: 999px; border: 2px solid transparent; background-clip: padding-box;
+    }
+    .content::-webkit-scrollbar-track { background: transparent; }
+    .app { display: flex; flex-direction: column; height: 100%; }
+    .titlebar {
+      height: 36px; background: var(--panel); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 14px; font-size: 11px; color: var(--muted); letter-spacing: .06em;
+    }
+    .ver {
+      font-family: Consolas, monospace; font-size: 10px; padding: 2px 8px;
+      border-radius: 6px; background: var(--bar); color: var(--dim);
+    }
+    .body { display: flex; flex: 1; min-height: 0; }
+    .sidebar {
+      width: 208px; background: var(--panel); border-right: 1px solid var(--border);
+      display: flex; flex-direction: column; padding: 16px 10px 12px;
+    }
+    .brand { display: flex; gap: 10px; align-items: center; padding: 0 8px 16px; }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: transparent; border: 1px solid var(--border);
+      display: grid; place-items: center; overflow: hidden;
+    }
+    .brand-mark img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; display: block; }
+    .brand-title {
+      margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.03em;
+      line-height: 1.2; white-space: nowrap;
+    }
+    .brand-title span { color: var(--cyan); font-weight: 600; }
+    .nav { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+    .nav button {
+      border: 0; background: transparent; color: var(--dim); text-align: left;
+      padding: 10px 12px; border-radius: var(--radius); cursor: pointer; font-size: 13px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px; transition: background .15s, color .15s; width: 100%;
+      border-left: 3px solid transparent;
+    }
+    .nav button:hover { background: var(--hover); color: var(--text); }
+    .nav button.active {
+      background: color-mix(in srgb, var(--cyan) 12%, var(--hover));
+      color: var(--cyan);
+      border-left-color: var(--cyan);
+      font-weight: 600;
+    }
+    .nav svg.ico, .btn svg, .cta svg, .pc-icon {
+      width: 16px; height: 16px; flex-shrink: 0;
+      stroke: currentColor; fill: none; stroke-width: 1.75;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    .header {
+      height: 56px; border-bottom: 1px solid var(--border); background: var(--panel);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 20px; gap: 12px;
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; min-width: 0; }
+    .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    /* Unified header controls: fixed sizes — no layout jump on theme/lang */
+    .hdr-ctrl {
+      height: var(--hdr-h);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--dim);
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 0;
+      box-sizing: border-box;
+      line-height: 1;
+      transition: background .15s, color .15s, border-color .15s;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .hdr-ctrl:hover { background: var(--hover); color: var(--text); }
+    .hdr-ctrl svg {
+      width: 16px; height: 16px; flex-shrink: 0;
+      display: block;
+      stroke: currentColor; fill: none; stroke-width: 1.75;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    /* Theme: fixed square — never resizes */
+    .hdr-ctrl.icon-only {
+      width: var(--hdr-h);
+      min-width: var(--hdr-h);
+      max-width: var(--hdr-h);
+    }
+    .hdr-ctrl.icon-only svg { width: 18px; height: 18px; margin: 0 auto; }
+    /* Reset: fixed width fits both RU «Сбросить всё» and EN «Reset all» */
+    .hdr-ctrl.danger {
+      width: 148px;
+      min-width: 148px;
+      max-width: 148px;
+      padding: 0 10px;
+      color: var(--red);
+      border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+    }
+    .hdr-ctrl.danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
+    .hdr-ctrl.active { background: var(--hover); color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--border)); }
+    /* Lang RU|EN: one outer shell, equal halves, always-visible divider */
+    .seg {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      height: var(--hdr-h);
+      width: 84px;
+      flex-shrink: 0;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: transparent;
+      padding: 0;
+      gap: 0;
+    }
+    .seg .hdr-ctrl {
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      border: 0 !important;          /* shell owns the outer border */
+      border-radius: 0 !important;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;        /* R/U/E/N more even optically */
+      line-height: 1;
+      box-shadow: none;
+    }
+    /* Permanent center divider — never replaced by active border color */
+    .seg .hdr-ctrl + .hdr-ctrl {
+      border-left: 1px solid var(--border) !important;
+    }
+    .seg .hdr-ctrl:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+    .seg .hdr-ctrl.active {
+      background: color-mix(in srgb, var(--cyan) 14%, var(--hover));
+      color: var(--cyan);
+      border-color: var(--border) !important; /* keep divider neutral */
+      font-weight: 600; /* same as inactive — no width jump */
+    }
+    [data-theme="light"] .seg {
+      border-color: var(--border);
+      background: var(--panel);
+    }
+    /* Same geometry as .hdr-ctrl (height/radius/type); keep green/red fills */
+    .status-pill {
+      height: var(--hdr-h);
+      min-height: var(--hdr-h);
+      padding: 0 12px;
+      box-sizing: border-box;
+      border-radius: 10px;
+      border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+      background: color-mix(in srgb, var(--green) 12%, transparent);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .status-pill.off {
+      border-color: color-mix(in srgb, var(--red) 35%, transparent);
+      background: color-mix(in srgb, var(--red) 12%, transparent);
+      color: var(--red);
+    }
+    .content {
+      flex: 1; overflow: auto; padding: calc(var(--space) * 3);
+      /* Soft radial wash instead of noisy grid — cleaner hierarchy */
+      background:
+        radial-gradient(1200px 400px at 20% -10%, color-mix(in srgb, var(--cyan) 8%, transparent), transparent 60%),
+        var(--obsidian);
+    }
+    .section { display: none; animation: fade .2s ease; }
+    .section.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.02em; font-weight: 650; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; line-height: 1.45; max-width: 52rem; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px;
+      margin-bottom: 14px; box-shadow: var(--card-shadow);
+    }
+    .grid3 .card { min-height: 112px; }
+    .latency {
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 44px; font-weight: 700; color: var(--chart-green); line-height: 1;
+      transition: color .25s ease;
+    }
+    .latency.warn { color: var(--chart-yellow); }
+    .latency.bad { color: var(--chart-red); }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .metric-label {
+      font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+    }
+    .metric-val { font-family: Consolas, monospace; font-size: 28px; font-weight: 600; margin-top: 10px; }
+    .chart-row { display: flex; margin-top: 10px; height: 190px; align-items: stretch; }
+    .chart-scale {
+      width: 48px; flex-shrink: 0; position: relative;
+      font-family: Consolas, monospace; font-size: 10px; color: var(--muted);
+      padding: 4px 6px 12px 0;
+    }
+    .chart-scale .tick { position: absolute; right: 6px; transform: translateY(50%); white-space: nowrap; }
+    .chart-wrap { flex: 1; min-width: 0; height: 100%; border-left: 1px solid var(--border); }
+    .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
+    .legend {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 10px; color: var(--muted); margin-top: 8px; padding-left: 48px;
+    }
+    .legend .dots span { margin-left: 12px; }
+    /* Primary action — always solid brand blue (not muted --cyan text tokens) */
+    .cta {
+      --cta-fill: #1b95f8;
+      --cta-fill-hover: #3aa4ff;
+      width: 100%; max-width: min(560px, 100%); margin: 22px auto 0; display: flex;
+      align-items: center; justify-content: center; gap: 10px;
+      border: 2px solid transparent; border-radius: 14px;
+      padding: 15px 20px; font-size: 15px; font-weight: 700; letter-spacing: .02em;
+      cursor: pointer;
+      background: var(--cta-fill); color: #ffffff !important;
+      box-shadow:
+        0 2px 0 color-mix(in srgb, #000 12%, var(--cta-fill)),
+        0 8px 22px color-mix(in srgb, var(--cta-fill) 45%, transparent);
+      transition: transform .12s, background .12s, box-shadow .12s, border-color .12s, color .12s;
+      filter: none;
+      opacity: 1;
+    }
+    .cta svg { width: 18px; height: 18px; stroke: currentColor; flex-shrink: 0; }
+    .cta:hover:not(:disabled):not(.off) {
+      background: var(--cta-fill-hover);
+      box-shadow:
+        0 2px 0 color-mix(in srgb, #000 10%, var(--cta-fill-hover)),
+        0 10px 28px color-mix(in srgb, var(--cta-fill) 50%, transparent);
+    }
+    .cta:active:not(:disabled) { transform: scale(.985); }
+    /* Optimized / disable — solid soft red, not outline-only (was too pale) */
+    .cta.off {
+      --cta-off: #ef4444;
+      background: color-mix(in srgb, var(--cta-off) 16%, var(--panel));
+      color: var(--cta-off) !important;
+      border-color: var(--cta-off);
+      box-shadow: 0 4px 16px color-mix(in srgb, var(--cta-off) 22%, transparent);
+      filter: none;
+    }
+    .cta.off:hover:not(:disabled) {
+      background: color-mix(in srgb, var(--cta-off) 24%, var(--panel));
+      border-color: var(--cta-off);
+      color: var(--cta-off) !important;
+    }
+    .cta:disabled {
+      opacity: .55; cursor: wait;
+      box-shadow: none;
+      filter: grayscale(.15);
+    }
+    .hint { text-align: center; color: var(--muted); font-size: 11px; margin-top: 10px; }
+    .hint.ok { color: var(--green); }
+    /* Full content width — stretch with window (Plugins / Settings) */
+    .toggles {
+      width: 100%; max-width: none;
+      display: flex; flex-direction: column; gap: 10px;
+      box-sizing: border-box;
+    }
+    .toggle-row {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+      transition: border-color .15s;
+      width: 100%; box-sizing: border-box;
+    }
+    .toggle-row > div:first-child { flex: 1; min-width: 0; }
+    .toggle-row:hover { border-color: color-mix(in srgb, var(--cyan) 35%, var(--border)); }
+    .toggle-row .switch { margin-top: 2px; flex-shrink: 0; }
+    .toggle-row.exp { border-color: color-mix(in srgb, var(--amber) 35%, transparent); }
+    .toggle-row .title { font-weight: 600; font-size: 14px; }
+    .toggle-row .desc { color: var(--muted); font-size: 12px; margin-top: 4px; line-height: 1.35; word-wrap: break-word; }
+    .pill-exp {
+      display: inline-block; margin-left: 6px; font-size: 9px; padding: 1px 6px; border-radius: 6px;
+      background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); vertical-align: middle;
+    }
+    .pill-stub {
+      display: inline-block; margin-left: 6px; font-size: 9px; padding: 1px 6px; border-radius: 6px;
+      background: color-mix(in srgb, var(--muted) 22%, transparent); color: var(--muted); vertical-align: middle;
+    }
+    .toggle-row.stub { opacity: .72; }
+    .toggle-row.stub .switch { opacity: .45; pointer-events: none; }
+    .log-toolbar {
+      display: flex; justify-content: flex-end; gap: 8px; margin-bottom: 10px; flex-wrap: wrap;
+    }
+    .log-toolbar .hdr-ctrl {
+      width: auto; min-width: 0; max-width: none; padding: 0 12px; height: 32px; font-size: 12px;
+    }
+    .onboard-list { margin: 0 0 12px; padding-left: 1.2rem; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .onboard-list li { margin-bottom: 8px; }
+    .onboard-list strong { color: var(--text); font-weight: 600; }
+    .peak-cap-hint { font-size: 10px; color: var(--muted); font-weight: 500; }
+    .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0; background: #272b35; border-radius: 999px; cursor: pointer; transition: .2s;
+    }
+    [data-theme="light"] .slider { background: #c5cad3; }
+    .slider:before {
+      content: ""; position: absolute; width: 18px; height: 18px; left: 3px; bottom: 3px;
+      background: #fff; border-radius: 50%; transition: .2s;
+    }
+    input:checked + .slider { background: var(--cyan); }
+    input:checked + .slider:before { transform: translateX(20px); }
+    input:disabled + .slider { opacity: .4; cursor: not-allowed; }
+    /* Power: fluid columns that grow/shrink with window width */
+    .power-grid {
+      display: grid;
+      width: 100%; max-width: none;
+      box-sizing: border-box;
+      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    @media (max-width: 1100px) {
+      .power-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 720px) {
+      .power-grid { grid-template-columns: 1fr; }
+    }
+    .power-card {
+      border: 1px solid var(--border); background: var(--panel); border-radius: 18px;
+      padding: 16px; cursor: pointer; position: relative; transition: border-color .15s, background .15s;
+      width: 100%; min-width: 0; box-sizing: border-box;
+      display: flex; flex-direction: column;
+    }
+    .power-card:hover { border-color: var(--dim); }
+    .power-card.active {
+      border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan);
+      background: color-mix(in srgb, var(--cyan) 6%, var(--panel));
+    }
+    .power-card .pc-icon { width: 28px; height: 28px; stroke: var(--dim); }
+    .power-card.active .pc-icon { stroke: var(--cyan); }
+    .power-card h3 { margin: 18px 0 6px; font-size: 15px; }
+    .power-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; flex: 1; }
+
+    /* Settings section cards also fill content width */
+    #settings .toggles,
+    #settings .card,
+    #settings .note,
+    #tweaks .toggles,
+    #power .power-grid {
+      width: 100%;
+      max-width: none;
+    }
+    #settings .card { box-sizing: border-box; }
+    .tag {
+      display: inline-block; margin-top: 12px; font-size: 10px; padding: 3px 10px;
+      border-radius: 999px; background: var(--bar); color: var(--muted);
+    }
+    .tag.rec { background: color-mix(in srgb, var(--cyan) 14%, transparent); color: var(--cyan); }
+    .rec-badge {
+      position: absolute; top: 14px; right: 14px; font-size: 10px; font-weight: 600;
+      padding: 3px 8px; border-radius: 6px; background: var(--cyan); color: #fff;
+      letter-spacing: .02em;
+    }
+    .log-table { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--panel); }
+    .log-head, .log-row {
+      display: grid; grid-template-columns: 72px 1fr 70px; gap: 8px; padding: 10px 14px; font-size: 12px;
+    }
+    .log-head { color: var(--muted); border-bottom: 1px solid var(--border); font-size: 11px; }
+    .log-row { border-bottom: 1px solid var(--border); font-family: Consolas, monospace; }
+    .log-row:last-child { border-bottom: 0; }
+    .lvl-ok { color: var(--green); text-align: right; }
+    .lvl-err { color: var(--red); text-align: right; }
+    .lvl-warn { color: var(--amber); text-align: right; }
+    /* Full-width bottom bar */
+    .bottom-bar {
+      height: var(--foot-h); background: var(--bar); border-top: 1px solid var(--border);
+      display: grid; grid-template-columns: 208px 1fr auto;
+      align-items: center; flex-shrink: 0; font-size: 11px; color: var(--muted);
+    }
+    .bottom-bar .bb-left {
+      height: 100%; padding: 0 16px; display: flex; align-items: center; gap: 8px;
+      border-right: 1px solid var(--border); color: var(--green);
+    }
+    .bottom-bar .bb-mid {
+      padding: 0 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;
+    }
+    .bottom-bar .bb-right { padding: 0 16px; }
+    .bottom-bar a.gh {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--dim); text-decoration: none; transition: color .15s;
+    }
+    .bottom-bar a.gh:hover { color: var(--cyan); }
+    .bottom-bar a.gh svg { width: 14px; height: 14px; fill: currentColor; stroke: none; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 8px color-mix(in srgb, var(--green) 55%, transparent);
+      animation: pulse 2s infinite; flex-shrink: 0;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+    .settings-row {
+      display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; align-items: center;
+    }
+    .settings-row label { font-size: 12px; color: var(--muted); margin-right: 6px; }
+    .toast {
+      position: fixed; left: 50%; bottom: 56px; transform: translateX(-50%);
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+      padding: 10px 16px; font-size: 13px; display: none; z-index: 50;
+      box-shadow: 0 12px 30px var(--card-shadow); max-width: 90%; color: var(--text);
+    }
+    .toast.show { display: block; animation: fade .2s ease; }
+    .note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 80;
+      display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-backdrop.show { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+      padding: 22px 20px; max-width: 420px; width: 100%;
+      box-shadow: 0 16px 40px rgba(0,0,0,.45); color: var(--text);
+    }
+    .modal h3 { margin: 0 0 10px; font-size: 17px; font-weight: 650; }
+    .modal p { margin: 0 0 12px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+    .modal .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    .modal .actions button {
+      flex: 1; min-width: 120px; height: 40px; border-radius: 10px; font-size: 13px; font-weight: 600;
+      font-family: inherit; cursor: pointer; border: 1px solid var(--border);
+    }
+    .modal .actions .primary {
+      background: var(--cyan); color: #fff; border-color: transparent;
+    }
+    .modal .actions .secondary {
+      background: transparent; color: var(--text);
+    }
+    .modal .actions .secondary:hover { background: var(--hover); }
+    .busy-bar { height: 2px; background: transparent; overflow: hidden; }
+    .busy-bar.on {
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      background-size: 200% 100%; animation: bar 1s linear infinite;
+    }
+    @keyframes bar { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+    /* —— Skeletons (loading) —— */
+    .skeleton {
+      display: inline-block; border-radius: 8px;
+      background: linear-gradient(90deg, var(--skel-base) 25%, var(--skel-shine) 50%, var(--skel-base) 75%);
+      background-size: 200% 100%;
+      animation: skel 1.2s ease-in-out infinite;
+      color: transparent !important; user-select: none; pointer-events: none;
+      vertical-align: middle;
+    }
+    .skeleton.block { display: block; }
+    .skeleton.sm { height: 12px; }
+    .skeleton.md { height: 18px; }
+    .skeleton.lg { height: 36px; }
+    .skeleton.xl { height: 44px; width: 4.5rem; }
+    .skeleton.full { width: 100%; }
+    .skeleton.w40 { width: 40%; } .skeleton.w55 { width: 55%; }
+    .skeleton.w70 { width: 70%; } .skeleton.w90 { width: 90%; }
+    @keyframes skel {
+      0% { background-position: 100% 0; }
+      100% { background-position: -100% 0; }
+    }
+    .chart-skel {
+      height: 190px; border-radius: 12px; margin-top: 10px;
+      background: linear-gradient(90deg, var(--skel-base) 25%, var(--skel-shine) 50%, var(--skel-base) 75%);
+      background-size: 200% 100%;
+      animation: skel 1.2s ease-in-out infinite;
+      border: 1px solid var(--border);
+    }
+    .skel-row {
+      display: flex; justify-content: space-between; align-items: center; gap: 16px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+    }
+    .skel-row .cols { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    .skel-switch {
+      width: 44px; height: 24px; border-radius: 999px; flex-shrink: 0;
+      background: var(--skel-base);
+    }
+
+    /* —— Empty states —— */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center; padding: 36px 20px; gap: 8px;
+      border: 1px dashed var(--border); border-radius: 16px;
+      background: color-mix(in srgb, var(--panel) 80%, transparent);
+    }
+    .empty-state .es-icon {
+      width: 48px; height: 48px; border-radius: 14px;
+      display: grid; place-items: center; margin-bottom: 6px;
+      background: color-mix(in srgb, var(--cyan) 12%, var(--panel));
+      color: var(--cyan); border: 1px solid color-mix(in srgb, var(--cyan) 28%, var(--border));
+    }
+    .empty-state .es-icon svg {
+      width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.75;
+      stroke-linecap: round; stroke-linejoin: round;
+    }
+    .empty-state .es-title {
+      font-size: 15px; font-weight: 650; color: var(--text); margin: 0;
+    }
+    .empty-state .es-desc {
+      font-size: 13px; color: var(--muted); line-height: 1.45; max-width: 28rem; margin: 0;
+    }
+    .log-table .empty-state {
+      border: 0; border-radius: 0; background: transparent; padding: 40px 16px;
+    }
+
+    /* Light: stronger secondary chrome */
+    [data-theme="light"] .sub,
+    [data-theme="light"] .note,
+    [data-theme="light"] .hint:not(.ok),
+    [data-theme="light"] .metric-label,
+    [data-theme="light"] .legend,
+    [data-theme="light"] .toggle-row .desc,
+    [data-theme="light"] .power-card p {
+      color: var(--muted);
+    }
+    [data-theme="light"] .nav button { color: var(--dim); }
+    [data-theme="light"] .nav button:hover { color: var(--text); }
+    [data-theme="light"] .titlebar { color: var(--muted); }
+    [data-theme="light"] .bottom-bar { color: var(--muted); }
+    [data-theme="light"] .bottom-bar .bb-left { color: var(--green); }
+    [data-theme="light"] .hdr-ctrl { color: var(--dim); border-color: var(--border); }
+    [data-theme="light"] .hdr-ctrl:hover { color: var(--text); }
+    [data-theme="light"] .content {
+      background:
+        radial-gradient(1100px 380px at 18% -8%, color-mix(in srgb, var(--cyan) 10%, transparent), transparent 58%),
+        var(--obsidian);
+    }
+    [data-theme="light"] .status-pill {
+      border-color: color-mix(in srgb, var(--green) 45%, var(--border));
+      background: color-mix(in srgb, var(--green) 10%, var(--panel));
+    }
+    [data-theme="light"] .status-pill.off {
+      border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+      background: color-mix(in srgb, var(--red) 8%, var(--panel));
+    }
+    /* CTA stays vivid on light surfaces (do not inherit muted --cyan) */
+    [data-theme="light"] .cta {
+      --cta-fill: #1b95f8;
+      --cta-fill-hover: #0b84e6;
+      background: var(--cta-fill);
+      color: #ffffff !important;
+      box-shadow:
+        0 1px 0 rgba(15, 23, 42, .06),
+        0 8px 24px rgba(27, 149, 248, .42);
+    }
+    [data-theme="light"] .cta:hover:not(:disabled):not(.off) {
+      background: var(--cta-fill-hover);
+      color: #ffffff !important;
+    }
+    [data-theme="light"] .cta.off {
+      --cta-off: #dc2626;
+      background: #fef2f2;
+      color: #dc2626 !important;
+      border-color: #dc2626;
+      box-shadow: 0 4px 14px rgba(220, 38, 38, .18);
+    }
+    [data-theme="light"] .cta.off:hover:not(:disabled) {
+      background: #fee2e2;
+      color: #b91c1c !important;
+    }
+    [data-theme="light"] .latency { color: var(--chart-green); }
+    [data-theme="light"] .latency.warn { color: var(--chart-yellow); }
+    [data-theme="light"] .latency.bad { color: var(--chart-red); }
+    [data-theme="light"] input:checked + .slider { background: var(--cyan); }
+  </style>
+</head>
+<body>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="i-dash" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></symbol>
+    <symbol id="i-battery" viewBox="0 0 24 24"><rect x="1" y="6" width="18" height="12" rx="2"/><line x1="23" y1="10" x2="23" y2="14"/></symbol>
+    <symbol id="i-game" viewBox="0 0 24 24"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58A12.01 12.01 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+  </svg>
+
+  <div class="app">
+    <div class="titlebar">
+      <span>ANTILAG NEXT</span>
+      <span class="ver">1.0</span>
+    </div>
+    <div class="busy-bar" id="busyBar"></div>
+    <div class="body">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">
+            <img src="logo.png" alt="" width="36" height="36"
+                 onerror="this.remove()" />
+          </div>
+          <div class="brand-title">AntiLag <span>Next</span></div>
+        </div>
+        <nav class="nav">
+          <button class="active" data-tab="dashboard" onclick="switchTab('dashboard')">
+            <svg class="ico"><use href="#i-dash"/></svg><span data-i18n="nav.dashboard">Обзор</span>
+          </button>
+          <button data-tab="tweaks" onclick="switchTab('tweaks')">
+            <svg class="ico"><use href="#i-sliders"/></svg><span data-i18n="nav.tweaks">Плагины</span>
+          </button>
+          <button data-tab="power" onclick="switchTab('power')">
+            <svg class="ico"><use href="#i-zap"/></svg><span data-i18n="nav.power">Питание</span>
+          </button>
+          <button data-tab="logs" onclick="switchTab('logs')">
+            <svg class="ico"><use href="#i-file"/></svg><span data-i18n="nav.logs">Журнал</span>
+          </button>
+          <button data-tab="settings" onclick="switchTab('settings')">
+            <svg class="ico"><use href="#i-sliders"/></svg><span data-i18n="nav.settings">Настройки</span>
+          </button>
+        </nav>
+      </aside>
+      <section class="main">
+        <div class="header">
+          <div class="header-left">
+            <span id="statusPill" class="status-pill off">● …</span>
+          </div>
+          <div class="header-right">
+            <div class="seg" role="group" title="Language" aria-label="Language">
+              <button type="button" class="hdr-ctrl active" id="langRu" onclick="setLang('ru')" aria-pressed="true">RU</button>
+              <button type="button" class="hdr-ctrl" id="langEn" onclick="setLang('en')" aria-pressed="false">EN</button>
+            </div>
+            <button type="button" class="hdr-ctrl icon-only" id="themeToggle" onclick="toggleTheme()" title="Theme" aria-label="Theme">
+              <svg id="themeIcon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <use id="themeIconUse" href="#i-sun"/>
+              </svg>
+            </button>
+            <button type="button" class="hdr-ctrl danger" onclick="doRevert()">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><use href="#i-undo"/></svg>
+              <span data-i18n="btn.reset">Сбросить всё</span>
+            </button>
+          </div>
+        </div>
+        <div class="content">
+          <div id="dashboard" class="section active">
+            <h2 data-i18n="dash.title">Системный обзор</h2>
+            <div class="sub selectable" data-i18n="dash.sub">Прокси scheduling latency (не DPC / не network) и статус оптимизаций</div>
+            <div class="card" id="chartCard">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <div class="metric-label" style="color:var(--cyan)" data-i18n="chart.title">Монитор latency</div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span id="chartToggleLabel" style="font-size:12px;color:var(--dim)" data-i18n="chart.on">График вкл.</span>
+                  <label class="switch">
+                    <input type="checkbox" id="chartToggle" checked onchange="toggleChart(this.checked)" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+              <div id="chartBody">
+                <div id="chartLive">
+                  <div style="display:flex;justify-content:space-between;align-items:flex-end;">
+                    <div style="display:flex;align-items:baseline;gap:10px">
+                      <span class="latency" id="latencyNow">—</span>
+                      <span style="color:var(--muted);font-size:14px" data-tip="tip.unit.us" title="µs">µs</span>
+                    </div>
+                    <div style="text-align:right;color:var(--muted);font-size:11px;">
+                      <span data-i18n="chart.peak">Пик (1м)</span>
+                      <span id="peakCapHint" class="peak-cap-hint" hidden> · ≤5 ms</span><br/>
+                      <span id="latencyPeak" style="color:var(--chart-red);font-family:Consolas;font-size:20px;font-weight:600">—</span>
+                    </div>
+                  </div>
+                  <div class="chart-row">
+                    <div class="chart-scale" id="chartScale"></div>
+                    <div class="chart-wrap"><canvas id="chart" width="800" height="190"></canvas></div>
+                  </div>
+                  <div class="legend">
+                    <span data-i18n="chart.now">Сейчас</span>
+                    <div class="dots">
+                      <span style="color:var(--chart-green)">●</span> &lt;100µs
+                      <span style="color:var(--chart-yellow)">●</span> 100–500µs
+                      <span style="color:var(--chart-red)">●</span> &gt;500µs
+                    </div>
+                  </div>
+                </div>
+                <div id="chartSkeleton" class="chart-skel" hidden aria-hidden="true"></div>
+              </div>
+              <div id="chartOffHint" class="note" style="display:none;padding:18px 0 8px;text-align:center;" data-i18n="chart.offHint"></div>
+              <div class="note" id="metricNote" data-i18n="chart.noteOn" data-tip="tip.dpc"></div>
+            </div>
+            <div class="grid3" id="metricGrid">
+              <div class="card">
+                <div class="metric-label" data-i18n="metric.timer" data-tip="tip.timer.resolution">Timer resolution</div>
+                <div class="metric-val"><span id="timerMs">—</span> <span id="timerUnit" style="font-size:12px;color:var(--muted)">ms</span></div>
+                <div class="note" id="timerHint" data-i18n="metric.timerHint"></div>
+              </div>
+              <div class="card">
+                <div class="metric-label" data-i18n="metric.profile">Активный профиль</div>
+                <div class="metric-val" style="font-size:17px;font-family:inherit" id="profileName">—</div>
+                <div class="note" id="cpuNote">CPU —</div>
+              </div>
+              <div class="card">
+                <div class="metric-label" data-i18n="metric.opt">Оптимизация</div>
+                <div class="metric-val" style="font-size:20px;font-family:inherit" id="optFlag">—</div>
+                <div class="note" data-i18n="metric.backup">JSON backup + Reset</div>
+              </div>
+            </div>
+            <button id="cta" class="cta" onclick="toggleOpt()">
+              <svg viewBox="0 0 24 24"><use href="#i-zap"/></svg>
+              <span id="ctaText" data-i18n="cta.enable">ВКЛЮЧИТЬ ANTILAG NEXT</span>
+            </button>
+            <div class="hint" id="hint"></div>
+          </div>
+
+          <div id="tweaks" class="section">
+            <h2 data-i18n="tweaks.title">Плагины</h2>
+            <div class="sub" data-i18n="tweaks.sub"></div>
+            <div class="toggles" id="pluginList" aria-live="polite"></div>
+          </div>
+
+          <div id="power" class="section">
+            <h2 data-i18n="power.title">Питание</h2>
+            <div class="sub" data-i18n="power.sub"></div>
+            <div class="power-grid">
+              <div class="power-card" data-profile="office" onclick="selectProfile('office', this)">
+                <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-battery"/></svg>
+                <h3 data-i18n="power.office">Офисный</h3>
+                <p data-i18n="power.office.desc"></p>
+                <span class="tag" data-i18n="tag.office">Office</span>
+              </div>
+              <div class="power-card" data-profile="max" onclick="selectProfile('max', this)">
+                <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-zap"/></svg>
+                <h3 data-i18n="power.max">Максимальная</h3>
+                <p data-i18n="power.max.desc"></p>
+                <span class="tag" data-i18n="tag.max">Max perf</span>
+              </div>
+              <div class="power-card active" data-profile="gaming" onclick="selectProfile('gaming', this)">
+                <span class="rec-badge" data-i18n="power.rec">Рекомендуется</span>
+                <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-game"/></svg>
+                <h3 data-i18n="power.gaming">Игровой</h3>
+                <p data-i18n="power.gaming.desc" data-tip="tip.hags"></p>
+                <span class="tag rec" data-i18n="tag.gaming">Gaming</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="logs" class="section">
+            <h2 data-i18n="logs.title">Журнал</h2>
+            <div class="sub" data-i18n="logs.sub"></div>
+            <div class="log-toolbar">
+              <button type="button" class="hdr-ctrl" onclick="copyLogs()" data-i18n="logs.copy">Копировать</button>
+              <button type="button" class="hdr-ctrl" onclick="exportLogs()" data-i18n="logs.export">Экспорт .txt</button>
+            </div>
+            <div class="log-table selectable">
+              <div class="log-head" id="logHead">
+                <div data-i18n="logs.time">Время</div>
+                <div data-i18n="logs.event">Событие</div>
+                <div style="text-align:right" data-i18n="logs.status">Статус</div>
+              </div>
+              <div id="logList" aria-live="polite"></div>
+            </div>
+            <p class="note selectable" style="margin-top:14px" data-i18n="logs.footer"></p>
+          </div>
+
+          <div id="settings" class="section">
+            <h2 data-i18n="settings.title">Настройки</h2>
+            <div class="sub" data-i18n="settings.sub">Трей, автозапуск и поведение при старте Windows</div>
+            <div class="toggles">
+              <div class="toggle-row">
+                <div>
+                  <div class="title" data-i18n="settings.tray">Сворачивать в трей</div>
+                  <div class="desc" data-i18n="settings.tray.desc">Закрытие окна не завершает процесс — приложение остаётся в области уведомлений.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="optTray" onchange="setAppOption('minimizeToTray', this.checked)" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="title" data-i18n="settings.autostart">Запуск с Windows</div>
+                  <div class="desc" data-i18n="settings.autostart.desc">Планировщик задач (ONLOGON, highest) — без UAC на каждый вход после первой настройки.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="optAutostart" onchange="setAppOption('startWithWindows', this.checked)" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="toggle-row">
+                <div>
+                  <div class="title" data-i18n="settings.autoapply">Оптимизация при старте</div>
+                  <div class="desc" data-i18n="settings.autoapply.desc">Только после того, как вы сами включили оптимизацию. При входе в Windows apply снова.</div>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="optAutoApply" onchange="setAppOption('autoApplyOnStartup', this.checked)" />
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <p class="note" data-i18n="settings.lifecycle.hint">
+                При первом «Включить»: трей + авто-оптимизация; автозапуск Windows — только после подтверждения; reboot — по желанию.
+              </p>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="metric-label" data-i18n="settings.tray.actions">Трей</div>
+              <p class="note" style="margin:10px 0 14px" data-i18n="settings.tray.hint">Двойной клик по значку — открыть окно. Меню: оптимизация, сброс, выход.</p>
+              <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('hideToTray').catch(()=>{})">
+                <span data-i18n="settings.tray.hide">Свернуть в трей</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="bottom-bar">
+      <div class="bb-left">
+        <span class="dot"></span>
+        <span id="engineLabel" data-i18n="engine.ready">Движок готов</span>
+      </div>
+      <div class="bb-mid" data-i18n="bar.disclaimer">Без гарантий · Используйте на свой риск</div>
+      <div class="bb-right">
+        <a class="gh" href="https://github.com/swd3k/antilag-next" target="_blank" rel="noopener noreferrer"
+           onclick="return openExternal(this.href)">
+          <svg viewBox="0 0 24 24"><use href="#i-github"/></svg>
+          <span data-i18n="bar.github">GitHub</span>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div id="toast" class="toast"></div>
+  <div id="restartModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="restartTitle" hidden>
+    <div class="modal">
+      <h3 id="restartTitle" data-i18n="restart.title">Перезагрузить ПК?</h3>
+      <p data-i18n="restart.body">Оптимизация включена. Таймер и схема питания уже активны. Перезагрузка желательна, чтобы часть твиков реестра и служб применилась полностью — не обязательна сразу.</p>
+      <p class="note" data-i18n="restart.policies" style="margin:0">Также включены: сворачивание в трей и авто-оптимизация при следующих стартах.</p>
+      <div class="actions">
+        <button type="button" class="primary" onclick="confirmRestart(true)" data-i18n="restart.yes">Перезагрузить</button>
+        <button type="button" class="secondary" onclick="confirmRestart(false)" data-i18n="restart.later">Позже</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="autostartModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="autostartTitle" hidden>
+    <div class="modal">
+      <h3 id="autostartTitle" data-i18n="autostart.title">Запуск с Windows?</h3>
+      <p data-i18n="autostart.body">Будет создана задача Планировщика (ONLOGON, highest privileges). При входе в систему AntiLag Next сможет стартовать с правами администратора без UAC каждый раз.</p>
+      <p class="note" data-i18n="autostart.note" style="margin:0">Можно отключить позже в «Настройки». Без подтверждения задача не создаётся.</p>
+      <div class="actions">
+        <button type="button" class="primary" onclick="confirmAutostart(true)" data-i18n="autostart.yes">Создать задачу</button>
+        <button type="button" class="secondary" onclick="confirmAutostart(false)" data-i18n="autostart.no">Не сейчас</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboardModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="onboardTitle" hidden>
+    <div class="modal">
+      <h3 id="onboardTitle" data-i18n="onboard.title">Перед включением</h3>
+      <ol class="onboard-list">
+        <li data-i18n="onboard.1"><strong>Что изменится:</strong> timer resolution, схема питания, часть реестра GPU/Game Mode — с JSON-бэкапом.</li>
+        <li data-i18n="onboard.2"><strong>Откат:</strong> кнопка «Сбросить всё» / «Отключить» восстанавливает сохранённое состояние.</li>
+        <li data-i18n="onboard.3"><strong>График µs:</strong> proxy scheduling latency, не kernel DPC и не network ping.</li>
+      </ol>
+      <div class="actions">
+        <button type="button" class="primary" onclick="dismissOnboard()" data-i18n="onboard.ok">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Display poll (IPC). Host probe is still ~15ms; 50ms keeps WebView smooth (~20 fps).
+    let CHART_MS = 50;
+    // Cap matches wire snapshot + room for push-append
+    const HISTORY_CAP = 200;
+    const GH = 'https://github.com/swd3k/antilag-next';
+
+    let i18n = {};
+    let lang = 'ru';
+    let theme = 'dark';
+    let state = { optimized: false, chartEnabled: true };
+    let busy = false;
+    let pending = new Map();
+    let seq = 1;
+    let selectedProfile = 'gaming';
+    let latencyHistory = [];
+    let peak1m = 0;
+    let chartEnabled = true;
+    let chartMaxUs = 200;
+    let pollInFlight = false;
+    let lastSampleTs = 0;
+    let metricsTimer = 0;
+    let refreshTimer = 0;
+    let domExtrasTick = 0;
+    /** true until first successful getState */
+    let uiBooting = true;
+
+    function t(key, vars) {
+      let s = i18n[key] ?? key;
+      if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace('{' + k + '}', v);
+      return s;
+    }
+
+    function applyI18n() {
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (key && i18n[key] != null) el.textContent = i18n[key];
+      });
+      document.querySelectorAll('[data-tip]').forEach(el => {
+        const key = el.getAttribute('data-tip');
+        if (key && i18n[key] != null) el.title = i18n[key];
+      });
+      document.documentElement.lang = lang;
+      const ruBtn = document.getElementById('langRu');
+      const enBtn = document.getElementById('langEn');
+      if (ruBtn) {
+        ruBtn.classList.toggle('active', lang === 'ru');
+        ruBtn.setAttribute('aria-pressed', lang === 'ru' ? 'true' : 'false');
+      }
+      if (enBtn) {
+        enBtn.classList.toggle('active', lang === 'en');
+        enBtn.setAttribute('aria-pressed', lang === 'en' ? 'true' : 'false');
+      }
+      // Aria / control titles (set after lang load; keys from i18n)
+      const langSeg = ruBtn?.closest('.seg');
+      if (langSeg && i18n['aria.lang'] != null) {
+        langSeg.title = i18n['aria.lang'];
+        langSeg.setAttribute('aria-label', i18n['aria.lang']);
+      }
+      const themeBtn = document.getElementById('themeToggle');
+      if (themeBtn) {
+        // Prefer specific next-theme label; fall back to generic aria.theme
+        const nextKey = theme === 'dark' ? 'theme.light' : 'theme.dark';
+        if (i18n[nextKey] != null) themeBtn.title = i18n[nextKey];
+        else if (i18n['aria.theme'] != null) themeBtn.title = i18n['aria.theme'];
+        if (i18n['aria.theme'] != null) themeBtn.setAttribute('aria-label', i18n['aria.theme']);
+      }
+      if (state) applyDynamicTexts();
+    }
+
+    async function loadI18n(code) {
+      try {
+        const res = await fetch('i18n/' + code + '.json', { cache: 'no-cache' });
+        if (!res.ok) throw new Error(res.status);
+        i18n = await res.json();
+        lang = code;
+        applyI18n();
+      } catch (e) {
+        console.warn('i18n load failed', e);
+      }
+    }
+
+    function resolveTheme(name) {
+      if (name === 'light') return 'light';
+      if (name === 'system') {
+        try {
+          if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches)
+            return 'light';
+        } catch (e) {}
+        return 'dark';
+      }
+      return 'dark';
+    }
+
+    function applyTheme(name) {
+      theme = resolveTheme(name);
+      document.documentElement.setAttribute('data-theme', theme);
+      // Sun in dark mode (switch to light); Moon in light mode (switch to dark)
+      const useEl = document.getElementById('themeIconUse');
+      if (useEl) useEl.setAttribute('href', theme === 'dark' ? '#i-sun' : '#i-moon');
+      const btn = document.getElementById('themeToggle');
+      if (btn) btn.title = theme === 'dark' ? t('theme.light') : t('theme.dark');
+      drawChart();
+    }
+
+    function toggleTheme() {
+      setTheme(theme === 'dark' ? 'light' : 'dark');
+    }
+
+    async function setLang(code) {
+      await loadI18n(code);
+      try {
+        const r = await send('setLanguage', { lang: code });
+        if (r.state) applyState(r.state);
+      } catch (e) { /* offline preview */ }
+      renderPlugins(state.plugins || []);
+      renderLogs(state.logs || []);
+      updateChartPanels();
+    }
+
+    async function setTheme(name) {
+      applyTheme(name);
+      try {
+        const r = await send('setTheme', { theme: name });
+        if (r.state) applyState(r.state);
+      } catch (e) {}
+    }
+
+    function hostSend(msg) {
+      try {
+        if (window.external && typeof window.external.sendMessage === 'function') {
+          window.external.sendMessage(msg); return true;
+        }
+      } catch (e) {}
+      try {
+        if (window.chrome && window.chrome.webview) {
+          window.chrome.webview.postMessage(msg); return true;
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    function openExternal(url) {
+      try {
+        hostSend(JSON.stringify({ id: 'ext' + (seq++), cmd: 'openUrl', url }));
+        return false;
+      } catch (e) { return true; }
+    }
+
+    /** Hard cap: under host stall, refuse new IPC instead of unbounded Map growth */
+    const PENDING_CAP = 200;
+
+    function sendTimeoutMs(cmd) {
+      // getMetrics is 15ms cadence — short fail avoids timer pile-up under host stall
+      if (cmd === 'getMetrics') return 2500;
+      if (cmd === 'apply' || cmd === 'revert') return 120000;
+      return 30000;
+    }
+
+    function settlePending(id, fn) {
+      const p = pending.get(id);
+      if (!p) return;
+      pending.delete(id);
+      if (p.timer) clearTimeout(p.timer);
+      try { fn(p); } catch (e) { /* ignore */ }
+    }
+
+    function dropOldestPending(preferCmd) {
+      // Drop a stale getMetrics first (safe to lose); else oldest entry
+      for (const [id, p] of pending) {
+        if (!preferCmd || p.cmd === preferCmd) {
+          settlePending(id, x => x.reject(new Error('ipc overflow')));
+          return true;
+        }
+      }
+      const first = pending.keys().next();
+      if (!first.done) {
+        settlePending(first.value, x => x.reject(new Error('ipc overflow')));
+        return true;
+      }
+      return false;
+    }
+
+    function send(cmd, data = {}) {
+      return new Promise((resolve, reject) => {
+        if (pending.size >= PENDING_CAP) {
+          // Prefer dropping metrics polls so user actions (apply) can still queue
+          if (cmd === 'getMetrics') {
+            resolve({ dropped: true });
+            return;
+          }
+          dropOldestPending('getMetrics');
+          if (pending.size >= PENDING_CAP) {
+            reject(new Error('ipc busy'));
+            return;
+          }
+        }
+        const id = 'm' + (seq++);
+        const timer = setTimeout(() => {
+          settlePending(id, p => p.reject(new Error('timeout')));
+        }, sendTimeoutMs(cmd));
+        pending.set(id, { resolve, reject, timer, cmd });
+        if (!hostSend(JSON.stringify({ id, cmd, ...data }))) {
+          settlePending(id, p => p.resolve({ preview: true }));
+        }
+      });
+    }
+
+    function onHostMessage(raw) {
+      try {
+        const env = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (env.id && pending.has(env.id)) {
+          settlePending(env.id, p => p.resolve(env.payload));
+        }
+      } catch (e) {}
+    }
+    try { window.external = window.external || {}; window.external.receiveMessage = onHostMessage; } catch (e) {}
+    if (window.chrome?.webview)
+      window.chrome.webview.addEventListener('message', e => onHostMessage(e.data));
+
+    function switchTab(name) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(name).classList.add('active');
+      document.querySelector(`.nav button[data-tab="${name}"]`)?.classList.add('active');
+    }
+
+    function toast(text) {
+      const el = document.getElementById('toast');
+      el.textContent = text;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2400);
+    }
+
+    function setBusy(on) {
+      busy = on;
+      document.getElementById('busyBar').className = 'busy-bar' + (on ? ' on' : '');
+      document.getElementById('cta').disabled = on;
+    }
+
+    function setLatencyDisplay(us) {
+      const el = document.getElementById('latencyNow');
+      if (us == null || us <= 0) { el.textContent = '—'; el.className = 'latency'; return; }
+      el.textContent = Math.round(us);
+      el.className = 'latency' + (us < 100 ? '' : us < 500 ? ' warn' : ' bad');
+    }
+
+    function setChartUi(on) {
+      chartEnabled = !!on;
+      const toggle = document.getElementById('chartToggle');
+      if (toggle) toggle.checked = chartEnabled;
+      const lab = document.getElementById('chartToggleLabel');
+      if (lab) lab.textContent = t(chartEnabled ? 'chart.on' : 'chart.off');
+      document.getElementById('chartBody').style.display = chartEnabled ? '' : 'none';
+      document.getElementById('chartOffHint').style.display = chartEnabled ? 'none' : '';
+      document.getElementById('metricNote').textContent = t(chartEnabled ? 'chart.noteOn' : 'chart.noteOff');
+      if (!chartEnabled) {
+        stopMetricsLoop();
+        latencyHistory = []; peak1m = 0; chartMaxUs = 200;
+        setLatencyDisplay(null);
+        document.getElementById('latencyPeak').textContent = '—';
+        updateChartPanels();
+        drawChart();
+      } else {
+        updateChartPanels();
+        if (!uiBooting) armMetricsLoop();
+      }
+    }
+
+    function updateChartPanels() {
+      const live = document.getElementById('chartLive');
+      const skel = document.getElementById('chartSkeleton');
+      if (!live || !skel) return;
+      if (!chartEnabled) {
+        live.hidden = true;
+        skel.hidden = true;
+        return;
+      }
+      // Only boot skeleton — then always show the live chart (— until first sample)
+      const boot = !!uiBooting;
+      live.hidden = boot;
+      skel.hidden = !boot;
+    }
+
+    function setMetricsLoading(loading) {
+      const specs = {
+        timerMs: ['xl'],
+        profileName: ['md', 'w70'],
+        optFlag: ['lg', 'w40'],
+        cpuNote: ['sm', 'w55'],
+        timerHint: ['sm', 'w55']
+      };
+      Object.keys(specs).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const all = ['skeleton', 'sm', 'md', 'lg', 'xl', 'w40', 'w55', 'w70', 'block'];
+        el.classList.remove(...all);
+        if (loading) {
+          el.classList.add('skeleton', ...specs[id]);
+          el.style.display = 'inline-block';
+          el.style.minWidth = id === 'timerMs' ? '4.5rem' : (id === 'profileName' ? '7rem' : '4rem');
+          el.textContent = '\u00a0';
+        } else {
+          el.style.display = '';
+          el.style.minWidth = '';
+        }
+      });
+      const unit = document.getElementById('timerUnit');
+      if (unit) unit.style.visibility = loading ? 'hidden' : '';
+      const pill = document.getElementById('statusPill');
+      if (pill) {
+        if (loading) {
+          pill.classList.add('skeleton');
+          pill.textContent = '\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0';
+        } else {
+          pill.classList.remove('skeleton');
+        }
+      }
+      updateChartPanels();
+    }
+
+    function skeletonPluginRows(n) {
+      let html = '';
+      for (let i = 0; i < n; i++) {
+        html += `<div class="skel-row" aria-hidden="true">
+          <div class="cols">
+            <span class="skeleton md w55" style="height:14px"></span>
+            <span class="skeleton sm w90" style="height:10px"></span>
+          </div>
+          <span class="skel-switch skeleton"></span>
+        </div>`;
+      }
+      return html;
+    }
+
+    function emptyStateHtml(iconHref, titleKey, descKey) {
+      return `<div class="empty-state" role="status">
+        <div class="es-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="${iconHref}"/></svg></div>
+        <p class="es-title">${escapeHtml(t(titleKey))}</p>
+        <p class="es-desc">${escapeHtml(t(descKey))}</p>
+      </div>`;
+    }
+
+    function pluginTitle(id) {
+      return i18n['plugin.' + id] || id;
+    }
+
+    function pluginDesc(id) {
+      return i18n['plugin.' + id + '.desc'] || '';
+    }
+
+    function profileLabel(id) {
+      const map = { gaming: 'profile.gaming', office: 'profile.office', max: 'profile.max', default: 'profile.default' };
+      return t(map[id] || 'profile.gaming');
+    }
+
+    function applyDynamicTexts() {
+      const opt = !!state.optimized;
+      const pill = document.getElementById('statusPill');
+      // Status as text only — geometry matches header buttons; fill color preserved
+      pill.textContent = t(opt ? 'status.optimized' : 'status.idle');
+      pill.className = 'status-pill' + (opt ? '' : ' off');
+      pill.setAttribute('role', 'status');
+      pill.setAttribute('aria-live', 'polite');
+      document.getElementById('optFlag').textContent = t(opt ? 'metric.yes' : 'metric.no');
+      const ctaText = document.getElementById('ctaText');
+      ctaText.textContent = t(opt ? 'cta.disable' : 'cta.enable');
+      document.getElementById('cta').className = 'cta' + (opt ? ' off' : '');
+      const hint = document.getElementById('hint');
+      if (opt) {
+        hint.textContent = t('hint.active');
+        hint.className = 'hint ok';
+      } else {
+        hint.textContent = t('hint.idle', { profile: profileLabel(selectedProfile) });
+        hint.className = 'hint';
+      }
+      document.getElementById('timerHint').textContent =
+        state.timerHeld ? t('metric.timerHeld') : t('metric.timerFree');
+      setChartUi(chartEnabled);
+    }
+
+    async function toggleChart(enabled) {
+      try {
+        const r = await send('setChart', { enabled: !!enabled });
+        if (r.state) applyState(r.state);
+        else setChartUi(enabled);
+        toast(t(enabled ? 'chart.toastOn' : 'chart.toastOff'));
+      } catch (e) {
+        toast(e.message);
+        setChartUi(!enabled);
+      }
+    }
+
+    function applyMetrics(m) {
+      if (!m || !chartEnabled) return;
+      const us = m.v != null ? m.v : m.latencyUs;
+      if (us != null) {
+        setLatencyDisplay(us);
+        if (Array.isArray(m.history) && m.history.length) {
+          // Host ring snapshot — replace, don't double-append
+          latencyHistory = m.history.map(Number);
+        } else {
+          latencyHistory.push(Number(us));
+        }
+        if (latencyHistory.length > HISTORY_CAP)
+          latencyHistory = latencyHistory.slice(latencyHistory.length - HISTORY_CAP);
+      }
+      const peak = m.p != null ? m.p : m.peakUs ?? m.m ?? m.maxUs;
+      if (peak != null) {
+        // Host already soft-caps; UI also clamps display noise (P2)
+        const PEAK_CAP = 5000;
+        const raw = Number(peak);
+        peak1m = Math.max(peak1m, Math.min(raw, PEAK_CAP));
+        document.getElementById('latencyPeak').textContent = Math.round(peak1m);
+        const hint = document.getElementById('peakCapHint');
+        if (hint) hint.hidden = !(m.peakClamped || raw >= PEAK_CAP);
+      }
+      // Throttle secondary DOM (timer/CPU) — not every frame
+      domExtrasTick++;
+      if ((domExtrasTick & 3) === 0) {
+        const timer = m.t != null ? m.t : m.timerMs;
+        if (timer != null && timer > 0)
+          document.getElementById('timerMs').textContent = Number(timer).toFixed(3);
+        const cpu = m.c != null ? m.c : m.cpu;
+        if (cpu != null) document.getElementById('cpuNote').textContent = 'CPU ' + Number(cpu).toFixed(0) + '%';
+      }
+      // rAF batch: one paint per display frame max
+      scheduleChartDraw();
+    }
+
+    let chartRaf = 0;
+    let lastDrawAt = 0;
+    function scheduleChartDraw() {
+      if (chartRaf) return;
+      chartRaf = requestAnimationFrame(ts => {
+        chartRaf = 0;
+        // Cap ~30 fps draw even if rAF is 60/120 — canvas is the heavy path
+        if (ts - lastDrawAt < 32) return;
+        lastDrawAt = ts;
+        drawChart();
+      });
+    }
+
+    function applyState(s) {
+      if (!s || s.preview) return;
+      const wasBooting = uiBooting;
+      state = Object.assign(state, s);
+      if (s.lang && s.lang !== lang) {
+        loadI18n(s.lang).then(() => applyDynamicTexts());
+      }
+      if (s.theme) applyTheme(s.theme === 'light' ? 'light' : 'dark');
+
+      if (wasBooting) {
+        uiBooting = false;
+        setMetricsLoading(false);
+      }
+
+      document.getElementById('profileName').textContent = s.profile || '—';
+      document.getElementById('optFlag').style.color = s.optimized ? 'var(--green)' : '';
+
+      if (s.timerMs != null && s.timerMs > 0)
+        document.getElementById('timerMs').textContent = Number(s.timerMs).toFixed(3);
+      else if (!s.timerHeld)
+        document.getElementById('timerMs').textContent = '—';
+
+      if (s.latencyUs != null) setLatencyDisplay(s.latencyUs);
+      if (s.peakUs != null) {
+        peak1m = Math.max(peak1m, Number(s.peakUs));
+        document.getElementById('latencyPeak').textContent = Math.round(peak1m);
+      }
+      // getState no longer carries full history (startup freeze fix) — chart fills via getMetrics
+      if (Array.isArray(s.history) && s.history.length) {
+        latencyHistory = s.history.map(Number);
+        if (latencyHistory.length > HISTORY_CAP)
+          latencyHistory = latencyHistory.slice(latencyHistory.length - HISTORY_CAP);
+      }
+      if (s.cpu != null) document.getElementById('cpuNote').textContent = 'CPU ' + Number(s.cpu).toFixed(0) + '%';
+      if (typeof s.chartEnabled === 'boolean') chartEnabled = s.chartEnabled;
+      if (s.chartIntervalMs != null && s.chartIntervalMs >= 30 && s.chartIntervalMs <= 200)
+        CHART_MS = Number(s.chartIntervalMs);
+
+      const elTray = document.getElementById('optTray');
+      if (elTray && typeof s.minimizeToTray === 'boolean') elTray.checked = s.minimizeToTray;
+      const elAs = document.getElementById('optAutostart');
+      if (elAs && typeof s.startWithWindows === 'boolean') elAs.checked = s.startWithWindows;
+      const elAa = document.getElementById('optAutoApply');
+      if (elAa && typeof s.autoApplyOnStartup === 'boolean') elAa.checked = s.autoApplyOnStartup;
+
+      if (s.selectedProfileId) {
+        selectedProfile = s.selectedProfileId;
+        document.querySelectorAll('.power-card').forEach(c => {
+          c.classList.toggle('active', c.dataset.profile === selectedProfile);
+        });
+      }
+
+      applyDynamicTexts();
+      renderPlugins(s.plugins || []);
+      renderLogs(s.logs || []);
+      updateChartPanels();
+      scheduleChartDraw();
+      document.getElementById('engineLabel').textContent = t('engine.ready');
+    }
+
+    function renderPlugins(plugins) {
+      const box = document.getElementById('pluginList');
+      if (uiBooting) {
+        box.innerHTML = skeletonPluginRows(5);
+        return;
+      }
+      box.innerHTML = '';
+      if (!plugins || !plugins.length) {
+        box.innerHTML = emptyStateHtml('#i-sliders', 'empty.plugins.title', 'empty.plugins.desc');
+        return;
+      }
+      const sorted = [...plugins].sort((a, b) => {
+        if (a.experimental !== b.experimental) return a.experimental ? 1 : -1;
+        if (a.appliedByCore !== b.appliedByCore) return a.appliedByCore ? -1 : 1;
+        return (a.id || '').localeCompare(b.id || '');
+      });
+      sorted.forEach(p => {
+        const isStub = !!(p.stub || p.experimental);
+        const row = document.createElement('div');
+        row.className = 'toggle-row' + (p.experimental ? ' exp' : '') + (isStub ? ' stub' : '');
+        let pills = '';
+        if (p.experimental) pills += `<span class="pill-exp">${escapeHtml(t('pill.experimental'))}</span>`;
+        if (isStub) pills += `<span class="pill-stub">${escapeHtml(t('pill.stub'))}</span>`;
+        const title = pluginTitle(p.id);
+        let desc = pluginDesc(p.id);
+        if (isStub)
+          desc = (desc ? desc + ' · ' : '') + t('plugin.stub.desc');
+        if (p.supported === false && p.reason)
+          desc = (desc ? desc + ' · ' : '') + p.reason;
+        if (p.appliedByCore)
+          desc = (desc ? desc + ' · ' : '') + t('plugin.core');
+        if (!desc) desc = p.message || p.category || '';
+        const disabled = isStub || p.appliedByCore;
+        row.innerHTML = `
+          <div>
+            <div class="title">${escapeHtml(title)}${pills}</div>
+            <div class="desc selectable">${escapeHtml(desc)}</div>
+          </div>
+          <label class="switch" title="${isStub ? escapeHtml(t('plugin.stub.desc')) : ''}">
+            <input type="checkbox" ${p.enabled && !isStub ? 'checked' : ''} ${disabled ? 'disabled' : ''}
+              onchange="togglePlugin('${p.id.replace(/'/g, "\\'")}', this.checked)" />
+            <span class="slider"></span>
+          </label>`;
+        box.appendChild(row);
+      });
+    }
+
+    let lastLogs = [];
+    function logsToText(logs) {
+      return (logs || []).map(l => {
+        const st = (l.level || 'ok') === 'ok' ? 'OK' : String(l.level || 'ok').toUpperCase();
+        return `[${l.time || ''}] ${st}  ${l.message || ''}`;
+      }).join('\n');
+    }
+    async function copyLogs() {
+      const text = logsToText(lastLogs.length ? lastLogs : (state.logs || []));
+      if (!text) { toast(t('logs.empty')); return; }
+      try {
+        await navigator.clipboard.writeText(text);
+        toast(t('logs.copied'));
+      } catch (e) {
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); toast(t('logs.copied')); }
+        catch (e2) { toast(e.message || e2.message); }
+        ta.remove();
+      }
+    }
+    function exportLogs() {
+      const text = logsToText(lastLogs.length ? lastLogs : (state.logs || []));
+      if (!text) { toast(t('logs.empty')); return; }
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'antilag-next-log.txt';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast(t('logs.exported'));
+    }
+
+    function renderLogs(logs) {
+      const box = document.getElementById('logList');
+      const head = document.getElementById('logHead');
+      lastLogs = Array.isArray(logs) ? logs.slice(0, 50) : [];
+      if (uiBooting) {
+        if (head) head.style.display = 'none';
+        box.innerHTML = skeletonPluginRows(4);
+        return;
+      }
+      if (head) head.style.display = '';
+      box.innerHTML = '';
+      if (!logs || !logs.length) {
+        if (head) head.style.display = 'none';
+        box.innerHTML = emptyStateHtml('#i-file', 'empty.logs.title', 'empty.logs.desc');
+        return;
+      }
+      lastLogs.forEach(l => {
+        const row = document.createElement('div');
+        row.className = 'log-row selectable';
+        const cls = l.level === 'err' ? 'lvl-err' : (l.level === 'warn' ? 'lvl-warn' : 'lvl-ok');
+        const st = (l.level || 'ok') === 'ok' ? 'OK' : (l.level || 'ok').toUpperCase();
+        row.innerHTML = `<div>${l.time || ''}</div><div>${escapeHtml(l.message || '')}</div><div class="${cls}">${st}</div>`;
+        box.appendChild(row);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function refresh() {
+      try {
+        const s = await send('getState');
+        applyState(s);
+      } catch (e) {
+        document.getElementById('engineLabel').textContent = t('engine.timeout');
+      }
+    }
+
+    let pendingAutostartAfterRestart = false;
+
+    async function toggleOpt() {
+      if (busy) return;
+      setBusy(true);
+      try {
+        if (state.optimized) {
+          const r = await send('revert');
+          if (r && r.state) applyState(r.state);
+          else if (r && (r.success === false || r.busy || r.error))
+            toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+        } else {
+          // First enable is always user-driven (no auto-apply on first install)
+          const r = await send('apply', { profile: selectedProfile });
+          if (r && r.state) applyState(r.state);
+          else if (r && (r.success === false || r.busy || r.error))
+            toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+          if (r && r.success) {
+            pendingAutostartAfterRestart = !!r.offerAutostart;
+            if (r.offerRestart) showRestartModal();
+            else if (r.offerAutostart) showAutostartModal();
+          }
+        }
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+      } finally {
+        setBusy(false);
+        refresh();
+      }
+    }
+
+    function showModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.hidden = false;
+      el.classList.add('show');
+      applyI18n();
+    }
+    function hideModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove('show');
+      el.hidden = true;
+    }
+    function showRestartModal() { showModal('restartModal'); }
+    function hideRestartModal() { hideModal('restartModal'); }
+    function showAutostartModal() { showModal('autostartModal'); }
+    function hideAutostartModal() { hideModal('autostartModal'); }
+
+    async function confirmRestart(yes) {
+      hideRestartModal();
+      if (yes) {
+        try {
+          const r = await send('restartPc', { delaySec: 30 });
+          if (r && r.success)
+            toast(t('restart.scheduled', { sec: r.delaySec || 30 }));
+          else
+            toast(t('toast.error') + (r && r.error ? ': ' + r.error : ''));
+        } catch (e) {
+          toast(e.message);
+        }
+      } else {
+        toast(t('restart.skipped'));
+      }
+      // After reboot dialog: offer autostart if host requested it
+      if (pendingAutostartAfterRestart) {
+        pendingAutostartAfterRestart = false;
+        showAutostartModal();
+      }
+    }
+
+    async function confirmAutostart(yes) {
+      hideAutostartModal();
+      const elAs = document.getElementById('optAutostart');
+      if (!yes) {
+        if (elAs) elAs.checked = false;
+        toast(t('autostart.skipped'));
+        return;
+      }
+      try {
+        const r = await send('setAppOptions', { startWithWindows: true, confirmed: true });
+        if (r.state) applyState(r.state);
+        if (r.success === false)
+          toast(t('toast.error') + (r.message ? ': ' + r.message : ''));
+        else
+          toast(t('settings.autostart.on'));
+      } catch (e) {
+        toast(e.message);
+        if (elAs) elAs.checked = false;
+      }
+    }
+
+    function dismissOnboard() {
+      try { localStorage.setItem('al_onboard_v1', '1'); } catch (e) {}
+      hideModal('onboardModal');
+    }
+    function maybeShowOnboard() {
+      try {
+        if (localStorage.getItem('al_onboard_v1') === '1') return;
+      } catch (e) {}
+      // Only before first successful optimize
+      if (state && state.userEnabledOptimization) {
+        try { localStorage.setItem('al_onboard_v1', '1'); } catch (e) {}
+        return;
+      }
+      showModal('onboardModal');
+    }
+
+    async function doRevert() {
+      if (busy) return;
+      setBusy(true);
+      try {
+        const r = await send('revert');
+        if (r && r.state) applyState(r.state);
+        else if (r && (r.success === false || r.busy || r.error))
+          toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+      } catch (e) { toast(e.message); }
+      finally { setBusy(false); refresh(); }
+    }
+
+    async function selectProfile(name, el) {
+      selectedProfile = name;
+      document.querySelectorAll('.power-card').forEach(c => c.classList.remove('active'));
+      el.classList.add('active');
+      try {
+        const r = await send('setProfile', { profile: name });
+        if (r.state) applyState(r.state);
+        toast(t('toast.profile') + ': ' + (r.profile || profileLabel(name)));
+      } catch (e) { toast(e.message); }
+    }
+
+    async function setAppOption(key, value) {
+      try {
+        // Enabling autostart always goes through confirm modal (P0)
+        if (key === 'startWithWindows' && value) {
+          const elAs = document.getElementById('optAutostart');
+          if (elAs) elAs.checked = false; // until confirmed
+          showAutostartModal();
+          return;
+        }
+        const payload = {};
+        payload[key] = !!value;
+        if (key === 'startWithWindows') payload.confirmed = true; // disable path
+        const r = await send('setAppOptions', payload);
+        if (r.state) applyState(r.state);
+        if (r.needsConfirm) {
+          showAutostartModal();
+          return;
+        }
+        if (r.success === false)
+          toast(t('toast.error') + (r.message ? ': ' + r.message : ''));
+        else if (key === 'startWithWindows')
+          toast(t(value ? 'settings.autostart.on' : 'settings.autostart.off'));
+      } catch (e) {
+        toast(e.message);
+        refresh();
+      }
+    }
+
+    async function togglePlugin(id, enabled) {
+      try {
+        const r = await send('setPlugin', { pluginId: id, enabled });
+        if (r && r.stub) {
+          toast(r.message || t('plugin.stub.desc'));
+          if (r.state) applyState(r.state);
+          else renderPlugins(state.plugins || []);
+          return;
+        }
+        if (r.state) applyState(r.state);
+      } catch (e) { toast(e.message); }
+    }
+
+    function niceScaleMax(raw) {
+      const steps = [100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000];
+      for (const s of steps) if (raw <= s) return s;
+      return Math.ceil(raw / 1000) * 1000;
+    }
+
+    function updateScaleLabels(max) {
+      const el = document.getElementById('chartScale');
+      if (!el) return;
+      let html = '';
+      for (let i = 0; i <= 4; i++) {
+        const val = Math.round(max * (1 - i / 4));
+        html += `<span class="tick" style="top:${(i / 4) * 100}%">${val}</span>`;
+      }
+      el.innerHTML = html;
+    }
+
+    function cssVar(name) {
+      return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#00ff66';
+    }
+
+    function barColor(v) {
+      // Chart-specific tokens (stay vivid in light theme; UI text uses --green/--red)
+      const root = getComputedStyle(document.documentElement);
+      if (v >= 500) return root.getPropertyValue('--chart-red').trim() || root.getPropertyValue('--red').trim() || '#ef4444';
+      if (v >= 100) return root.getPropertyValue('--chart-yellow').trim() || root.getPropertyValue('--yellow').trim() || '#eab308';
+      return root.getPropertyValue('--chart-green').trim() || root.getPropertyValue('--green').trim() || '#22c55e';
+    }
+
+    function barStroke() {
+      return getComputedStyle(document.documentElement).getPropertyValue('--chart-bar-stroke').trim()
+        || 'rgba(0,0,0,0.45)';
+    }
+
+    function drawChart() {
+      const c = document.getElementById('chart');
+      if (!c || !chartEnabled) return;
+      const wrap = c.parentElement;
+      if (!wrap) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = wrap.getBoundingClientRect();
+      // Integer CSS pixels — avoids subpixel seams between bars
+      const w = Math.max(200, Math.floor(rect.width));
+      const h = Math.max(120, Math.floor(rect.height));
+      if (c.width !== w * dpr || c.height !== h * dpr) {
+        c.width = w * dpr; c.height = h * dpr;
+        c.style.width = w + 'px'; c.style.height = h + 'px';
+      }
+      const ctx = c.getContext('2d');
+      // Disable smoothing so adjacent 1–2px bars don't show hairline gaps
+      ctx.imageSmoothingEnabled = false;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      // Soft-cap outliers so one probe spike doesn't crush the scale (P2)
+      const PEAK_CAP = 5000;
+      const data = (latencyHistory.length ? latencyHistory : [0]).map(v => Math.min(Number(v) || 0, PEAK_CAP));
+      const rawMax = Math.max(80, ...data) * 1.12;
+      const targetMax = niceScaleMax(rawMax);
+      chartMaxUs += (targetMax - chartMaxUs) * 0.1;
+      if (Math.abs(targetMax - chartMaxUs) < 2) chartMaxUs = targetMax;
+      const max = Math.max(100, chartMaxUs);
+      updateScaleLabels(max);
+
+      const padT = 6, padB = 8, padL = 2, padR = 2;
+      const plotH = h - padT - padB;
+      const plotW = Math.max(1, w - padL - padR);
+      const border = cssVar('--border') || '#1f222b';
+
+      // grid
+      ctx.strokeStyle = border;
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = Math.round(padT + plotH * (i / 4)) + 0.5;
+        ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
+      }
+
+      // Gapless bars for any window width:
+      // - target ~2 CSS px/bar for density on large screens
+      // - always fill the full plot width with integer pixel widths (no gaps, no right strip)
+      const targetPx = 2;
+      const maxBars = Math.max(1, Math.min(HISTORY_CAP, Math.floor(plotW / targetPx)));
+      const view = data.length > maxBars ? data.slice(data.length - maxBars) : data;
+      const n = Math.max(1, view.length);
+
+      // base width + distribute remainder so sum(bar widths) === plotW exactly
+      const baseW = Math.floor(plotW / n);
+      const rem = plotW - baseW * n; // first `rem` bars get +1 px
+      let x = padL;
+      for (let i = 0; i < n; i++) {
+        const bw = baseW + (i < rem ? 1 : 0);
+        const v = Number(view[i]) || 0;
+        const bh = Math.max(v > 0 ? 1 : 0, Math.round((Math.min(v, max) / max) * plotH));
+        const y = padT + plotH - bh;
+        ctx.fillStyle = barColor(v);
+        // Integer rects, no gaps between adjacent fills
+        ctx.fillRect(x, y, bw, bh);
+        // Thin outline (soft in light theme so bars stay bright)
+        if (bw >= 1 && bh >= 1) {
+          ctx.strokeStyle = barStroke();
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, bw - 1), Math.max(0, bh - 1));
+        }
+        x += bw;
+      }
+    }
+
+    window.addEventListener('resize', () => scheduleChartDraw());
+    // Redraw when chart box size changes (maximize, snap, DPI) even if window event is quiet
+    if (typeof ResizeObserver !== 'undefined') {
+      const chartWrapEl = document.querySelector('.chart-wrap');
+      if (chartWrapEl) {
+        let lastW = 0, lastH = 0;
+        new ResizeObserver(entries => {
+          for (const e of entries) {
+            const cr = e.contentRect;
+            const nw = Math.floor(cr.width), nh = Math.floor(cr.height);
+            if (nw !== lastW || nh !== lastH) {
+              lastW = nw; lastH = nh;
+              scheduleChartDraw();
+            }
+          }
+        }).observe(chartWrapEl);
+      }
+    }
+
+    async function pollMetricsOnce() {
+      if (!chartEnabled || busy || pollInFlight || uiBooting) return;
+      if (document.hidden) return;
+      if (pending.size >= PENDING_CAP - 10) return;
+      pollInFlight = true;
+      try {
+        const m = await send('getMetrics');
+        if (m && !m.preview && !m.dropped) applyMetrics(m);
+      } catch (e) {}
+      finally { pollInFlight = false; }
+    }
+
+    /** Recursive timeout — never piles up like setInterval under slow IPC */
+    function armMetricsLoop() {
+      if (metricsTimer) clearTimeout(metricsTimer);
+      metricsTimer = setTimeout(async () => {
+        try { await pollMetricsOnce(); } catch (e) {}
+        if (chartEnabled) armMetricsLoop();
+      }, CHART_MS);
+    }
+
+    function stopMetricsLoop() {
+      if (metricsTimer) { clearTimeout(metricsTimer); metricsTimer = 0; }
+    }
+
+    // boot: state first, then light metrics loop (probe starts on host uiReady)
+    (async () => {
+      await loadI18n('ru');
+      setMetricsLoading(true);
+      renderPlugins([]);
+      renderLogs([]);
+      updateChartPanels();
+      // Host starts probe here — after first paint path begins
+      send('uiReady').catch(() => {});
+      try {
+        await refresh();
+      } catch (e) {
+        uiBooting = false;
+        setMetricsLoading(false);
+        renderPlugins([]);
+        renderLogs([]);
+        updateChartPanels();
+      }
+      if (uiBooting) {
+        setTimeout(() => {
+          if (!uiBooting) return;
+          uiBooting = false;
+          setMetricsLoading(false);
+          renderPlugins([]);
+          renderLogs([]);
+          updateChartPanels();
+          document.getElementById('engineLabel').textContent = t('engine.preview');
+        }, 900);
+      }
+      // Defer metrics loop until after first paint + short settle (avoids startup hitch)
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (uiBooting) {
+            uiBooting = false;
+            setMetricsLoading(false);
+            updateChartPanels();
+          }
+          if (chartEnabled) armMetricsLoop();
+        }, 200);
+      });
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(() => { if (!busy) refresh(); }, 8000);
+      // P1 onboarding once (before first optimize)
+      setTimeout(() => maybeShowOnboard(), 600);
+    })();
+  </script>
+</body>
+</html>

@@ -1,13 +1,16 @@
+using System.Windows;
 using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Enums;
+using AntiLagNext.Core.Localization;
 using AntiLagNext.Core.Models;
+using AntiLagNext.Infrastructure.Storage;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
 
 namespace AntiLagNext.App.ViewModels;
 
-/// <summary>Главная панель — layout mockup SYSTEM STATUS + реальные метрики.</summary>
+/// <summary>Главная панель — dual latency (idle baseline + max) + toggles.</summary>
 public partial class DashboardViewModel : ViewModelBase
 {
     private readonly IProfileService _profiles;
@@ -20,6 +23,7 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IBenchmarkService _benchmark;
     private readonly IMonitoringService _monitoring;
     private readonly MonitoringViewModel _monitoringVm;
+    private readonly ILocalizationService _loc;
 
     [ObservableProperty] private bool _enableTimer = true;
     [ObservableProperty] private double _timerTargetMs = 0.5;
@@ -39,13 +43,43 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty] private string _activeProfileName = "—";
     [ObservableProperty] private string _powerSchemeName = "—";
     [ObservableProperty] private double _liveLatencyUs;
+    [ObservableProperty] private double _liveMaxLatencyUs;
     [ObservableProperty] private double _liveTimerMs;
+    [ObservableProperty] private double _idleBaselineUs;
+    [ObservableProperty] private bool _hasIdleBaseline;
     [ObservableProperty] private string _primaryCtaLabel = "ENABLE OPTIMIZATION";
-    [ObservableProperty] private string _latencyHint = "Запустите мониторинг для live-данных";
+    [ObservableProperty] private string _latencyHint = "";
+    [ObservableProperty] private string _baselineHint = "";
+    [ObservableProperty] private string _maxHint = "";
+    [ObservableProperty] private string _metricDisclaimer = "";
+    [ObservableProperty] private string _labelIdle = "IDLE BASELINE";
+    [ObservableProperty] private string _labelMax = "NOW MAX";
+    [ObservableProperty] private string _labelTimer = "TIMER · PROFILE";
+    [ObservableProperty] private string _labelSuccess = "SUCCESS";
+    [ObservableProperty] private string _labelLive = "LIVE";
+    [ObservableProperty] private string _labelReset = "RESET ALL";
+    [ObservableProperty] private string _labelReady = "SYSTEM READY";
+    [ObservableProperty] private string _labelOptimized = "OPTIMIZED";
+    [ObservableProperty] private string _labelChartTitle = "Latency History";
+    [ObservableProperty] private string _labelChartSub = "MEDIAN · SCHEDULING PROXY";
+    [ObservableProperty] private string _labelChartHint = "";
+    [ObservableProperty] private string _labelToggles = "OPTIMIZATION TOGGLES";
+    [ObservableProperty] private string _labelTogglesSub = "Apply / Re-calibrate";
+    [ObservableProperty] private string _labelBench = "BENCH";
+    [ObservableProperty] private string _labelToggleTimer = "Timer resolution";
+    [ObservableProperty] private string _labelTogglePower = "High Performance";
+    [ObservableProperty] private string _labelToggleParking = "Core parking";
+    [ObservableProperty] private string _labelToggleGameMode = "Game Mode / DVR";
+    [ObservableProperty] private string _labelToggleHags = "HAGS";
+    [ObservableProperty] private string _labelToggleGpu = "GPU Low Latency";
+    [ObservableProperty] private string _labelToggleMemory = "Memory trim";
+    [ObservableProperty] private string _zoneGreen = "≤50 µs green";
+    [ObservableProperty] private string _zoneYellow = "≤150 yellow";
+    [ObservableProperty] private string _zoneRed = ">150 red";
+    [ObservableProperty] private string _labelChartWaiting = "Waiting for samples…";
 
     public Array ParkingModes => Enum.GetValues(typeof(CoreParkingMode));
 
-    /// <summary>Серия latency с Monitoring (общий сервис сэмплов).</summary>
     public System.Collections.ObjectModel.ObservableCollection<double> LatencySeries => _monitoringVm.LatencySeries;
 
     public DashboardViewModel(
@@ -58,7 +92,8 @@ public partial class DashboardViewModel : ViewModelBase
         ISettingsService settings,
         IBenchmarkService benchmark,
         IMonitoringService monitoring,
-        MonitoringViewModel monitoringVm)
+        MonitoringViewModel monitoringVm,
+        ILocalizationService loc)
     {
         _profiles = profiles;
         _safety = safety;
@@ -70,6 +105,8 @@ public partial class DashboardViewModel : ViewModelBase
         _benchmark = benchmark;
         _monitoring = monitoring;
         _monitoringVm = monitoringVm;
+        _loc = loc;
+        RefreshLocalization();
 
         _timer.StateChanged += (_, s) =>
             App.Current.Dispatcher?.BeginInvoke(() => RefreshStatusFromSystem(s));
@@ -78,19 +115,33 @@ public partial class DashboardViewModel : ViewModelBase
             App.Current.Dispatcher?.BeginInvoke(() =>
             {
                 LiveLatencyUs = s.SchedulingLatencyUs;
+                LiveMaxLatencyUs = s.SchedulingLatencyMaxUs;
                 LiveTimerMs = s.TimerResolutionMs;
+                IdleBaselineUs = _monitoringVm.IdleBaselineUs;
+                HasIdleBaseline = _monitoringVm.HasIdleBaseline;
+
+                if (_monitoringVm.HasIdleBaseline)
+                {
+                    BaselineHint = _monitoringVm.HasPreApplyBaseline
+                        ? $"Idle {_monitoringVm.IdleBaselineUs:F0} µs · Δ {_monitoringVm.BaselineDeltaUs:F0}"
+                        : $"Idle {_monitoringVm.IdleBaselineUs:F0} µs (покой)";
+                }
+
                 LatencyHint = s.SystemUnderLoad
-                    ? $"LOAD max {s.SchedulingLatencyMaxUs:F0} µs · med {s.SchedulingLatencyUs:F0}"
-                    : s.SchedulingLatencyUs <= 50
-                        ? "IDLE · low median (норма, если max растёт при вводе)"
-                        : s.SchedulingLatencyUs <= 150
-                            ? "Жёлтая · приемлемо"
-                            : "Высокий median";
+                    ? $"LOAD med {s.SchedulingLatencyUs:F0}"
+                    : $"IDLE med {s.SchedulingLatencyUs:F0}";
+                MaxHint = s.SystemUnderLoad
+                    ? $"MAX {s.SchedulingLatencyMaxUs:F0} µs · input/UI load"
+                    : $"MAX {s.SchedulingLatencyMaxUs:F0} µs · low load";
             }, System.Windows.Threading.DispatcherPriority.Background);
 
         LoadFromActiveProfile();
         RefreshSystemInfo();
         UpdateCta();
+
+        // Live metrics with app
+        if (_settings.Current.MonitoringEnabled)
+            _monitoringVm.EnsureRunning();
     }
 
     public void LoadFromActiveProfile()
@@ -132,56 +183,93 @@ public partial class DashboardViewModel : ViewModelBase
         }
 
         PowerSchemeName = schemeName;
-        OptimizationsActive = s.IsActive || schemeName is "High Performance" or "Ultimate Performance";
-        LiveTimerMs = s.IsActive && s.ActualMs > 0 ? s.ActualMs : LiveTimerMs;
-        StatusLine = s.IsActive
-            ? $"Оптимизации активны · таймер {s.ActualMs:F3} мс · {schemeName}"
-            : $"Standby · таймер по умолчанию · {schemeName}";
+        // "Active" = we applied a profile (persisted), not "user already on High Performance"
+        bool ours = ActiveStateStore.IsActive();
+        OptimizationsActive = ours || s.IsActive;
+        LiveTimerMs = s.IsActive && s.ActualMs > 0 ? s.ActualMs : (LiveTimerMs > 0 ? LiveTimerMs : 15.625);
+        StatusLine = ours || s.IsActive
+            ? $"ON · timer {(s.IsActive ? s.ActualMs : LiveTimerMs):F3} ms · {schemeName}"
+            : $"Standby · {schemeName}";
         UpdateCta();
     }
 
     private void UpdateCta()
     {
-        PrimaryCtaLabel = OptimizationsActive ? "RE-CALIBRATE SYSTEM" : "ENABLE OPTIMIZATION";
+        PrimaryCtaLabel = OptimizationsActive
+            ? _loc.T("dash.cta.recal")
+            : _loc.T("dash.cta.enable");
+    }
+
+    public void RefreshLocalization()
+    {
+        MetricDisclaimer = _loc.T("dash.disclaimer");
+        LabelIdle = _loc.T("dash.idle");
+        LabelMax = _loc.T("dash.max");
+        LabelTimer = _loc.T("dash.timer");
+        LabelSuccess = _loc.T("dash.success");
+        LabelLive = _loc.T("dash.live");
+        LabelReset = _loc.T("dash.reset");
+        LabelReady = _loc.T("dash.ready");
+        LabelOptimized = _loc.T("dash.optimized");
+        LabelChartTitle = _loc.T("dash.chart.title");
+        LabelChartSub = _loc.T("dash.chart.sub");
+        LabelChartHint = _loc.T("dash.chart.hint");
+        LabelToggles = _loc.T("dash.toggles");
+        LabelTogglesSub = _loc.T("dash.toggles.sub");
+        LabelBench = _loc.T("dash.bench");
+        LabelToggleTimer = _loc.T("dash.toggle.timer");
+        LabelTogglePower = _loc.T("dash.toggle.power");
+        LabelToggleParking = _loc.T("dash.toggle.parking");
+        LabelToggleGameMode = _loc.T("dash.toggle.gamemode");
+        LabelToggleHags = _loc.T("dash.toggle.hags");
+        LabelToggleGpu = _loc.T("dash.toggle.gpu");
+        LabelToggleMemory = _loc.T("dash.toggle.memory");
+        ZoneGreen = _loc.T("dash.zone.green");
+        ZoneYellow = _loc.T("dash.zone.yellow");
+        ZoneRed = _loc.T("dash.zone.red");
+        LabelChartWaiting = _loc.T("chart.waiting");
+        UpdateCta();
     }
 
     partial void OnOptimizationsActiveChanged(bool value) => UpdateCta();
 
-    /// <summary>Master CTA: Apply when off, re-apply active profile when on (or Reset via secondary).</summary>
     [RelayCommand]
-    private async Task ToggleMasterAsync()
-    {
-        if (OptimizationsActive)
-        {
-            // Re-calibrate = apply active profile / current toggles again
-            await ApplyAsync();
-        }
-        else
-        {
-            await ApplyAsync();
-        }
-    }
+    private async Task ToggleMasterAsync() => await ApplyAsync();
 
     [RelayCommand]
     private async Task ApplyAsync()
     {
         if (IsBusy) return;
         IsBusy = true;
-        StatusMessage = "Применение…";
+        StatusMessage = _loc.T("status.applying");
         try
         {
-            var profile = BuildProfileFromToggles();
-            // Prefer named active profile if custom toggles match load
-            var active = _settings.Current.GetActiveProfile();
-            profile.Name = active.Name;
-            profile.MemoryCleanupExclusions = active.MemoryCleanupExclusions;
-            profile.GameExecutables = active.GameExecutables;
+            _monitoringVm.EnsureRunning();
 
-            var result = await _profiles.ApplyAsync(profile);
-            StatusMessage = result.Message;
-            OptimizationsActive = result.Success || _timer.CurrentState.IsActive;
-            RefreshStatusFromSystem(_timer.CurrentState);
-            Log.Information("Apply: {Msg}", result.Message);
+            string final = await _monitoringVm.CaptureBaselinesAroundAsync(async () =>
+            {
+                var profile = BuildProfileFromToggles();
+                var active = _settings.Current.GetActiveProfile();
+                profile.Name = active.Name;
+                profile.MemoryCleanupExclusions = active.MemoryCleanupExclusions;
+                profile.GameExecutables = active.GameExecutables;
+
+                var result = await _profiles.ApplyAsync(profile);
+                OptimizationsActive = result.Success || ActiveStateStore.IsActive() || _timer.CurrentState.IsActive;
+                RefreshStatusFromSystem(_timer.CurrentState);
+                Log.Information("Apply: {Msg}", result.Message);
+                return result.Message;
+            });
+
+            StatusMessage = final;
+            IdleBaselineUs = _monitoringVm.IdleBaselineUs;
+            HasIdleBaseline = _monitoringVm.HasIdleBaseline;
+            if (HasIdleBaseline)
+            {
+                BaselineHint = _monitoringVm.HasPreApplyBaseline
+                    ? $"Idle {IdleBaselineUs:F0} µs · Δ {_monitoringVm.BaselineDeltaUs:F0}"
+                    : $"Idle {IdleBaselineUs:F0} µs";
+            }
         }
         catch (Exception ex)
         {
@@ -195,15 +283,39 @@ public partial class DashboardViewModel : ViewModelBase
     private async Task ResetAllAsync()
     {
         if (IsBusy) return;
+
+        var confirm = MessageBox.Show(
+            _loc.T("confirm.reset.body"),
+            _loc.T("confirm.reset.title"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (confirm != MessageBoxResult.Yes) return;
+
+        await ExecuteResetAllAsync();
+    }
+
+    /// <summary>Runs reset without confirm (caller already confirmed, e.g. tray after MessageBox).</summary>
+    public Task ResetAllConfirmedAsync() => ExecuteResetAllAsync();
+
+    private async Task ExecuteResetAllAsync()
+    {
+        if (IsBusy) return;
         IsBusy = true;
-        StatusMessage = "Сброс…";
+        StatusMessage = _loc.T("status.resetting");
         try
         {
             var result = await _safety.ResetAllAsync();
-            StatusMessage = result.Message;
+            // Force UI to "off" regardless of stock power plan name
             OptimizationsActive = false;
+            ActiveStateStore.MarkInactive();
+            LiveTimerMs = _timer.CurrentState.IsActive ? _timer.CurrentState.ActualMs : 15.625;
             RefreshStatusFromSystem(_timer.CurrentState);
-            Log.Information("Reset: {Msg}", result.Message);
+            OptimizationsActive = false; // Refresh may re-read active-state
+            StatusMessage = result.Success
+                ? result.Message
+                : result.Message + (result.Detail is { Length: > 0 } d ? " · " + d : "");
+            Log.Information("Reset: {Msg} | {Detail}", result.Message, result.Detail);
         }
         catch (Exception ex)
         {
@@ -218,7 +330,7 @@ public partial class DashboardViewModel : ViewModelBase
     {
         if (IsBusy) return;
         IsBusy = true;
-        StatusMessage = "Бенчмарк…";
+        StatusMessage = _loc.T("status.busy");
         try
         {
             var result = await _benchmark.RunAsync();

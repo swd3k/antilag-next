@@ -26,6 +26,17 @@ public static class AppPaths
     /// <summary>Файл состояния «оптимизации активны».</summary>
     public static string ActiveStateFile { get; } = Path.Combine(AppDataRoot, "active-state.json");
 
+    /// <summary>
+    /// Флаг незавершённого apply: если файл есть после краша — следующий старт откатывает.
+    /// </summary>
+    public static string IncompleteApplyFile { get; } = Path.Combine(AppDataRoot, "incomplete-apply.json");
+
+    /// <summary>External plugins: {exe}/plugins/*.dll</summary>
+    public static string PluginsDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "plugins");
+
+    /// <summary>Language packs: {exe}/i18n/*.json</summary>
+    public static string I18nDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "i18n");
+
     /// <summary>Создать все каталоги, если их нет.</summary>
     public static void EnsureDirectories()
     {
@@ -33,6 +44,8 @@ public static class AppPaths
         Directory.CreateDirectory(SettingsDirectory);
         Directory.CreateDirectory(BackupDirectory);
         Directory.CreateDirectory(LogsDirectory);
+        Directory.CreateDirectory(PluginsDirectory);
+        Directory.CreateDirectory(I18nDirectory);
     }
 
     /// <summary>

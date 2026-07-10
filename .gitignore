@@ -1,4 +1,4 @@
-# Build
+# Build outputs
 **/bin/
 **/obj/
 **/out/
@@ -22,10 +22,11 @@ dist/
 *.lib
 !Directory.Build.props
 
-# Logs / local data
+# Logs / local data / local backups
 *.log
 logs/
 data/
+backups/
 **/AntiLagNext.portable
 
 # OS / IDE
@@ -47,3 +48,4 @@ Desktop.ini
 .zcode/
 .rsrc/
 .text
+.grok/

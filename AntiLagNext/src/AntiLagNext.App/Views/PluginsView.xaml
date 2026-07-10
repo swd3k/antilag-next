@@ -1,0 +1,78 @@
+<UserControl x:Class="AntiLagNext.App.Views.PluginsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <Grid Grid.Row="0" Margin="0,0,0,16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0" Margin="0,0,16,0" VerticalAlignment="Center">
+        <TextBlock Text="{Binding HeaderSubtitle}" Style="{StaticResource DisclaimerText}" />
+        <TextBlock Text="{Binding StatusMessage}" Margin="0,8,0,0" FontFamily="Consolas" FontSize="11"
+                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
+      </StackPanel>
+      <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Command="{Binding SaveFlagsCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0"
+                Content="{Binding LabelSave}" MinWidth="100"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}" />
+        <Button Command="{Binding ApplyExtensionsCommand}" Style="{StaticResource PrimaryButton}"
+                Content="{Binding LabelApply}" MinWidth="180"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}" />
+      </StackPanel>
+    </Grid>
+
+    <Border Grid.Row="1" Style="{StaticResource GlassCard}" Margin="0,0,0,16" Padding="14">
+      <TextBlock Style="{StaticResource DisclaimerText}" TextWrapping="Wrap"
+                 Text="{Binding LabelHelp}" />
+    </Border>
+
+    <ItemsControl Grid.Row="2" ItemsSource="{Binding Items}">
+      <ItemsControl.ItemTemplate>
+        <DataTemplate>
+          <Border Style="{StaticResource GlassCard}" Margin="0,0,0,12" Padding="16" CornerRadius="14">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right"
+                            Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding IsEnabled, Mode=TwoWay}"
+                            IsEnabled="{Binding CanToggle}"
+                            VerticalAlignment="Top" Margin="12,0,0,0" />
+              <StackPanel>
+                <DockPanel Margin="0,0,0,6">
+                  <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="SemiBold"
+                             Foreground="{DynamicResource PrimaryText}" TextWrapping="Wrap" />
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" HorizontalAlignment="Right" Margin="8,0,0,0">
+                    <Border CornerRadius="6" Padding="8,3" Margin="0,0,6,0" Background="#1A00BFFF">
+                      <TextBlock Text="{Binding ImpactLabel}" FontSize="10" FontWeight="Bold"
+                                 Foreground="{DynamicResource AccentBrush}" />
+                    </Border>
+                    <Border CornerRadius="6" Padding="8,3" Background="#14FFFFFF">
+                      <TextBlock Text="{Binding KindLabel}" FontSize="10" Foreground="{DynamicResource MutedText}" />
+                    </Border>
+                  </StackPanel>
+                </DockPanel>
+                <TextBlock Text="{Binding Description}" TextWrapping="Wrap" FontSize="12"
+                           Foreground="{DynamicResource MutedText}" LineHeight="18" />
+                <TextBlock Margin="0,8,0,0" FontSize="10" FontFamily="Consolas"
+                           Foreground="{DynamicResource DimText}">
+                  <Run Text="{Binding Id, Mode=OneWay}" />
+                  <Run Text=" · v" />
+                  <Run Text="{Binding Version, Mode=OneWay}" />
+                  <Run Text=" · " />
+                  <Run Text="{Binding Category, Mode=OneWay}" />
+                </TextBlock>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+        </DataTemplate>
+      </ItemsControl.ItemTemplate>
+    </ItemsControl>
+  </Grid>
+</UserControl>

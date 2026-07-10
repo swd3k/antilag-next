@@ -100,6 +100,15 @@ public sealed class BackupService : IBackupService
         }
     }
 
+    public void SnapshotService(Guid sessionId, ServiceBackupEntry entry)
+    {
+        lock (_lock)
+        {
+            if (_sessions.TryGetValue(sessionId, out var record))
+                record.ServiceEntries.Add(entry);
+        }
+    }
+
     public void SetRestorePointStatus(Guid sessionId, bool created, string? error)
     {
         lock (_lock)
@@ -150,9 +159,18 @@ public sealed class BackupService : IBackupService
             if (latest == null)
                 return OperationResult<BackupRecord>.Fail("Бэкапов пока нет.");
 
+            // Size cap: reject absurd / malicious huge JSON
+            var fi = new FileInfo(latest);
+            if (fi.Length > 2 * 1024 * 1024)
+                return OperationResult<BackupRecord>.Fail("Бэкап слишком большой (лимит 2 МБ).", detail: latest);
+
             var record = JsonStorage.Load<BackupRecord>(latest);
             if (record == null)
                 return OperationResult<BackupRecord>.Fail("Бэкап повреждён.", detail: latest);
+
+            // Cap entry counts against DoS
+            if (record.RegistryEntries.Count > 500 || record.PowerEntries.Count > 500 || record.ServiceEntries.Count > 200)
+                return OperationResult<BackupRecord>.Fail("Бэкап содержит слишком много записей.");
 
             return OperationResult<BackupRecord>.Ok(record);
         }
@@ -220,7 +238,7 @@ public sealed class BackupService : IBackupService
     {
         if (record == null) return OperationResult.Fail("Пустая запись бэкапа.");
 
-        int restoredRegistry = 0, restoredPower = 0;
+        int restoredRegistry = 0, restoredPower = 0, restoredServices = 0;
         var errors = new List<string>();
 
         // --- Восстановление реестра ---
@@ -251,6 +269,20 @@ public sealed class BackupService : IBackupService
             }
         }
 
+        // --- Восстановление служб ---
+        foreach (var entry in record.ServiceEntries)
+        {
+            try
+            {
+                RestoreServiceEntry(entry);
+                restoredServices++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Service {entry.ServiceName}: {ex.Message}");
+            }
+        }
+
         // --- Восстановление активной схемы ---
         if (!string.IsNullOrWhiteSpace(record.ActiveSchemeGuidBefore)
             && Guid.TryParse(record.ActiveSchemeGuidBefore, out var scheme))
@@ -267,11 +299,35 @@ public sealed class BackupService : IBackupService
         await Task.Delay(200, cancellationToken);
 
         if (errors.Count == 0)
-            return OperationResult.Ok($"Восстановлено: реестр {restoredRegistry}, питание {restoredPower}.");
+            return OperationResult.Ok(
+                $"Восстановлено: реестр {restoredRegistry}, питание {restoredPower}, службы {restoredServices}.");
 
         return OperationResult.Fail(
-            $"Восстановлено частично: реестр {restoredRegistry}, питание {restoredPower}, ошибок {errors.Count}.",
+            $"Восстановлено частично: реестр {restoredRegistry}, питание {restoredPower}, службы {restoredServices}, ошибок {errors.Count}.",
             detail: string.Join("; ", errors));
+    }
+
+    private static void RestoreServiceEntry(ServiceBackupEntry entry)
+    {
+        if (string.IsNullOrWhiteSpace(entry.ServiceName) || entry.ServiceName.Length > 256)
+            throw new InvalidOperationException("Некорректное имя службы.");
+        if (entry.ServiceName.Contains("..", StringComparison.Ordinal)
+            || entry.ServiceName.Contains('\\')
+            || entry.ServiceName.Contains('/'))
+            throw new InvalidOperationException("Небезопасное имя службы.");
+
+        // Restore Start type via registry (safe for allowlisted names only)
+        if (!ServiceAllowList.IsSafe(entry.ServiceName))
+            throw new InvalidOperationException("Служба не в allowlist восстановления.");
+
+        if (!RegistryPathPolicy.IsValidServiceStartType(entry.OriginalStartType))
+            throw new InvalidOperationException("Некорректный Start type службы (ожидается 0–4).");
+
+        using var key = Registry.LocalMachine.OpenSubKey(
+            $@"SYSTEM\CurrentControlSet\Services\{entry.ServiceName}", writable: true)
+            ?? throw new InvalidOperationException("Ключ службы не найден.");
+
+        key.SetValue("Start", entry.OriginalStartType, RegistryValueKind.DWord);
     }
 
     /// <summary>
@@ -279,7 +335,7 @@ public sealed class BackupService : IBackupService
     /// </summary>
     private static void RestoreRegistryEntry(RegistryBackupEntry entry)
     {
-        if (!IsSafeRegistryPath(entry.Hive, entry.KeyPath, entry.ValueName))
+        if (!RegistryPathPolicy.IsSafeRegistryPath(entry.Hive, entry.KeyPath, entry.ValueName))
             throw new InvalidOperationException("Небезопасный путь реестра в бэкапе.");
 
         var root = entry.RootHive
@@ -305,35 +361,6 @@ public sealed class BackupService : IBackupService
             throw new InvalidOperationException("Некорректный ValueKind в бэкапе.");
 
         key.SetValue(entry.ValueName, value, kind);
-    }
-
-    /// <summary>
-    /// Защита от malicious backup JSON: только HKLM/HKCU, без .., ограниченная длина.
-    /// </summary>
-    private static bool IsSafeRegistryPath(string hive, string keyPath, string valueName)
-    {
-        if (hive is not ("HKLM" or "HKCU"))
-            return false;
-        if (string.IsNullOrWhiteSpace(keyPath) || keyPath.Length > 512)
-            return false;
-        if (keyPath.Contains("..", StringComparison.Ordinal) || keyPath.Contains('\0'))
-            return false;
-        if (valueName is { Length: > 256 } || valueName.Contains('\0'))
-            return false;
-        // Только известные префиксы, которые трогает AntiLag Next
-        string[] allowed =
-        {
-            @"SOFTWARE\Microsoft\GameBar",
-            @"SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR",
-            @"System\GameConfigStore",
-            @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
-            @"SYSTEM\CurrentControlSet\Services\nvlddmkm",
-            @"SYSTEM\CurrentControlSet\Services\amdkmdag",
-            @"SYSTEM\CurrentControlSet\Control\Class",
-            @"Software\AntiLagNext",
-            @"SOFTWARE\AntiLagNext",
-        };
-        return allowed.Any(a => keyPath.StartsWith(a, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>

@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>AntiLagNext.Ui</RootNamespace>
+    <AssemblyName>AntiLagNext</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- NotifyIcon tray (same pattern as WPF AntiLagNext.App) -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <Version>1.0.0</Version>
+    <Product>AntiLag Next</Product>
+    <Description>Lightweight Photino UI for AntiLag Next (WebView2)</Description>
+    <!-- Keep publish lean -->
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Photino.NET" Version="3.2.3" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AntiLagNext.Infrastructure\AntiLagNext.Infrastructure.csproj" />
+    <ProjectReference Include="..\AntiLagNext.Core\AntiLagNext.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="wwwroot\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Assets\app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

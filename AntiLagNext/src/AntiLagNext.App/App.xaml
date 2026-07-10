@@ -6,7 +6,8 @@
   <Application.Resources>
     <ResourceDictionary>
       <ResourceDictionary.MergedDictionaries>
-        <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="Cyan" SecondaryColor="Lime" />
+        <!-- Secondary was Lime → yellowish “milk” tint in light mode. Cool blue only. -->
+        <materialDesign:BundledTheme BaseTheme="Dark" PrimaryColor="Cyan" SecondaryColor="Cyan" />
         <ResourceDictionary Source="pack://application:,,,/MaterialDesignThemes.Wpf;component/Themes/MaterialDesign3.Defaults.xaml" />
         <ResourceDictionary Source="Themes/DesignSystem.xaml" />
       </ResourceDictionary.MergedDictionaries>

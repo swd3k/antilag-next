@@ -29,14 +29,35 @@ jobs:
       - name: Smoke tests (Win32)
         run: dotnet test AntiLagNext/tests/AntiLagNext.SmokeTests/AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
 
-      - name: Publish
+      # Shipping host is Photino UI (legacy WPF App is not built by default)
+      - name: Publish Photino UI
         run: >
-          dotnet publish AntiLagNext/src/AntiLagNext.App/AntiLagNext.App.csproj
+          dotnet publish AntiLagNext/src/AntiLagNext.Ui/AntiLagNext.Ui.csproj
           -c Release -r win-x64 --self-contained false
           -o dist/AntiLagNext
 
-      - name: Upload artifact
+      - name: Publish CLI
+        run: >
+          dotnet publish AntiLagNext/src/AntiLagNext.Cli/AntiLagNext.Cli.csproj
+          -c Release -r win-x64 --self-contained false
+          -o dist/AntiLagNext-cli
+
+      - name: Size gate (UI ≤ 5 MB FDD)
+        shell: pwsh
+        run: |
+          $sum = (Get-ChildItem dist/AntiLagNext -Recurse -File | Measure-Object Length -Sum).Sum
+          $mb = [math]::Round($sum / 1MB, 2)
+          Write-Host "UI package: $mb MB"
+          if ($mb -gt 5) { throw "Size $mb MB exceeds 5 MB gate" }
+
+      - name: Upload UI artifact
         uses: actions/upload-artifact@v4
         with:
           name: AntiLagNext-win-x64
           path: dist/AntiLagNext
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntiLagNext-cli-win-x64
+          path: dist/AntiLagNext-cli

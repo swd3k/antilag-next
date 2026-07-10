@@ -6,6 +6,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Legacy WPF reference host — not in default solution build / not published -->
+    <IsPackable>false</IsPackable>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <!-- RID задаётся при publish: -r win-x86 | win-x64 | win-arm64 -->
@@ -46,8 +48,15 @@
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!-- Disk packs next to EXE + embedded so keys never break if folder missing -->
+    <None Update="i18n\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <EmbeddedResource Include="i18n\ru.json" LogicalName="AntiLagNext.i18n.ru.json" />
+    <EmbeddedResource Include="i18n\en.json" LogicalName="AntiLagNext.i18n.en.json" />
     <Resource Include="Assets\logo.png" />
     <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\logo.ico" />
   </ItemGroup>
 
 </Project>

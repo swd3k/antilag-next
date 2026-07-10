@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using AntiLagNext.Core.Abstractions;
+using AntiLagNext.Core.Localization;
 using AntiLagNext.Core.Models;
+using AntiLagNext.Infrastructure.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Serilog;
@@ -13,6 +15,8 @@ public partial class BackupsViewModel : ViewModelBase
 {
     private readonly IBackupService _backup;
     private readonly ITimerManager _timer;
+    private readonly ILocalizationService _loc;
+    private readonly SystemMutationGate _mutationGate;
 
     public ObservableCollection<BackupRecord> Backups { get; } = new();
 
@@ -22,11 +26,38 @@ public partial class BackupsViewModel : ViewModelBase
     [ObservableProperty]
     private string _detailText = string.Empty;
 
-    public BackupsViewModel(IBackupService backup, ITimerManager timer)
+    [ObservableProperty] private string _labelRefresh = "REFRESH";
+    [ObservableProperty] private string _labelRestore = "RESTORE";
+    [ObservableProperty] private string _labelDelete = "DELETE";
+    [ObservableProperty] private string _labelOpenFolder = "OPEN FOLDER";
+    [ObservableProperty] private string _labelDetail = "SNAPSHOT DETAIL";
+    [ObservableProperty] private string _labelEmpty = "No backups yet.";
+
+    public BackupsViewModel(
+        IBackupService backup,
+        ITimerManager timer,
+        ILocalizationService loc,
+        SystemMutationGate mutationGate)
     {
         _backup = backup;
         _timer = timer;
+        _loc = loc;
+        _mutationGate = mutationGate;
+        _loc.CultureChanged += (_, _) => RefreshLocalization();
+        RefreshLocalization();
         Reload();
+    }
+
+    public void RefreshLocalization()
+    {
+        LabelRefresh = _loc.T("backups.refresh");
+        LabelRestore = _loc.T("backups.restore");
+        LabelDelete = _loc.T("backups.delete");
+        LabelOpenFolder = _loc.T("backups.open.folder");
+        LabelDetail = _loc.T("backups.detail");
+        LabelEmpty = _loc.T("backups.empty");
+        if (Backups.Count == 0)
+            StatusMessage = LabelEmpty;
     }
 
     public void Reload()
@@ -36,8 +67,8 @@ public partial class BackupsViewModel : ViewModelBase
             Backups.Add(b);
         SelectedBackup = Backups.FirstOrDefault();
         StatusMessage = Backups.Count == 0
-            ? "Бэкапов пока нет. Они появятся после «Применить оптимизации»."
-            : $"Записей: {Backups.Count} · {_backup.BackupDirectory}";
+            ? _loc.T("backups.empty")
+            : $"{Backups.Count} · {_backup.BackupDirectory}";
     }
 
     partial void OnSelectedBackupChanged(BackupRecord? value)
@@ -76,11 +107,15 @@ public partial class BackupsViewModel : ViewModelBase
         if (confirm != MessageBoxResult.Yes) return;
 
         IsBusy = true;
-        StatusMessage = "Восстановление…";
+        StatusMessage = _loc.T("status.busy");
         try
         {
-            _timer.Release();
-            var r = await _backup.RestoreAsync(SelectedBackup);
+            var selected = SelectedBackup;
+            var r = await _mutationGate.RunAsync(async () =>
+            {
+                _timer.Release();
+                return await _backup.RestoreAsync(selected!);
+            });
             StatusMessage = r.Message + (r.Detail is { Length: > 0 } d ? " · " + d : "");
             Log.Information("Restore backup: {Msg}", StatusMessage);
         }

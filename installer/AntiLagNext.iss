@@ -18,9 +18,11 @@
 
 #define MyAppName "AntiLag Next"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "AntiLag Next Contributors"
-#define MyAppURL "https://github.com/"
+#define MyAppPublisher "swd3k"
+#define MyAppAuthorURL "https://github.com/swd3k"
+#define MyAppURL "https://github.com/swd3k/antilag-next"
 #define MyAppExeName "AntiLagNext.exe"
+#define MyAppCopyright "Copyright (c) 2026 swd3k"
 
 #if Arch == "x86"
   #define MyArchLabel "32-bit (x86)"
@@ -42,7 +44,10 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion} ({#MyArchLabel})
 AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
+AppPublisherURL={#MyAppAuthorURL}
+AppSupportURL={#MyAppURL}
+AppUpdatesURL={#MyAppURL}/releases
+AppCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\AntiLagNext
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
@@ -53,8 +58,8 @@ SetupIconFile=..\AntiLagNext\src\AntiLagNext.App\Assets\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+; Установщик всегда с UAC (admin). Без OverridesAllowed — нельзя «без прав».
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
 MinVersion=10.0
 #if MyArchitecturesInstallIn64BitMode != ""
 ArchitecturesAllowed={#MyArchitecturesAllowed}
@@ -66,8 +71,10 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} ({#MyArchLabel})
 VersionInfoVersion={#MyAppVersion}
 VersionInfoCompany={#MyAppPublisher}
-VersionInfoDescription={#MyAppName} Setup ({#MyArchLabel})
+VersionInfoCopyright={#MyAppCopyright}
+VersionInfoDescription={#MyAppName} Setup ({#MyArchLabel}) by {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
+VersionInfoTextVersion={#MyAppVersion}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -83,6 +90,8 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\Репозиторий (GitHub)"; Filename: "{#MyAppURL}"
+Name: "{group}\Автор swd3k"; Filename: "{#MyAppAuthorURL}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]

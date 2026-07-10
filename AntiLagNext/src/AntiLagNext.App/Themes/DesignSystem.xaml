@@ -1,13 +1,26 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
-                    xmlns:conv="clr-namespace:AntiLagNext.App.Converters">
+                    xmlns:conv="clr-namespace:AntiLagNext.App.Converters"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
   <!--
-    Hybrid design system:
-    - Layout / density / zinc blacks from antilag-next-dashboard mockup
-    - Accents: cyan (metrics/charts) + violet/lime (brand secondary)
+    Design tokens (mockup zinc/cyan) — единая сетка отступов 4/8/12/16/24/32
   -->
+
+  <sys:Double x:Key="Space1">4</sys:Double>
+  <sys:Double x:Key="Space2">8</sys:Double>
+  <sys:Double x:Key="Space3">12</sys:Double>
+  <sys:Double x:Key="Space4">16</sys:Double>
+  <sys:Double x:Key="Space5">24</sys:Double>
+  <sys:Double x:Key="Space6">32</sys:Double>
+  <sys:Double x:Key="RadiusMd">12</sys:Double>
+  <sys:Double x:Key="RadiusLg">16</sys:Double>
+  <sys:Double x:Key="RadiusXl">20</sys:Double>
+  <sys:Double x:Key="MetricCardMinHeight">132</sys:Double>
+  <Thickness x:Key="PagePadding">32,32,32,32</Thickness>
+  <Thickness x:Key="CardGap">0,0,16,0</Thickness>
+  <Thickness x:Key="SectionGap">0,0,0,24</Thickness>
 
   <Color x:Key="BgDeep">#09090B</Color>
   <Color x:Key="BgSidebar">#020203</Color>
@@ -15,12 +28,15 @@
   <Color x:Key="BgCardSoft">#0C0C0E</Color>
   <Color x:Key="BorderZinc">#27272A</Color>
   <Color x:Key="TextPrimary">#FAFAFA</Color>
-  <Color x:Key="TextMuted">#71717A</Color>
-  <Color x:Key="TextDim">#52525B</Color>
-  <Color x:Key="AccentCyan">#06B6D4</Color>
-  <Color x:Key="AccentCyanSoft">#22D3EE</Color>
+  <Color x:Key="TextMuted">#A1A1AA</Color>
+  <Color x:Key="TextDim">#71717A</Color>
+  <Color x:Key="TextSubtle">#52525B</Color>
+  <!-- DeepSkyBlue accent -->
+  <Color x:Key="AccentCyan">#00BFFF</Color>
+  <Color x:Key="AccentCyanSoft">#40D0FF</Color>
+  <Color x:Key="OnAccent">#000000</Color>
   <Color x:Key="AccentViolet">#8B5CF6</Color>
-  <Color x:Key="AccentLime">#C4F542</Color>
+  <Color x:Key="AccentLime">#38BDF8</Color>
   <Color x:Key="Success">#34D399</Color>
   <Color x:Key="Warning">#FBBF24</Color>
   <Color x:Key="Danger">#F43F5E</Color>
@@ -35,35 +51,60 @@
   <SolidColorBrush x:Key="MutedText" Color="{StaticResource TextMuted}" />
   <SolidColorBrush x:Key="DimText" Color="{StaticResource TextDim}" />
   <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentCyan}" />
+  <!-- Brush alias — NEVER use Color keys (AccentCyanSoft) on Foreground/Background -->
+  <SolidColorBrush x:Key="AccentCyanSoftBrush" Color="{StaticResource AccentCyanSoft}" />
   <SolidColorBrush x:Key="AccentSecondaryBrush" Color="{StaticResource AccentLime}" />
   <SolidColorBrush x:Key="AccentVioletBrush" Color="{StaticResource AccentViolet}" />
   <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource Success}" />
   <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource Warning}" />
   <SolidColorBrush x:Key="DangerBrush" Color="{StaticResource Danger}" />
+  <!-- Text on accent-filled buttons (always dark for contrast on DeepSkyBlue) -->
+  <SolidColorBrush x:Key="OnAccentText" Color="{StaticResource OnAccent}" />
+  <SolidColorBrush x:Key="PrimaryButtonBackground" Color="#00BFFF" />
+  <SolidColorBrush x:Key="PrimaryButtonHoverBackground" Color="#40D0FF" />
+  <!-- Outline / secondary buttons — theme-swapped so light mode stays readable -->
+  <SolidColorBrush x:Key="OutlineButtonBackground" Color="{StaticResource BgCard}" />
+  <SolidColorBrush x:Key="OutlineButtonForeground" Color="{StaticResource TextMuted}" />
+  <SolidColorBrush x:Key="OutlineButtonHoverBackground" Color="#14FFFFFF" />
+  <SolidColorBrush x:Key="OutlineButtonHoverForeground" Color="{StaticResource TextPrimary}" />
+  <SolidColorBrush x:Key="NavHoverBackground" Color="#8027272A" />
+  <SolidColorBrush x:Key="NavHoverForeground" Color="#D4D4D8" />
 
   <LinearGradientBrush x:Key="AccentGradient" StartPoint="0,0" EndPoint="1,0">
-    <GradientStop Color="#06B6D4" Offset="0" />
+    <GradientStop Color="#00BFFF" Offset="0" />
     <GradientStop Color="#8B5CF6" Offset="1" />
-  </LinearGradientBrush>
-
-  <LinearGradientBrush x:Key="CyanGlowFill" StartPoint="0,0" EndPoint="0,1">
-    <GradientStop Color="#4D06B6D4" Offset="0" />
-    <GradientStop Color="#0006B6D4" Offset="1" />
   </LinearGradientBrush>
 
   <conv:EqualityToBoolConverter x:Key="EqBool" />
   <conv:BoolToVisibilityConverter x:Key="BoolToVis" />
   <conv:BoolToVisibilityConverter x:Key="BoolToVisInv" Invert="True" />
+  <conv:InvertBoolConverter x:Key="InvertBool" />
+  <conv:CountZeroToVisibilityConverter x:Key="CountZeroToVis" />
+  <conv:CountZeroToVisibilityConverter x:Key="CountNonZeroToVis" Invert="True" />
   <conv:NavActiveBackgroundConverter x:Key="NavBg" />
   <conv:NavActiveBorderConverter x:Key="NavBorder" />
   <conv:NavActiveForegroundConverter x:Key="NavFg" />
+  <conv:NavActiveRailOpacityConverter x:Key="NavRail" />
   <conv:StatusToBrushConverter x:Key="StatusBrush" />
   <conv:StringNullOrEmptyToVisibilityConverter x:Key="StringToVis" />
+  <conv:ProfileCustomVisibilityConverter x:Key="ProfileCustomVis" />
 
-  <!-- Cards like mockup rounded-2xl / 3xl -->
+  <!-- Soft glass / elevated surface (2025–26 dashboard trend, restrained for WPF perf) -->
+  <LinearGradientBrush x:Key="GlassBorderBrush" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="#4027272A" Offset="0" />
+    <GradientStop Color="#333F3F46" Offset="0.5" />
+    <GradientStop Color="#1A00BFFF" Offset="1" />
+  </LinearGradientBrush>
+
+  <LinearGradientBrush x:Key="GlassFillBrush" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="#E618181B" Offset="0" />
+    <GradientStop Color="#CC121214" Offset="1" />
+  </LinearGradientBrush>
+
+  <!-- Cards — soft glass + bento-ready -->
   <Style x:Key="GlassCard" TargetType="Border">
-    <Setter Property="Background" Value="#8018181B" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSubtle}" />
+    <Setter Property="Background" Value="{DynamicResource GlassFillBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="16" />
     <Setter Property="Padding" Value="20" />
@@ -73,68 +114,142 @@
   <Style x:Key="GlassCardCompact" TargetType="Border" BasedOn="{StaticResource GlassCard}">
     <Setter Property="Padding" Value="16" />
     <Setter Property="CornerRadius" Value="14" />
-    <Setter Property="Background" Value="#8018181B" />
   </Style>
 
   <Style x:Key="MetricCard" TargetType="Border">
-    <Setter Property="Background" Value="#8018181B" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSubtle}" />
+    <Setter Property="Background" Value="{DynamicResource GlassFillBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource GlassBorderBrush}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="16" />
     <Setter Property="Padding" Value="20" />
+    <Setter Property="MinHeight" Value="{StaticResource MetricCardMinHeight}" />
+    <Setter Property="SnapsToDevicePixels" Value="True" />
   </Style>
 
-  <Style x:Key="SectionTitle" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="10" />
-    <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-    <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
+  <!-- Bento cell: equal breathing room for modular dashboard tiles -->
+  <Style x:Key="BentoCell" TargetType="Border" BasedOn="{StaticResource MetricCard}">
+    <Setter Property="Margin" Value="0" />
+    <Setter Property="Padding" Value="20" />
   </Style>
 
   <Style x:Key="OverlineLabel" TargetType="TextBlock">
     <Setter Property="FontSize" Value="10" />
     <Setter Property="FontWeight" Value="Bold" />
-    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
+    <Setter Property="Typography.Capitals" Value="AllSmallCaps" />
   </Style>
 
   <Style x:Key="PageTitle" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="28" />
-    <Setter Property="FontWeight" Value="Light" />
-    <Setter Property="Foreground" Value="{StaticResource PrimaryText}" />
+    <Setter Property="FontSize" Value="24" />
+    <Setter Property="FontWeight" Value="SemiBold" />
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+    <Setter Property="TextWrapping" Value="NoWrap" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
   </Style>
 
   <Style x:Key="PageSubtitle" TargetType="TextBlock">
-    <Setter Property="FontSize" Value="12" />
-    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-    <Setter Property="Margin" Value="0,4,0,0" />
+    <Setter Property="FontSize" Value="13" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
+    <Setter Property="Margin" Value="0,6,0,0" />
+    <Setter Property="TextWrapping" Value="Wrap" />
   </Style>
 
-  <Style x:Key="MonoValue" TargetType="TextBlock">
-    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas, Courier New" />
-    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+  <Style x:Key="StatusPill" TargetType="Border">
+    <Setter Property="CornerRadius" Value="8" />
+    <Setter Property="Padding" Value="12,6" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
 
-  <!-- Primary CTA — cyan glow like mockup -->
+  <Style x:Key="TagPill" TargetType="Border">
+    <Setter Property="CornerRadius" Value="6" />
+    <Setter Property="Padding" Value="8,4" />
+    <Setter Property="VerticalAlignment" Value="Center" />
+  </Style>
+
+  <Style x:Key="IconCircle" TargetType="Border">
+    <Setter Property="Width" Value="32" />
+    <Setter Property="Height" Value="32" />
+    <Setter Property="CornerRadius" Value="16" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSubtle}" />
+    <Setter Property="BorderThickness" Value="1" />
+    <Setter Property="Background" Value="{DynamicResource ContentBackground}" />
+  </Style>
+
+  <Style x:Key="MetricLabel" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="10" />
+    <Setter Property="FontWeight" Value="Bold" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
+  </Style>
+
+  <Style x:Key="MetricValue" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="32" />
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+  </Style>
+
+  <Style x:Key="MetricHint" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+    <Setter Property="Foreground" Value="{DynamicResource DimText}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="Margin" Value="0,8,0,0" />
+    <Setter Property="LineHeight" Value="16" />
+  </Style>
+
+  <Style x:Key="DisclaimerText" TargetType="TextBlock">
+    <Setter Property="FontSize" Value="11" />
+    <Setter Property="Foreground" Value="{DynamicResource DimText}" />
+    <Setter Property="TextWrapping" Value="Wrap" />
+    <Setter Property="LineHeight" Value="16" />
+  </Style>
+
+  <!-- Buttons -->
   <Style x:Key="PrimaryButton" TargetType="Button">
-    <Setter Property="Background" Value="{StaticResource AccentBrush}" />
-    <Setter Property="Foreground" Value="#000000" />
+    <!-- Hard-bound DeepSkyBlue keys so MD theme cannot paint buttons lime/cyan-wrong -->
+    <Setter Property="Background" Value="{DynamicResource PrimaryButtonBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource OnAccentText}" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Padding" Value="22,12" />
+    <Setter Property="Padding" Value="20,0" />
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Height" Value="40" />
     <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="RenderTransformOrigin" Value="0.5,0.5" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="14" Padding="{TemplateBinding Padding}">
+          <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}"
+                  RenderTransformOrigin="0.5,0.5">
             <Border.Effect>
-              <DropShadowEffect Color="#06B6D4" BlurRadius="24" ShadowDepth="0" Opacity="0.25" />
+              <DropShadowEffect Color="#00BFFF" BlurRadius="20" ShadowDepth="0" Opacity="0.22" />
             </Border.Effect>
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}"
+                              RecognizesAccessKey="True" />
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="#22D3EE" />
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource PrimaryButtonHoverBackground}" />
+              <Setter Property="Foreground" Value="{DynamicResource OnAccentText}" />
+              <Setter TargetName="Bd" Property="Effect">
+                <Setter.Value>
+                  <DropShadowEffect Color="#00BFFF" BlurRadius="28" ShadowDepth="0" Opacity="0.4" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Bd" Property="RenderTransform">
+                <Setter.Value>
+                  <ScaleTransform ScaleX="0.98" ScaleY="0.98" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+              <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
             </Trigger>
             <Trigger Property="IsEnabled" Value="False">
               <Setter TargetName="Bd" Property="Opacity" Value="0.45" />
@@ -146,26 +261,43 @@
   </Style>
 
   <Style x:Key="DangerOutlineButton" TargetType="Button">
-    <Setter Property="Background" Value="#18181B" />
-    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
-    <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSubtle}" />
+    <!-- Theme-aware surface (not hardcoded zinc-900) so light mode text stays visible -->
+    <Setter Property="Background" Value="{DynamicResource OutlineButtonBackground}" />
+    <Setter Property="Foreground" Value="{DynamicResource OutlineButtonForeground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSubtle}" />
     <Setter Property="BorderThickness" Value="1" />
-    <Setter Property="Padding" Value="18,12" />
+    <Setter Property="Padding" Value="16,0" />
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="11" />
+    <Setter Property="MinHeight" Value="40" />
+    <Setter Property="Height" Value="40" />
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
           <Border x:Name="Bd" Background="{TemplateBinding Background}"
                   BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-                  CornerRadius="14" Padding="{TemplateBinding Padding}">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  CornerRadius="12" Padding="{TemplateBinding Padding}" RenderTransformOrigin="0.5,0.5">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}"
+                              RecognizesAccessKey="True" />
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="#27272A" />
-              <Setter Property="Foreground" Value="#FAFAFA" />
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource OutlineButtonHoverBackground}" />
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+              <Setter Property="Foreground" Value="{DynamicResource OutlineButtonHoverForeground}" />
+            </Trigger>
+            <Trigger Property="IsPressed" Value="True">
+              <Setter TargetName="Bd" Property="RenderTransform">
+                <Setter.Value>
+                  <ScaleTransform ScaleX="0.98" ScaleY="0.98" />
+                </Setter.Value>
+              </Setter>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Bd" Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+              <Setter TargetName="Bd" Property="BorderThickness" Value="2" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -175,21 +307,25 @@
 
   <Style x:Key="GhostButton" TargetType="Button">
     <Setter Property="Background" Value="Transparent" />
-    <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource AccentBrush}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="Padding" Value="12,8" />
     <Setter Property="FontWeight" Value="Bold" />
     <Setter Property="FontSize" Value="10" />
+    <Setter Property="MinHeight" Value="32" />
     <Setter Property="Cursor" Value="Hand" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
           <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="{TemplateBinding Padding}">
-            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                              TextElement.Foreground="{TemplateBinding Foreground}"
+                              RecognizesAccessKey="True" />
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter Property="Foreground" Value="{StaticResource AccentCyanSoft}" />
+              <!-- Must be Brush, not Color (AccentCyanSoft) — was crashing Arrange -->
+              <Setter Property="Foreground" Value="{DynamicResource AccentCyanSoftBrush}" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -197,25 +333,38 @@
     </Setter>
   </Style>
 
-  <!-- Nav item — mockup rounded-xl -->
   <Style x:Key="NavItemButton" TargetType="Button">
     <Setter Property="Background" Value="Transparent" />
     <Setter Property="BorderThickness" Value="0" />
-    <Setter Property="Foreground" Value="{StaticResource MutedText}" />
+    <Setter Property="Foreground" Value="{DynamicResource MutedText}" />
     <Setter Property="HorizontalContentAlignment" Value="Stretch" />
     <Setter Property="Padding" Value="0" />
-    <Setter Property="Margin" Value="0,0,0,4" />
+    <Setter Property="Margin" Value="0,0,0,6" />
     <Setter Property="Cursor" Value="Hand" />
+    <Setter Property="Tag" Value="0" />
     <Setter Property="Template">
       <Setter.Value>
         <ControlTemplate TargetType="Button">
-          <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="12" Padding="12,11">
-            <ContentPresenter VerticalAlignment="Center" />
+          <Border x:Name="Outer" Background="Transparent" CornerRadius="12">
+            <Grid>
+              <!-- Active cyan rail: opacity follows non-transparent Background (set by NavBg converter) -->
+              <Border x:Name="Rail" Width="3" HorizontalAlignment="Left" VerticalAlignment="Stretch"
+                      CornerRadius="2" Margin="0,10,0,10" Background="{DynamicResource AccentBrush}"
+                      Opacity="{TemplateBinding Tag}" Panel.ZIndex="1" />
+              <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="12" Padding="14,11">
+                <ContentPresenter VerticalAlignment="Center"
+                                  TextElement.Foreground="{TemplateBinding Foreground}"
+                                  RecognizesAccessKey="True" />
+              </Border>
+            </Grid>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="#8027272A" />
-              <Setter Property="Foreground" Value="#D4D4D8" />
+              <Setter TargetName="Bd" Property="Background" Value="{DynamicResource NavHoverBackground}" />
+              <Setter Property="Foreground" Value="{DynamicResource NavHoverForeground}" />
+            </Trigger>
+            <Trigger Property="IsKeyboardFocused" Value="True">
+              <Setter TargetName="Outer" Property="Background" Value="#1400BFFF" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -224,19 +373,33 @@
   </Style>
 
   <Style x:Key="OptRow" TargetType="Border">
-    <Setter Property="Background" Value="#14FFFFFF" />
-    <Setter Property="BorderBrush" Value="#0FFFFFFF" />
+    <!-- Semi-transparent white works on dark; on light use subtle slate via CardSoft -->
+    <Setter Property="Background" Value="{DynamicResource CardSoftBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSubtle}" />
     <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="12" />
     <Setter Property="Padding" Value="14,12" />
     <Setter Property="Margin" Value="0,0,0,8" />
+    <Setter Property="MinHeight" Value="48" />
+  </Style>
+
+  <!-- Hover-capable opt row via EventSetter not available; host can use based-on -->
+  <Style x:Key="OptRowInteractive" TargetType="Border" BasedOn="{StaticResource OptRow}">
+    <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="#1FFFFFFF" />
+      </Trigger>
+    </Style.Triggers>
   </Style>
 
   <Style x:Key="MetricChip" TargetType="Border">
-    <Setter Property="Background" Value="#14FFFFFF" />
+    <Setter Property="Background" Value="{DynamicResource CardSoftBackground}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderBrushSubtle}" />
+    <Setter Property="BorderThickness" Value="1" />
     <Setter Property="CornerRadius" Value="10" />
     <Setter Property="Padding" Value="12,10" />
-    <Setter Property="Margin" Value="0,0,8,0" />
+    <Setter Property="Margin" Value="0,0,8,8" />
+    <Setter Property="MinWidth" Value="88" />
   </Style>
 
   <Style x:Key="ModernListBox" TargetType="ListBox">
@@ -262,12 +425,32 @@
               <Setter TargetName="Bd" Property="Background" Value="#14FFFFFF" />
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="Bd" Property="Background" Value="#1A06B6D4" />
+              <Setter TargetName="Bd" Property="Background" Value="#1A00BFFF" />
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
       </Setter.Value>
     </Setter>
+  </Style>
+
+  <!-- MaterialDesign dark overrides — меньше «лезущих» default-стилей -->
+  <Style TargetType="TextBox" BasedOn="{StaticResource MaterialDesignTextBox}">
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+    <Setter Property="CaretBrush" Value="{DynamicResource AccentBrush}" />
+    <Setter Property="Padding" Value="10,8" />
+    <Setter Property="MinHeight" Value="36" />
+  </Style>
+
+  <Style TargetType="ComboBox" BasedOn="{StaticResource MaterialDesignComboBox}">
+    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}" />
+    <Setter Property="MinHeight" Value="36" />
+    <Setter Property="Padding" Value="8,4" />
+  </Style>
+
+  <Style TargetType="ScrollViewer">
+    <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+    <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+    <Setter Property="PanningMode" Value="VerticalOnly" />
   </Style>
 
 </ResourceDictionary>

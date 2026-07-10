@@ -1,13 +1,16 @@
 # Contributing to AntiLag Next
 
-Thanks for helping improve an open-source Windows latency/performance tool.
+Thanks for helping improve this open-source Windows latency / performance tool.
+
+**Author / maintainer:** [swd3k](https://github.com/swd3k)
 
 ## Ground rules
 
-- **No closed-source AntiLag code.** Original [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) is CC BY-NC-ND; this project is a clean-room reimplementation under MIT.
-- Prefer **Win32 APIs** (`powrprof`, `ntdll`, `kernel32`) over shelling out to `powercfg.exe` when possible.
+- **No closed-source AntiLag code.** Original [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) is CC BY-NC-ND; this project is a clean-room reimplementation under **MIT**.
+- Prefer **Win32 APIs** (`powrprof`, `ntdll`, `kernel32`) over shelling out when possible.
 - Every system mutation must go through **backup/restore** (`ISafetyService` / `IBackupService`).
-- UI stays **WPF + MVVM** (`CommunityToolkit.Mvvm`). Domain code lives in `AntiLagNext.Core`.
+- **Shipping UI** is **Photino + WebView2** (`AntiLagNext.Ui` + `wwwroot`). Domain code lives in `AntiLagNext.Core`.
+- Legacy WPF (`AntiLagNext.App`) is **reference only** and is **not** built by default.
 
 ## Setup
 
@@ -20,10 +23,16 @@ dotnet build AntiLagNext.sln -c Release
 dotnet test AntiLagNext.sln -c Release
 ```
 
-Run the app (elevated UAC):
+Run the shipping UI (elevated UAC):
 
 ```powershell
-dotnet run --project src\AntiLagNext.App -c Release
+dotnet run --project src\AntiLagNext.Ui -c Release
+```
+
+CLI:
+
+```powershell
+dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 ```
 
 ## Hard smoke tests
@@ -38,11 +47,11 @@ Smoke tests call real Win32 APIs (timer resolution, power scheme read, registry 
 
 1. Keep PRs focused (one feature/fix).
 2. Add/adjust unit tests for Core models; add smoke tests for Win32-facing paths when practical.
-3. Update `AntiLagNext/README.md` if user-facing behavior changes.
-4. Do not commit `bin/`, `obj/`, logs, or personal `%APPDATA%` backups.
+3. Update root [README.md](README.md) if user-facing behavior changes.
+4. Do not commit `bin/`, `obj/`, `dist/`, `backups/`, logs, or personal `%APPDATA%` data.
 
 ## Code style
 
 - C# 12, nullable enabled.
-- Russian user-facing strings are OK (current UI language).
+- User-facing strings: Russian + English (`wwwroot/i18n`).
 - English comments OK for complex Win32 paths.

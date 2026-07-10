@@ -2,72 +2,132 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
-  <StackPanel MaxWidth="720" HorizontalAlignment="Left">
-    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
-      <StackPanel>
-        <TextBlock Text="APPEARANCE" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
-        <TextBlock Text="Тема" FontSize="12" Foreground="{StaticResource MutedText}" Margin="0,0,0,6" />
-        <ComboBox ItemsSource="{Binding Themes}" SelectedItem="{Binding Theme}" Width="220" HorizontalAlignment="Left" />
-      </StackPanel>
-    </Border>
+  <StackPanel>
+    <Grid>
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="20" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto" />
+        <RowDefinition Height="20" />
+        <RowDefinition Height="Auto" />
+      </Grid.RowDefinitions>
 
-    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
-      <StackPanel>
-        <TextBlock Text="SAFETY &amp; MONITORING" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
-        <Border Style="{StaticResource OptRow}">
-          <DockPanel>
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}" IsChecked="{Binding CreateRestorePoint}" />
-            <StackPanel>
-              <TextBlock Text="Точка восстановления" FontWeight="SemiBold" />
-              <TextBlock Text="System Restore + JSON backup" FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-        </Border>
-        <Border Style="{StaticResource OptRow}">
-          <DockPanel>
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}" IsChecked="{Binding MonitoringEnabled}" />
-            <TextBlock Text="Мониторинг при запуске" FontWeight="SemiBold" VerticalAlignment="Center" />
-          </DockPanel>
-        </Border>
-        <DockPanel Margin="4,8">
-          <TextBlock Text="Интервал, мс" Width="140" VerticalAlignment="Center" Foreground="{StaticResource MutedText}" />
-          <TextBox Text="{Binding MonitoringIntervalMs}" Width="100" HorizontalAlignment="Left" />
-        </DockPanel>
-        <Border Style="{StaticResource OptRow}" Margin="0">
-          <DockPanel>
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}" IsChecked="{Binding GameAutoSwitchEnabled}" />
-            <StackPanel>
-              <TextBlock Text="Авто-профиль при играх" FontWeight="SemiBold" />
-              <TextBlock Text="WMI ProcessStartTrace" FontSize="11" Foreground="{StaticResource MutedText}" />
-            </StackPanel>
-          </DockPanel>
-        </Border>
-      </StackPanel>
-    </Border>
+      <!-- BUILD -->
+      <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource GlassCard}" CornerRadius="16" Padding="16">
+        <StackPanel>
+          <TextBlock Text="{Binding LabelBuild}" FontSize="10" FontWeight="Bold"
+                     Foreground="{DynamicResource AccentBrush}" Margin="0,0,0,8" />
+          <TextBlock Text="{Binding BuildInfo}" FontFamily="Consolas" FontSize="12"
+                     Foreground="{DynamicResource PrimaryText}" Margin="0,0,0,6" />
+          <TextBlock Text="{Binding ExePath}" FontFamily="Consolas" FontSize="11"
+                     Foreground="{DynamicResource MutedText}" TextWrapping="Wrap" LineHeight="16" />
+        </StackPanel>
+      </Border>
 
-    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
-      <StackPanel>
-        <TextBlock Text="TRAY &amp; TIMER" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
-        <Border Style="{StaticResource OptRow}">
-          <DockPanel>
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}" IsChecked="{Binding MinimizeToTray}" />
-            <TextBlock Text="Сворачивать в трей" FontWeight="SemiBold" VerticalAlignment="Center" />
-          </DockPanel>
-        </Border>
-        <Border Style="{StaticResource OptRow}">
-          <DockPanel>
-            <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}" IsChecked="{Binding ReleaseTimerOnExit}" />
-            <TextBlock Text="Отпускать таймер при выходе" FontWeight="SemiBold" VerticalAlignment="Center" />
-          </DockPanel>
-        </Border>
-        <DockPanel Margin="4,8,4,0">
-          <TextBlock Text="Макс. бэкапов" Width="140" VerticalAlignment="Center" Foreground="{StaticResource MutedText}" />
-          <TextBox Text="{Binding MaxBackupsToKeep}" Width="100" HorizontalAlignment="Left" />
-        </DockPanel>
-      </StackPanel>
-    </Border>
+      <!-- APPEARANCE -->
+      <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource GlassCard}" CornerRadius="16" Padding="20">
+        <StackPanel>
+          <TextBlock Text="{Binding LabelAppearance}" FontSize="10" FontWeight="Bold"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
+          <TextBlock Text="{Binding LabelTheme}" FontSize="12"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,6" />
+          <ComboBox ItemsSource="{Binding ThemeOptions}"
+                    SelectedItem="{Binding SelectedThemeOption}"
+                    DisplayMemberPath="DisplayName"
+                    Margin="0,0,0,16" HorizontalAlignment="Stretch" />
+          <TextBlock Text="{Binding LabelLanguage}" FontSize="12"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,6" />
+          <ComboBox ItemsSource="{Binding Cultures}" SelectedItem="{Binding UiCulture}"
+                    HorizontalAlignment="Stretch" />
+          <TextBlock Text="{Binding LabelLanguageHint}"
+                     Style="{StaticResource DisclaimerText}" Margin="0,12,0,0" />
+        </StackPanel>
+      </Border>
 
-    <Button Content="SAVE SETTINGS" Style="{StaticResource PrimaryButton}" Command="{Binding SaveCommand}" HorizontalAlignment="Left" />
-    <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0" FontFamily="Consolas" FontSize="11" Foreground="{StaticResource AccentBrush}" />
+      <!-- SAFETY -->
+      <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource GlassCard}" CornerRadius="20" Padding="20">
+        <StackPanel>
+          <TextBlock Text="{Binding LabelSafety}" FontSize="10" FontWeight="Bold"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
+          <Border Style="{StaticResource OptRow}">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding CreateRestorePoint}" VerticalAlignment="Center" />
+              <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="{Binding LabelRestore}" FontWeight="SemiBold" FontSize="13"
+                           Foreground="{DynamicResource PrimaryText}" />
+                <TextBlock Text="{Binding LabelRestoreDesc}" FontSize="11"
+                           Foreground="{DynamicResource MutedText}" Margin="0,4,0,0" />
+              </StackPanel>
+            </DockPanel>
+          </Border>
+          <Border Style="{StaticResource OptRow}">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding MonitoringEnabled}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding LabelMonitoring}" FontWeight="SemiBold" FontSize="13"
+                         Foreground="{DynamicResource PrimaryText}"
+                         VerticalAlignment="Center" Margin="0,0,8,0" />
+            </DockPanel>
+          </Border>
+          <DockPanel Margin="4,8">
+            <TextBlock Text="{Binding LabelInterval}" Width="140" VerticalAlignment="Center"
+                       Foreground="{DynamicResource MutedText}" FontSize="13" />
+            <TextBox Text="{Binding MonitoringIntervalMs}" Width="100" HorizontalAlignment="Left" />
+          </DockPanel>
+          <Border Style="{StaticResource OptRow}" Margin="0">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding GameAutoSwitchEnabled}" VerticalAlignment="Center" />
+              <StackPanel Margin="0,0,8,0">
+                <TextBlock Text="{Binding LabelGameAuto}" FontWeight="SemiBold" FontSize="13"
+                           Foreground="{DynamicResource PrimaryText}" />
+                <TextBlock Text="{Binding LabelGameAutoDesc}" FontSize="11"
+                           Foreground="{DynamicResource MutedText}" Margin="0,4,0,0" />
+              </StackPanel>
+            </DockPanel>
+          </Border>
+        </StackPanel>
+      </Border>
+
+      <!-- TRAY -->
+      <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource GlassCard}" CornerRadius="20" Padding="20">
+        <StackPanel>
+          <TextBlock Text="{Binding LabelTray}" FontSize="10" FontWeight="Bold"
+                     Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
+          <Border Style="{StaticResource OptRow}">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding MinimizeToTray}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding LabelTrayMin}" FontWeight="SemiBold" FontSize="13"
+                         Foreground="{DynamicResource PrimaryText}"
+                         VerticalAlignment="Center" Margin="0,0,8,0" />
+            </DockPanel>
+          </Border>
+          <Border Style="{StaticResource OptRow}">
+            <DockPanel>
+              <ToggleButton DockPanel.Dock="Right" Style="{StaticResource MaterialDesignSwitchToggleButton}"
+                            IsChecked="{Binding ReleaseTimerOnExit}" VerticalAlignment="Center" />
+              <TextBlock Text="{Binding LabelTrayRelease}" FontWeight="SemiBold" FontSize="13"
+                         Foreground="{DynamicResource PrimaryText}"
+                         VerticalAlignment="Center" Margin="0,0,8,0" />
+            </DockPanel>
+          </Border>
+          <DockPanel Margin="4,8,4,0">
+            <TextBlock Text="{Binding LabelBackupsMax}" Width="140" VerticalAlignment="Center"
+                       Foreground="{DynamicResource MutedText}" FontSize="13" />
+            <TextBox Text="{Binding MaxBackupsToKeep}" Width="100" HorizontalAlignment="Left" />
+          </DockPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Button Content="{Binding LabelSave}" Style="{StaticResource PrimaryButton}"
+            Command="{Binding SaveCommand}" HorizontalAlignment="Left" Margin="0,20,0,0" MinWidth="160" />
+    <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0" FontFamily="Consolas" FontSize="11"
+               Foreground="{DynamicResource AccentBrush}" />
   </StackPanel>
 </UserControl>

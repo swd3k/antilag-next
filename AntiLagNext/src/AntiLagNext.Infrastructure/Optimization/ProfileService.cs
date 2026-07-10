@@ -1,11 +1,15 @@
 using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Models;
+using AntiLagNext.Core.Plugins;
+using AntiLagNext.Infrastructure.Safety;
+using AntiLagNext.Infrastructure.Services;
+using AntiLagNext.Infrastructure.Storage;
 
 namespace AntiLagNext.Infrastructure.Optimization;
 
 /// <summary>
-/// Применение / откат профиля оптимизации.
-/// Координирует SafetyService + все менеджеры оптимизаций.
+/// Применение / откат профиля: ядро (timer/power/gpu/…) + enabled extension plugins.
+/// System mutations run under <see cref="SystemMutationGate"/>.
 /// </summary>
 public sealed class ProfileService : IProfileService
 {
@@ -17,6 +21,8 @@ public sealed class ProfileService : IProfileService
     private readonly IMemoryManager _memory;
     private readonly IGpuManager _gpu;
     private readonly IBackupService _backup;
+    private readonly IPluginCatalog _plugins;
+    private readonly SystemMutationGate _mutationGate;
 
     public ProfileService(
         ISafetyService safety,
@@ -26,7 +32,9 @@ public sealed class ProfileService : IProfileService
         IGameModeManager gameMode,
         IMemoryManager memory,
         IGpuManager gpu,
-        IBackupService backup)
+        IBackupService backup,
+        IPluginCatalog plugins,
+        SystemMutationGate mutationGate)
     {
         _safety = safety;
         _timer = timer;
@@ -36,9 +44,17 @@ public sealed class ProfileService : IProfileService
         _memory = memory;
         _gpu = gpu;
         _backup = backup;
+        _plugins = plugins;
+        _mutationGate = mutationGate;
     }
 
-    public async Task<OperationResult> ApplyAsync(OptimizationProfile profile, CancellationToken cancellationToken = default)
+    public Task<OperationResult> ApplyAsync(OptimizationProfile profile, CancellationToken cancellationToken = default)
+        => _mutationGate.RunAsync(() => ApplyCoreAsync(profile, cancellationToken), cancellationToken);
+
+    public Task<OperationResult> RevertAsync(CancellationToken cancellationToken = default)
+        => _mutationGate.RunAsync(() => _safety.ResetAllAsync(cancellationToken), cancellationToken);
+
+    private async Task<OperationResult> ApplyCoreAsync(OptimizationProfile profile, CancellationToken cancellationToken)
     {
         if (profile == null)
             return OperationResult.Fail("Профиль не задан.");
@@ -53,6 +69,7 @@ public sealed class ProfileService : IProfileService
             return OperationResult.Fail("Не удалось подготовить защиту.", detail: before.Detail ?? before.Message);
 
         Guid sessionId = before.Value;
+        ApplySessionGuard.MarkBegin(sessionId, $"Активация профиля «{profile.Name}»");
 
         // Привязка сессии к менеджерам, умеющим snapshot
         if (_gameMode is GameModeManager gmm) gmm.BindBackupSession(sessionId);
@@ -156,13 +173,33 @@ public sealed class ProfileService : IProfileService
                 if (mem.Success) messages.Add(mem.Message); else errors.Add(mem.Message);
             }
 
-            // 8. Commit backup
+            // 8. Extension plugins (network, input, …) — after core, same backup session
+            var pluginCtx = new PluginApplyContext
+            {
+                Profile = profile,
+                BackupSessionId = sessionId,
+                CancellationToken = cancellationToken,
+                IsReCalibrate = false
+            };
+            var plugins = await _plugins.ApplyEnabledExtensionsAsync(pluginCtx);
+            if (plugins.Success) messages.Add(plugins.Message);
+            else errors.Add(plugins.Message);
+
+            // 9. Commit backup
             var commit = _safety.CommitChanges(sessionId);
             if (!commit.Success) errors.Add(commit.Message);
 
+            // 10. ActiveState only on full success — partial apply must not claim "active"
             if (errors.Count == 0)
+            {
+                ApplySessionGuard.MarkComplete();
+                ActiveStateStore.MarkActive(profile.Name);
                 return OperationResult.Ok($"Профиль «{profile.Name}» применён. " + string.Join(" ", messages));
+            }
 
+            // Partial: still clear incomplete flag (state is known; user can Reset)
+            ApplySessionGuard.MarkComplete();
+            ActiveStateStore.MarkInactive();
             return OperationResult.Fail(
                 $"Профиль «{profile.Name}» применён частично.",
                 detail: string.Join("; ", errors) + " | " + string.Join(" ", messages));
@@ -170,12 +207,10 @@ public sealed class ProfileService : IProfileService
         catch (Exception ex)
         {
             try { _safety.CommitChanges(sessionId); } catch { /* best-effort */ }
+            // Leave incomplete marker so next start can recover
             return OperationResult.Fail("Сбой применения профиля.", detail: ex.Message, ex: ex);
         }
     }
-
-    public async Task<OperationResult> RevertAsync(CancellationToken cancellationToken = default)
-        => await _safety.ResetAllAsync(cancellationToken);
 
     private void SnapshotPower(Guid sessionId, Guid scheme, Guid sub, Guid setting, bool isAc)
     {

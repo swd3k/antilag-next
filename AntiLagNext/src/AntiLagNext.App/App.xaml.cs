@@ -1,6 +1,7 @@
 using System.Windows;
 using AntiLagNext.App.ViewModels;
 using AntiLagNext.App.Views;
+using AntiLagNext.Core.Plugins;
 using AntiLagNext.Infrastructure;
 using AntiLagNext.Infrastructure.Storage;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,6 +16,14 @@ namespace AntiLagNext.App;
 public partial class App : Application
 {
     private IHost? _host;
+
+    public App()
+    {
+        // XAML/binding-ошибки (напр. Tips) иначе валят процесс без MessageBox.
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+    }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
@@ -45,6 +54,7 @@ public partial class App : Application
                     services.AddSingleton<ProfilesViewModel>();
                     services.AddSingleton<MonitoringViewModel>();
                     services.AddSingleton<BackupsViewModel>();
+                    services.AddSingleton<PluginsViewModel>();
                     services.AddSingleton<SettingsViewModel>();
                     services.AddSingleton<TipsViewModel>();
                     services.AddSingleton<MainWindow>();
@@ -53,9 +63,29 @@ public partial class App : Application
 
             await _host.StartAsync();
 
+            // Plugin discovery (built-in + plugins/*.dll)
+            var plugins = _host.Services.GetRequiredService<IPluginCatalog>();
+            await plugins.LoadAsync();
+
+            // Apply theme + verify i18n before first paint
+            try
+            {
+                var settings = _host.Services.GetRequiredService<AntiLagNext.Core.Abstractions.ISettingsService>();
+                AntiLagNext.App.Services.AppThemeService.Apply(settings.Current.Theme);
+                var loc = _host.Services.GetRequiredService<AntiLagNext.Core.Localization.ILocalizationService>();
+                string sample = loc.T("page.dashboard.title");
+                Log.Information("i18n sample page.dashboard.title={0} culture={1}", sample, loc.CurrentCulture);
+                if (sample.StartsWith("page.", StringComparison.OrdinalIgnoreCase))
+                    Log.Warning("i18n keys not resolved — check i18n folder / embedded resources");
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Theme/i18n pre-paint failed");
+            }
+
             var main = _host.Services.GetRequiredService<MainWindow>();
             main.Show();
-            Log.Information("AntiLag Next запущен.");
+            Log.Information("AntiLag Next запущен. Plugins: {Count}", plugins.Plugins.Count);
         }
         catch (Exception ex)
         {
@@ -67,6 +97,31 @@ public partial class App : Application
                 MessageBoxImage.Error);
             Shutdown(1);
         }
+    }
+
+    private static void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        Log.Fatal(e.Exception, "Необработанное исключение UI");
+        MessageBox.Show(
+            $"Ошибка интерфейса:\n{e.Exception.GetBaseException().Message}",
+            "AntiLag Next",
+            MessageBoxButton.OK,
+            MessageBoxImage.Error);
+        e.Handled = true;
+    }
+
+    private static void OnDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    {
+        if (e.ExceptionObject is Exception ex)
+            Log.Fatal(ex, "Необработанное исключение AppDomain (IsTerminating={IsTerminating})", e.IsTerminating);
+        else
+            Log.Fatal("Необработанное исключение AppDomain: {Object}", e.ExceptionObject);
+    }
+
+    private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        Log.Error(e.Exception, "Unobserved task exception");
+        e.SetObserved();
     }
 
     protected override async void OnExit(ExitEventArgs e)

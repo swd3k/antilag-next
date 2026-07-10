@@ -150,7 +150,7 @@ public sealed class CoreParkingManager : ICoreParkingManager
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось применить режим парковки.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Не удалось применить режим активности ядер.", detail: ex.Message, ex: ex);
         }
     }
 

@@ -53,7 +53,10 @@ public enum ProfileKind
     Office = 2,
 
     /// <summary>Пользовательский набор.</summary>
-    Custom = 3
+    Custom = 3,
+
+    /// <summary>Максимальная производительность — Ultimate Performance, таймер 0.5 мс, все твики.</summary>
+    MaxPerformance = 4
 }
 
 /// <summary>
@@ -62,7 +65,9 @@ public enum ProfileKind
 public enum AppTheme
 {
     Dark = 0,
-    Light = 1
+    Light = 1,
+    /// <summary>Следовать системной теме Windows.</summary>
+    System = 2
 }
 
 /// <summary>

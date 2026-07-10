@@ -11,14 +11,15 @@ namespace AntiLagNext.Core.Tests.Settings;
 public class AppSettingsTests
 {
     [Fact]
-    public void CreateDefault_HasThreePresets()
+    public void CreateDefault_HasFourPresets()
     {
         var settings = AppSettings.CreateDefault();
 
-        settings.Profiles.Should().HaveCount(3);
+        settings.Profiles.Should().HaveCount(4);
         settings.Profiles.Should().Contain(p => p.Kind == ProfileKind.Default);
         settings.Profiles.Should().Contain(p => p.Kind == ProfileKind.Gaming);
         settings.Profiles.Should().Contain(p => p.Kind == ProfileKind.Office);
+        settings.Profiles.Should().Contain(p => p.Kind == ProfileKind.MaxPerformance);
     }
 
     [Fact]

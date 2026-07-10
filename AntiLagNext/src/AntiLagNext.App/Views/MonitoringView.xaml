@@ -1,128 +1,166 @@
 <UserControl x:Class="AntiLagNext.App.Views.MonitoringView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
              xmlns:ctrl="clr-namespace:AntiLagNext.App.Controls">
-  <StackPanel>
-    <DockPanel Margin="0,0,0,20">
-      <StackPanel Orientation="Horizontal">
-        <Button Content="START" Command="{Binding StartCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" />
-        <Button Content="STOP" Command="{Binding StopCommand}" Style="{StaticResource DangerOutlineButton}" Margin="0,0,10,0" />
-        <Button Content="CLEAR" Command="{Binding ClearCommand}" Style="{StaticResource GhostButton}" Margin="0,0,10,0" />
-        <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleAlertsCommand}">
-          <TextBlock FontSize="10" FontWeight="Bold">
-            <TextBlock.Style>
-              <Style TargetType="TextBlock">
-                <Setter Property="Text" Value="ALERTS ON" />
-                <Style.Triggers>
-                  <DataTrigger Binding="{Binding AlertsEnabled}" Value="False">
-                    <Setter Property="Text" Value="ALERTS OFF" />
-                  </DataTrigger>
-                </Style.Triggers>
-              </Style>
-            </TextBlock.Style>
-          </TextBlock>
-        </Button>
-      </StackPanel>
-      <TextBlock DockPanel.Dock="Right" Text="{Binding StatusMessage}" VerticalAlignment="Center"
-                 Foreground="{StaticResource MutedText}" FontSize="11" FontFamily="Consolas"
-                 TextWrapping="Wrap" MaxWidth="400" TextAlignment="Right" HorizontalAlignment="Right" />
-    </DockPanel>
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
 
-    <Border Margin="0,0,0,16" CornerRadius="14" Padding="14"
-            Background="#33F43F5E" BorderBrush="{StaticResource DangerBrush}" BorderThickness="1"
+    <Grid Grid.Row="0" Margin="0,0,0,20">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+        <Button Content="{Binding LabelStart}" Command="{Binding StartCommand}" Style="{StaticResource PrimaryButton}" Margin="0,0,10,0" />
+        <Button Content="{Binding LabelStop}" Command="{Binding StopCommand}" Style="{StaticResource DangerOutlineButton}" Margin="0,0,10,0" />
+        <Button Content="{Binding LabelClear}" Command="{Binding ClearCommand}" Style="{StaticResource GhostButton}" Margin="0,0,8,0" Height="40" />
+        <Button Style="{StaticResource GhostButton}" Command="{Binding ToggleAlertsCommand}" Height="40"
+                Content="{Binding AlertsToggleLabel}" />
+      </StackPanel>
+      <Border Grid.Column="1" Style="{StaticResource StatusPill}" VerticalAlignment="Center"
+              Background="#1A34D399" BorderBrush="#3334D399"
+              Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}">
+        <StackPanel Orientation="Horizontal">
+          <Ellipse Width="6" Height="6" Margin="0,0,8,0" Fill="{DynamicResource SuccessBrush}" VerticalAlignment="Center">
+            <Ellipse.Effect>
+              <DropShadowEffect Color="#34D399" BlurRadius="8" ShadowDepth="0" Opacity="0.9" />
+            </Ellipse.Effect>
+          </Ellipse>
+          <TextBlock Text="{Binding LabelRunning}" FontSize="11" FontFamily="Consolas"
+                     Foreground="{DynamicResource SuccessBrush}" VerticalAlignment="Center" />
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <StackPanel Grid.Row="1" Margin="0,0,0,16">
+      <TextBlock Text="{Binding MetricDisclaimer}" Style="{StaticResource DisclaimerText}" />
+      <TextBlock Text="{Binding StatusMessage}" Margin="0,8,0,0" FontFamily="Consolas" FontSize="11"
+                 Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap"
+                 Visibility="{Binding StatusMessage, Converter={StaticResource StringToVis}}" />
+    </StackPanel>
+
+    <Border Grid.Row="2" Margin="0,0,0,16" CornerRadius="12" Padding="14"
+            Background="#33F43F5E" BorderBrush="{DynamicResource DangerBrush}" BorderThickness="1"
             Visibility="{Binding HasActiveAlert, Converter={StaticResource BoolToVis}}">
       <DockPanel>
-        <Button DockPanel.Dock="Right" Content="DISMISS" Style="{StaticResource GhostButton}"
+        <Button DockPanel.Dock="Right" Content="{Binding LabelDismiss}" Style="{StaticResource GhostButton}"
                 Command="{Binding DismissAlertCommand}" />
-        <TextBlock Text="{Binding AlertBanner}" TextWrapping="Wrap" FontWeight="SemiBold" VerticalAlignment="Center" />
+        <TextBlock Text="{Binding AlertBanner}" TextWrapping="Wrap" FontWeight="SemiBold" VerticalAlignment="Center"
+                   Foreground="{DynamicResource PrimaryText}" />
       </DockPanel>
     </Border>
 
-    <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
+    <Border Grid.Row="3" Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="16">
       <StackPanel>
-        <DockPanel Margin="0,0,0,8">
-          <TextBlock Text="SESSION STATS" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" VerticalAlignment="Center" />
-          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+        <DockPanel Margin="0,0,0,10">
+          <TextBlock Text="{Binding LabelSession}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource MutedText}" VerticalAlignment="Center" />
+          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4"
+                  BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="1">
             <TextBlock Text="{Binding LoadContextText}" FontSize="10" FontFamily="Consolas" FontWeight="Bold"
-                       Foreground="{StaticResource AccentBrush}" />
+                       Foreground="{DynamicResource AccentBrush}" />
           </Border>
         </DockPanel>
         <TextBlock Text="{Binding SessionSummary}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12"
-                   Foreground="{StaticResource PrimaryText}" LineHeight="18" />
+                   Foreground="{DynamicResource PrimaryText}" LineHeight="18" />
+        <TextBlock Text="{Binding BaselineText}" TextWrapping="Wrap" FontSize="12" Margin="0,10,0,0"
+                   FontFamily="Consolas" Foreground="{DynamicResource SuccessBrush}" />
         <TextBlock Text="{Binding BehaviorHint}" TextWrapping="Wrap" FontSize="11" Margin="0,10,0,0"
-                   Foreground="{StaticResource MutedText}" LineHeight="16" />
+                   Foreground="{DynamicResource MutedText}" LineHeight="16" />
       </StackPanel>
     </Border>
 
-    <Border Style="{StaticResource GlassCard}" Padding="24" Margin="0,0,0,16" CornerRadius="20">
-      <DockPanel>
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+    <Border Grid.Row="4" Style="{StaticResource GlassCard}" Padding="20" Margin="0,0,0,16" CornerRadius="16">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <DockPanel Grid.Row="0" Margin="0,0,0,12">
           <StackPanel>
-            <TextBlock Text="Latency History" FontSize="13" FontWeight="SemiBold" Foreground="{StaticResource MutedText}" />
-            <TextBlock Text="SCHEDULING / DPC PROXY" FontSize="10" FontFamily="Consolas"
-                       Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+            <TextBlock Text="{Binding LabelChartTitle}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource MutedText}" />
+            <TextBlock Text="{Binding LabelChartSub}" FontSize="10" FontFamily="Consolas"
+                       Foreground="{DynamicResource DimText}" Margin="0,4,0,0" />
           </StackPanel>
-          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1">
+          <Border DockPanel.Dock="Right" CornerRadius="8" Padding="10,4"
+                  BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="1">
             <TextBlock Text="{Binding LatencyQuality}" FontSize="11" FontWeight="SemiBold"
-                       Foreground="{StaticResource AccentBrush}" />
+                       Foreground="{DynamicResource AccentBrush}" />
           </Border>
         </DockPanel>
-        <Border CornerRadius="12" ClipToBounds="True" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1" Margin="0,0,0,14">
-          <ctrl:LatencyWaveform Height="230" Values="{Binding LatencySeries}"
+        <Border Grid.Row="1" Height="220" CornerRadius="12" ClipToBounds="True"
+                BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="1"
+                Background="{DynamicResource CardSoftBackground}">
+          <ctrl:LatencyWaveform Values="{Binding LatencySeries}"
+                                EmptyText="{Binding LabelChartWaiting}"
                                 MaxValue="400" GreenThreshold="50" YellowThreshold="150" UnitLabel="µs" />
         </Border>
-        <UniformGrid Columns="5">
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
+        <UniformGrid Grid.Row="2" Columns="4" Margin="0,14,0,0">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
             <StackPanel>
-              <TextBlock Text="MEDIAN" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding LatestLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource AccentBrush}" />
+              <TextBlock Text="{Binding LabelMedian}" FontSize="10" Foreground="{DynamicResource MutedText}" />
+              <TextBlock Text="{Binding LatestLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16"
+                         FontFamily="Consolas" Foreground="{DynamicResource AccentBrush}" />
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
             <StackPanel>
-              <TextBlock Text="MAX NOW" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding LatestMaxLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource WarningBrush}" />
+              <TextBlock Text="{Binding LabelMaxNow}" FontSize="10" Foreground="{DynamicResource MutedText}" />
+              <TextBlock Text="{Binding LatestMaxLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16"
+                         FontFamily="Consolas" Foreground="{DynamicResource WarningBrush}" />
             </StackPanel>
           </Border>
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
+          <Border Style="{StaticResource MetricChip}" Margin="0,0,8,0" HorizontalAlignment="Stretch">
             <StackPanel>
-              <TextBlock Text="PEAK" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding PeakLatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" />
-            </StackPanel>
-          </Border>
-          <Border Style="{StaticResource MetricChip}" Margin="0,0,6,0" HorizontalAlignment="Stretch">
-            <StackPanel>
-              <TextBlock Text="P99" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding P99LatencyUs, StringFormat={}{0:F0} µs}" FontSize="16" FontFamily="Consolas" />
+              <TextBlock Text="{Binding LabelIdleBase}" FontSize="10" Foreground="{DynamicResource MutedText}" />
+              <TextBlock Text="{Binding IdleBaselineUs, StringFormat={}{0:F0} µs}" FontSize="16"
+                         FontFamily="Consolas" Foreground="{DynamicResource SuccessBrush}" />
             </StackPanel>
           </Border>
           <Border Style="{StaticResource MetricChip}" Margin="0" HorizontalAlignment="Stretch">
             <StackPanel>
-              <TextBlock Text="RED %" FontSize="10" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="{Binding PercentInRed, StringFormat={}{0:F1}%}" FontSize="16" FontFamily="Consolas" Foreground="{StaticResource DangerBrush}" />
+              <TextBlock Text="{Binding LabelPeakP99}" FontSize="10" Foreground="{DynamicResource MutedText}" />
+              <TextBlock FontSize="16" FontFamily="Consolas" Foreground="{DynamicResource PrimaryText}">
+                <Run Text="{Binding PeakLatencyUs, StringFormat=F0, Mode=OneWay}" />
+                <Run Text=" / " Foreground="{DynamicResource DimText}" />
+                <Run Text="{Binding P99LatencyUs, StringFormat=F0, Mode=OneWay}" />
+              </TextBlock>
             </StackPanel>
           </Border>
         </UniformGrid>
-      </DockPanel>
+      </Grid>
     </Border>
 
-    <Border Background="{StaticResource CardBackground}" BorderBrush="{StaticResource BorderBrushSubtle}"
-            BorderThickness="1" CornerRadius="20" Padding="8" MinHeight="200">
+    <Border Grid.Row="5" Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="1" CornerRadius="16"
+            MaxHeight="280">
       <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="16,12" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
-          <TextBlock Text="HIGH LATENCY LOG" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
+        <Border DockPanel.Dock="Top" Padding="16,12" BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
+          <TextBlock Text="{Binding LabelLogTitle}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource MutedText}" />
         </Border>
-        <ListBox ItemsSource="{Binding Spikes}" Style="{StaticResource ModernListBox}"
-                 ItemContainerStyle="{StaticResource ModernListBoxItem}" MaxHeight="240">
-          <ListBox.ItemTemplate>
-            <DataTemplate>
-              <TextBlock Text="{Binding DisplayLine}" FontFamily="Cascadia Mono, Consolas" FontSize="12"
-                         TextWrapping="Wrap" Foreground="{StaticResource PrimaryText}" />
-            </DataTemplate>
-          </ListBox.ItemTemplate>
-        </ListBox>
+        <Grid>
+          <ListBox ItemsSource="{Binding Spikes}" Style="{StaticResource ModernListBox}"
+                   ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                   Visibility="{Binding Spikes.Count, Converter={StaticResource CountNonZeroToVis}}">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <TextBlock Text="{Binding DisplayLine}" TextWrapping="Wrap" Foreground="{DynamicResource PrimaryText}" FontSize="12" />
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="{Binding LabelSpikesEmpty}" TextWrapping="Wrap" TextAlignment="Center"
+                     VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24" MaxWidth="360"
+                     FontSize="12" Foreground="{DynamicResource DimText}"
+                     Visibility="{Binding Spikes.Count, Converter={StaticResource CountZeroToVis}}" />
+        </Grid>
       </DockPanel>
     </Border>
-  </StackPanel>
+  </Grid>
 </UserControl>

@@ -4,47 +4,91 @@
              xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes">
   <Grid>
     <Grid.ColumnDefinitions>
-      <ColumnDefinition Width="320" />
-      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="320" MinWidth="280" MaxWidth="380" />
+      <ColumnDefinition Width="20" />
+      <ColumnDefinition Width="*" MinWidth="320" />
     </Grid.ColumnDefinitions>
 
-    <Border Grid.Column="0" Background="{StaticResource CardBackground}"
-            BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="1" CornerRadius="20" Margin="0,0,20,0">
-      <DockPanel>
-        <Border DockPanel.Dock="Top" Padding="20,16" BorderBrush="{StaticResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
+    <Border Grid.Column="0" Background="{DynamicResource CardBackground}"
+            BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="1" CornerRadius="16">
+      <DockPanel LastChildFill="True">
+        <Border DockPanel.Dock="Top" Padding="16,14" BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="0,0,0,1">
           <DockPanel>
             <StackPanel>
-              <TextBlock Text="GAME PROFILES" FontSize="10" FontWeight="Bold" Foreground="{StaticResource MutedText}" />
-              <TextBlock Text="Пресеты и auto-switch" FontSize="10" FontFamily="Consolas"
-                         Foreground="{StaticResource DimText}" Margin="0,4,0,0" />
+              <TextBlock Text="{Binding LabelListTitle}" FontSize="10" FontWeight="Bold"
+                         Foreground="{DynamicResource MutedText}" />
+              <TextBlock Text="{Binding LabelListSub}" FontSize="10" FontFamily="Consolas"
+                         Foreground="{DynamicResource DimText}" Margin="0,4,0,0" />
             </StackPanel>
-            <Button DockPanel.Dock="Right" Content="VIEW ALL" Style="{StaticResource GhostButton}"
+            <Button DockPanel.Dock="Right" Content="{Binding LabelSave}" Style="{StaticResource GhostButton}"
                     Command="{Binding SaveProfilesCommand}" VerticalAlignment="Center" />
           </DockPanel>
         </Border>
-        <Border DockPanel.Dock="Bottom" Padding="12">
-          <Button Style="{StaticResource PrimaryButton}" Command="{Binding AddCustomProfileCommand}" HorizontalAlignment="Stretch">
-            <StackPanel Orientation="Horizontal">
-              <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,8,0" />
-              <TextBlock Text="NEW PROFILE" VerticalAlignment="Center" />
-            </StackPanel>
-          </Button>
+
+        <!-- Always-visible actions: New + Delete (Delete only works for Custom) -->
+        <Border DockPanel.Dock="Bottom" Padding="12,10" BorderBrush="{DynamicResource BorderBrushSubtle}" BorderThickness="0,1,0,0"
+                Background="{DynamicResource CardSoftBackground}">
+          <Grid>
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="8" />
+              <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Grid.Column="0" Style="{StaticResource PrimaryButton}"
+                    Command="{Binding AddCustomProfileCommand}" HorizontalAlignment="Stretch" Height="40">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="Plus" Width="16" Height="16" Margin="0,0,6,0"
+                                         Foreground="{DynamicResource OnAccentText}" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding LabelNew}" VerticalAlignment="Center" FontSize="10"
+                           Foreground="{DynamicResource OnAccentText}" />
+              </StackPanel>
+            </Button>
+            <Button Grid.Column="2" Style="{StaticResource DangerOutlineButton}"
+                    Command="{Binding DeleteSelectedCommand}" HorizontalAlignment="Stretch" Height="40"
+                    ToolTip="{Binding DeleteTooltip}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="DeleteOutline" Width="16" Height="16" Margin="0,0,6,0"
+                                         VerticalAlignment="Center" />
+                <TextBlock Text="{Binding LabelDelete}" VerticalAlignment="Center" FontSize="10" />
+              </StackPanel>
+            </Button>
+          </Grid>
         </Border>
+
         <ListBox ItemsSource="{Binding Profiles}" SelectedItem="{Binding SelectedProfile}"
-                 Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}">
+                 Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}"
+                 Margin="0,4,0,0">
           <ListBox.ItemTemplate>
             <DataTemplate>
-              <DockPanel>
-                <Border Width="40" Height="40" CornerRadius="12" Margin="0,0,14,0"
-                        Background="#1A06B6D4">
+              <DockPanel LastChildFill="True">
+                <!-- Per-row delete for custom profiles (always visible when custom) -->
+                <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Padding="8,4" Margin="8,0,0,0"
+                        VerticalAlignment="Center"
+                        Command="{Binding DataContext.DeleteProfileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        CommandParameter="{Binding}"
+                        Visibility="{Binding Kind, Converter={StaticResource ProfileCustomVis}}"
+                        ToolTip="Delete">
+                  <materialDesign:PackIcon Kind="TrashCanOutline" Width="18" Height="18"
+                                           Foreground="{DynamicResource DangerBrush}" />
+                </Button>
+                <Border Width="40" Height="40" CornerRadius="12" Margin="0,0,12,0"
+                        Background="#1A00BFFF">
                   <materialDesign:PackIcon Kind="GamepadVariant" Width="20" Height="20"
                                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                                           Foreground="{StaticResource AccentBrush}" />
+                                           Foreground="{DynamicResource AccentBrush}" />
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13" />
-                  <TextBlock Text="{Binding Kind}" FontSize="11" FontFamily="Consolas"
-                             Foreground="{StaticResource MutedText}" Margin="0,2,0,0" />
+                  <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="13"
+                             Foreground="{DynamicResource PrimaryText}" />
+                  <TextBlock FontSize="11" FontFamily="Consolas"
+                             Foreground="{DynamicResource MutedText}" Margin="0,2,0,0">
+                    <TextBlock.Text>
+                      <MultiBinding StringFormat="{}{0}">
+                        <Binding Path="Kind" />
+                      </MultiBinding>
+                    </TextBlock.Text>
+                  </TextBlock>
                 </StackPanel>
               </DockPanel>
             </DataTemplate>
@@ -53,24 +97,37 @@
       </DockPanel>
     </Border>
 
-    <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
       <StackPanel>
-        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
-          <StackPanel DataContext="{Binding SelectedProfile}">
-            <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="Light" />
-            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,8,0,0"
-                       Foreground="{StaticResource MutedText}" FontSize="13" LineHeight="20" />
-          </StackPanel>
+        <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="16">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Style="{StaticResource DangerOutlineButton}"
+                    Command="{Binding DeleteSelectedCommand}" Margin="12,0,0,0"
+                    VerticalAlignment="Top" MinWidth="120"
+                    Visibility="{Binding CanDeleteSelected, Converter={StaticResource BoolToVis}}"
+                    IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}">
+              <StackPanel Orientation="Horizontal">
+                <materialDesign:PackIcon Kind="DeleteOutline" Width="16" Height="16" Margin="0,0,8,0" />
+                <TextBlock Text="{Binding LabelDelete}" VerticalAlignment="Center" />
+              </StackPanel>
+            </Button>
+            <StackPanel DataContext="{Binding SelectedProfile}">
+              <TextBlock Text="{Binding Name}" FontSize="22" FontWeight="Light"
+                         Foreground="{DynamicResource PrimaryText}" />
+              <TextBlock Text="{Binding Description}" TextWrapping="Wrap" Margin="0,8,0,0"
+                         Foreground="{DynamicResource MutedText}" FontSize="13" LineHeight="20" />
+            </StackPanel>
+          </DockPanel>
         </Border>
 
         <Border Style="{StaticResource GlassCard}" Margin="0,0,0,16" CornerRadius="20">
           <StackPanel>
-            <TextBlock Text="GAME EXES (AUTO-SWITCH)" FontSize="10" FontWeight="Bold"
-                       Foreground="{StaticResource MutedText}" Margin="0,0,0,12" />
+            <TextBlock Text="{Binding LabelGameExes}" FontSize="10" FontWeight="Bold"
+                       Foreground="{DynamicResource MutedText}" Margin="0,0,0,12" />
             <ListBox ItemsSource="{Binding SelectedProfile.GameExecutables}" Height="120"
                      Style="{StaticResource ModernListBox}" ItemContainerStyle="{StaticResource ModernListBoxItem}" />
             <DockPanel Margin="0,12,0,0">
-              <Button DockPanel.Dock="Right" Content="ADD" Style="{StaticResource PrimaryButton}"
+              <Button DockPanel.Dock="Right" Content="{Binding LabelAdd}" Style="{StaticResource PrimaryButton}"
                       Command="{Binding AddGameExeCommand}" Padding="16,10" Margin="10,0,0,0" />
               <TextBox materialDesign:HintAssist.Hint="game.exe"
                        Text="{Binding NewGameExe, UpdateSourceTrigger=PropertyChanged}" />
@@ -78,10 +135,11 @@
           </StackPanel>
         </Border>
 
-        <Button Content="APPLY PROFILE" Style="{StaticResource PrimaryButton}"
-                Command="{Binding ApplySelectedCommand}" HorizontalAlignment="Left" MinWidth="180" />
+        <Button Content="{Binding LabelApply}" Style="{StaticResource PrimaryButton}"
+                Command="{Binding ApplySelectedCommand}" HorizontalAlignment="Left" MinWidth="180"
+                IsEnabled="{Binding IsBusy, Converter={StaticResource InvertBool}}" />
         <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0" FontFamily="Consolas" FontSize="11"
-                   Foreground="{StaticResource AccentBrush}" TextWrapping="Wrap" />
+                   Foreground="{DynamicResource AccentBrush}" TextWrapping="Wrap" />
       </StackPanel>
     </ScrollViewer>
   </Grid>
