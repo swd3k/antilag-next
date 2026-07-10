@@ -925,14 +925,15 @@ internal static class Program
                         string doneLabel = isApply
                             ? LocalizeProfileLabelFromToken(profile, ProfileKind.Gaming)
                             : "";
+                        string engineMsg = LocalizeEngineMessage(result.Message);
                         AddLog(isApply
                                 ? (result.Success
                                     ? L($"Применён «{doneLabel}»", $"Applied \"{doneLabel}\"")
-                                      + (string.IsNullOrWhiteSpace(result.Message) ? "" : ": " + result.Message)
-                                    : L($"Ошибка применения: {result.Message}", $"Apply failed: {result.Message}"))
+                                      + (string.IsNullOrWhiteSpace(engineMsg) ? "" : ": " + engineMsg)
+                                    : L($"Ошибка применения: {engineMsg}", $"Apply failed: {engineMsg}"))
                                 : (result.Success
-                                    ? L("Сброс завершён: ", "Reset complete: ") + result.Message
-                                    : L("Сброс не удался: ", "Reset failed: ") + result.Message),
+                                    ? L("Сброс завершён: ", "Reset complete: ") + engineMsg
+                                    : L("Сброс не удался: ", "Reset failed: ") + engineMsg),
                             result.Success ? "ok" : "err");
 
                         bool offerRestart = false;
@@ -1253,14 +1254,68 @@ internal static class Program
         OptimizationProfile.UiId(kind);
 
     /// <summary>Localized profile label for logs / BuildUiState (UI still re-localizes via i18n keys).</summary>
-    private static string LocalizeProfileLabel(AntiLagNext.Core.Enums.ProfileKind kind) => kind switch
+    private static string LocalizeProfileLabel(AntiLagNext.Core.Enums.ProfileKind kind) =>
+        OptimizationProfile.LocalizedName(kind, _engine?.Settings.UiCulture);
+
+    /// <summary>
+    /// Map known English engine messages to the active UI culture for the log panel.
+    /// Unknown messages pass through (plugins / Win32 detail stay as-is).
+    /// </summary>
+    private static string LocalizeEngineMessage(string? message)
     {
-        ProfileKind.Office => L("Офисный", "Office"),
-        ProfileKind.MaxPerformance => L("Максимальная", "Maximum"),
-        ProfileKind.Default => L("По умолчанию", "Default"),
-        ProfileKind.Gaming => L("Игровой", "Gaming"),
-        _ => L("Пользовательский", "Custom")
-    };
+        if (string.IsNullOrWhiteSpace(message)) return message ?? "";
+        string m = message.Trim();
+
+        // Exact known strings from ProfileService / SettingsService / Safety
+        string? mapped = m switch
+        {
+            "Profile is not set." => L("Профиль не задан.", "Profile is not set."),
+            "Could not prepare safety backup." => L("Не удалось подготовить защиту.", "Could not prepare safety backup."),
+            "Profile apply failed." => L("Сбой применения профиля.", "Profile apply failed."),
+            "Created default settings." => L("Созданы настройки по умолчанию.", "Created default settings."),
+            "Settings loaded." => L("Настройки загружены.", "Settings loaded."),
+            "Settings loaded and migrated." => L("Настройки загружены и мигрированы.", "Settings loaded and migrated."),
+            "Settings saved." => L("Настройки сохранены.", "Settings saved."),
+            "Could not save settings." => L("Не удалось сохранить настройки.", "Could not save settings."),
+            _ => null
+        };
+        if (mapped != null) return mapped;
+
+        // Prefix patterns: Profile 'X' applied. / applied partially.
+        if (m.StartsWith("Profile '", StringComparison.Ordinal) && m.Contains("' applied partially.", StringComparison.Ordinal))
+        {
+            string name = ExtractQuoted(m) ?? m;
+            return L($"Профиль «{name}» применён частично.", $"Profile '{name}' applied partially.")
+                   + TailAfter(m, "' applied partially.");
+        }
+        if (m.StartsWith("Profile '", StringComparison.Ordinal) && m.Contains("' applied.", StringComparison.Ordinal))
+        {
+            string name = ExtractQuoted(m) ?? m;
+            return L($"Профиль «{name}» применён.", $"Profile '{name}' applied.")
+                   + TailAfter(m, "' applied.");
+        }
+
+        // Legacy RU messages still on disk / old builds
+        if (m.Contains("Профиль", StringComparison.Ordinal) || m.Contains("применён", StringComparison.Ordinal))
+            return m;
+
+        return m;
+    }
+
+    private static string? ExtractQuoted(string m)
+    {
+        int a = m.IndexOf('\'');
+        int b = m.IndexOf('\'', a + 1);
+        if (a < 0 || b <= a) return null;
+        return m.Substring(a + 1, b - a - 1);
+    }
+
+    private static string TailAfter(string m, string marker)
+    {
+        int i = m.IndexOf(marker, StringComparison.Ordinal);
+        if (i < 0) return "";
+        return m[(i + marker.Length)..];
+    }
 
     private static string LocalizeProfileLabelFromToken(string? token, ProfileKind fallbackKind)
     {

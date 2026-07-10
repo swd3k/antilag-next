@@ -359,6 +359,12 @@ internal static class BuiltInRuEn
             ["profiles.delete.done"] = ("Профиль «{0}» удалён", "Profile “{0}” deleted"),
             ["profiles.kind.custom"] = ("Пользовательский", "Custom"),
             ["profiles.kind.builtin"] = ("Встроенный", "Built-in"),
+            // Shared with Photino UI (active profile card / dashboard)
+            ["profile.gaming"] = ("Игровой", "Gaming"),
+            ["profile.office"] = ("Офисный", "Office"),
+            ["profile.max"] = ("Максимальная", "Maximum"),
+            ["profile.default"] = ("По умолчанию", "Default"),
+            ["metric.profile"] = ("Активный профиль", "Active profile"),
 
             ["plugins.title"] = ("ПЛАГИНЫ", "PLUGINS"),
             ["plugins.subtitle"] = ("Ядро + расширения. DLL — в /plugins", "Core + extensions. DLLs in /plugins"),

@@ -783,9 +783,10 @@
                 <div class="metric-val"><span id="timerMs">—</span> <span id="timerUnit" style="font-size:12px;color:var(--muted)">ms</span></div>
                 <div class="note" id="timerHint" data-i18n="metric.timerHint"></div>
               </div>
-              <div class="card">
-                <div class="metric-label" data-i18n="metric.profile">Активный профиль</div>
-                <div class="metric-val" style="font-size:17px;font-family:inherit" id="profileName">—</div>
+              <div class="card" role="group" aria-labelledby="metricProfileLabel">
+                <div class="metric-label" id="metricProfileLabel" data-i18n="metric.profile">Активный профиль</div>
+                <div class="metric-val" style="font-size:17px;font-family:inherit"
+                     id="profileName" role="status" aria-live="polite" aria-atomic="true">—</div>
                 <div class="note" id="cpuNote">CPU —</div>
               </div>
               <div class="card">
@@ -1343,7 +1344,11 @@
       const id = normalizeProfileId(
         state.selectedProfileId || state.profileKey || state.profileKind || selectedProfile
       );
-      el.textContent = profileLabel(id);
+      const label = profileLabel(id);
+      if (el.textContent !== label) {
+        el.textContent = label;
+        el.setAttribute('aria-label', (t('metric.profile') || 'Profile') + ': ' + label);
+      }
     }
 
     function applyDynamicTexts() {

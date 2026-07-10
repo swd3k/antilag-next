@@ -86,6 +86,11 @@
   "profiles.delete.only.custom": "Only custom profiles can be deleted. Built-in (Default, Gaming, Office) are protected.",
   "profiles.delete.confirm": "Delete profile “{0}”? This cannot be undone.",
   "profiles.delete.done": "Profile “{0}” deleted",
+  "profile.gaming": "Gaming",
+  "profile.office": "Office",
+  "profile.max": "Maximum",
+  "profile.default": "Default",
+  "metric.profile": "Active profile",
 
   "plugins.title": "PLUGINS",
   "plugins.subtitle": "Core modules + optional extensions. External DLLs go in /plugins",

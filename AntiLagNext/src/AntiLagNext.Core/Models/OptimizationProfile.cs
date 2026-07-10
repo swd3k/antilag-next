@@ -77,6 +77,26 @@ public sealed class OptimizationProfile
         _ => "gaming"
     };
 
+    /// <summary>i18n key for UI packs: profile.gaming, profile.office, …</summary>
+    public static string I18nKey(ProfileKind kind) => "profile." + UiId(kind);
+
+    /// <summary>
+    /// Localized display name without UI packs: culture "en" → English, else Russian.
+    /// Photino prefers wwwroot/i18n; this is for WPF, logs, CLI status.
+    /// </summary>
+    public static string LocalizedName(ProfileKind kind, string? culture)
+    {
+        bool en = string.Equals(culture, "en", StringComparison.OrdinalIgnoreCase);
+        return kind switch
+        {
+            ProfileKind.Office => en ? "Office" : "Офисный",
+            ProfileKind.MaxPerformance => en ? "Maximum" : "Максимальная",
+            ProfileKind.Default => en ? "Default" : "По умолчанию",
+            ProfileKind.Custom => en ? "Custom" : "Пользовательский",
+            _ => en ? "Gaming" : "Игровой"
+        };
+    }
+
     /// <summary>
     /// English stable name stored in settings JSON. UI localizes via Kind / UiId.
     /// </summary>

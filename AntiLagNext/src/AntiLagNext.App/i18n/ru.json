@@ -86,6 +86,11 @@
   "profiles.delete.only.custom": "Удалять можно только пользовательские профили. Встроенные (Default, Gaming, Office) защищены.",
   "profiles.delete.confirm": "Удалить профиль «{0}»? Это действие нельзя отменить.",
   "profiles.delete.done": "Профиль «{0}» удалён",
+  "profile.gaming": "Игровой",
+  "profile.office": "Офисный",
+  "profile.max": "Максимальная",
+  "profile.default": "По умолчанию",
+  "metric.profile": "Активный профиль",
 
   "plugins.title": "ПЛАГИНЫ",
   "plugins.subtitle": "Ядро + опциональные расширения. Внешние DLL — в папку /plugins",

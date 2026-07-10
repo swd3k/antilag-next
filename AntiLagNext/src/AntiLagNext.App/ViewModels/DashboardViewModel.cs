@@ -147,7 +147,12 @@ public partial class DashboardViewModel : ViewModelBase
     public void LoadFromActiveProfile()
     {
         var p = _settings.Current.GetActiveProfile();
-        ActiveProfileName = p.Name;
+        // Prefer i18n pack; fall back to culture-aware built-in labels (never leave raw RU Name on EN UI)
+        string key = OptimizationProfile.I18nKey(p.Kind);
+        string viaLoc = _loc.T(key);
+        ActiveProfileName = !string.IsNullOrWhiteSpace(viaLoc) && viaLoc != key
+            ? viaLoc
+            : OptimizationProfile.LocalizedName(p.Kind, _loc.CurrentCulture);
         EnableTimer = p.EnableTimer;
         TimerTargetMs = p.TimerTargetMs;
         EnablePowerScheme = p.EnablePowerScheme;
@@ -347,7 +352,13 @@ public partial class DashboardViewModel : ViewModelBase
                 EnableGameMode = preset.EnableGameModeTweak;
                 EnableHags = preset.EnableHags;
                 EnableGpuLowLatency = preset.EnableGpuLowLatency;
-                ActiveProfileName = preset.Name;
+                {
+                    string pk = OptimizationProfile.I18nKey(preset.Kind);
+                    string pl = _loc.T(pk);
+                    ActiveProfileName = !string.IsNullOrWhiteSpace(pl) && pl != pk
+                        ? pl
+                        : OptimizationProfile.LocalizedName(preset.Kind, _loc.CurrentCulture);
+                }
 
                 _settings.Current.FirstRunCompleted = true;
                 _settings.Save();

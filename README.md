@@ -158,22 +158,26 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 # all Windows CPUs: x64 + x86 + ARM64 (+ zip)
 .\scripts\publish-all.ps1
 
-# Inno Setup installers (requires Inno Setup 6)
-.\scripts\build-installer.ps1 -Version 1.0.0
+# Inno Setup installers (requires Inno Setup 6) — framework-dependent (~2–3 MB)
+.\scripts\build-installer.ps1 -Version 1.0.1
 
 # publish + all Setup.exe in one go
-.\scripts\build-installer.ps1 -Version 1.0.0 -PublishFirst
+.\scripts\build-installer.ps1 -Version 1.0.1 -PublishFirst
+
+# self-contained Setup (includes .NET runtime, larger ~60–80 MB) → *-SC.exe
+.\scripts\build-setup-selfcontained.ps1 -Version 1.0.1 -Rid win-x64
 
 # full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
 ```
 
-Self-contained (includes runtime, much larger):
+Self-contained portable folders only:
 
 ```powershell
 .\scripts\publish-all.ps1 -SelfContained
-.\scripts\build-installer.ps1 -Version 1.0.0
 ```
+
+Settings auto-migrate on load (schema v2): legacy Russian built-in profile names become stable English labels; the UI always localizes via language packs.
 
 CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.0.0`) with multi-arch **Setup.exe** installers and portable zips attached.
 

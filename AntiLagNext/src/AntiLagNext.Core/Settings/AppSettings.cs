@@ -4,13 +4,16 @@ using AntiLagNext.Core.Models;
 namespace AntiLagNext.Core.Settings;
 
 /// <summary>
-/// Пользовательские настройки приложения (сериализуемые в %APPDATA%\AntiLagNext\settings.json).
-/// Хранят текущий профиль, тему, параметры мониторинга и список бэкапов.
+/// User settings (serialized to %APPDATA%\AntiLagNext\settings\user-settings.json).
+/// Profiles, theme, monitoring, backups.
 /// </summary>
 public sealed class AppSettings
 {
-    /// <summary>Версия схемы настроек (для будущих миграций).</summary>
-    public int SchemaVersion { get; set; } = 1;
+    /// <summary>Latest settings schema version (migrations bump this).</summary>
+    public const int CurrentSchemaVersion = 2;
+
+    /// <summary>Settings schema version (for migrations).</summary>
+    public int SchemaVersion { get; set; } = CurrentSchemaVersion;
 
     /// <summary>true, если первый запуск уже пройден (бенчмарк выполнен).</summary>
     public bool FirstRunCompleted { get; set; }
@@ -97,7 +100,7 @@ public sealed class AppSettings
     }
 
     /// <summary>
-    /// Находит активный профиль. Если не найден — возвращает профиль по умолчанию.
+    /// Finds the active profile. Falls back to Default when id is missing/unknown.
     /// </summary>
     public OptimizationProfile GetActiveProfile()
     {
@@ -108,5 +111,100 @@ public sealed class AppSettings
         }
         return Profiles.FirstOrDefault(p => p.Kind == ProfileKind.Default)
                ?? OptimizationProfile.CreatePreset(ProfileKind.Default);
+    }
+
+    /// <summary>
+    /// Ensures built-in presets exist, normalizes legacy Russian display names to English,
+    /// and bumps <see cref="SchemaVersion"/>. Returns true if settings should be re-saved.
+    /// </summary>
+    public bool MigrateToCurrentSchema()
+    {
+        bool dirty = false;
+
+        dirty |= EnsureBuiltInPresets();
+        dirty |= NormalizeBuiltInProfileLabels();
+
+        if (SchemaVersion < CurrentSchemaVersion)
+        {
+            SchemaVersion = CurrentSchemaVersion;
+            dirty = true;
+        }
+        else if (SchemaVersion > CurrentSchemaVersion)
+        {
+            // Future client wrote a higher version — clamp, still try to run safely
+            SchemaVersion = CurrentSchemaVersion;
+            dirty = true;
+        }
+
+        return dirty;
+    }
+
+    /// <summary>Insert missing Default / Gaming / Office / MaxPerformance presets.</summary>
+    public bool EnsureBuiltInPresets()
+    {
+        bool dirty = false;
+        void Ensure(ProfileKind kind)
+        {
+            if (Profiles.Any(p => p.Kind == kind)) return;
+            if (kind == ProfileKind.Default)
+                Profiles.Insert(0, OptimizationProfile.CreatePreset(kind));
+            else
+                Profiles.Add(OptimizationProfile.CreatePreset(kind));
+            dirty = true;
+        }
+
+        Ensure(ProfileKind.Default);
+        Ensure(ProfileKind.Gaming);
+        Ensure(ProfileKind.Office);
+        Ensure(ProfileKind.MaxPerformance);
+        return dirty;
+    }
+
+    /// <summary>
+    /// Built-in profiles store English stable names; UI localizes via Kind / UiId.
+    /// Migrates legacy RU names (Игровой, Офисный, …).
+    /// </summary>
+    public bool NormalizeBuiltInProfileLabels()
+    {
+        bool dirty = false;
+        foreach (var p in Profiles)
+        {
+            if (p.Kind == ProfileKind.Custom) continue;
+
+            string expectedName = OptimizationProfile.DefaultEnglishName(p.Kind);
+            if (!string.Equals(p.Name, expectedName, StringComparison.Ordinal))
+            {
+                p.Name = expectedName;
+                dirty = true;
+            }
+
+            // Keep description in English for built-ins (UI does not show these raw in Photino)
+            var fresh = OptimizationProfile.CreatePreset(p.Kind);
+            if (string.IsNullOrWhiteSpace(p.Description)
+                || LooksLegacyRussian(p.Description)
+                || p.Description.Contains("Максимальная отзывчивость", StringComparison.Ordinal)
+                || p.Description.Contains("Мягкие настройки", StringComparison.Ordinal)
+                || p.Description.Contains("Система в исходном", StringComparison.Ordinal))
+            {
+                if (!string.Equals(p.Description, fresh.Description, StringComparison.Ordinal))
+                {
+                    p.Description = fresh.Description;
+                    dirty = true;
+                }
+            }
+        }
+
+        return dirty;
+    }
+
+    private static bool LooksLegacyRussian(string? text)
+    {
+        if (string.IsNullOrEmpty(text)) return false;
+        foreach (char c in text)
+        {
+            if (c is >= 'А' and <= 'я' or 'Ё' or 'ё')
+                return true;
+        }
+        return false;
     }
 }
