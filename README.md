@@ -1,91 +1,112 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green latency)" width="100%" />
+  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
-<h1 align="center">AntiLag Next</h1>
+# ⚡ AntiLag Next
 
-<p align="center">
-  <strong>Open-source Windows latency &amp; performance optimizer</strong><br/>
-  One click · Safe rollback · Honest metrics
-</p>
+> [!NOTE]
+> **Unofficial open-source** tool. Not affiliated with any game publisher or anti-cheat vendor.  
+> **Use at your own risk.** Requires **Administrator** rights (UAC).
 
-<p align="center">
-  <a href="https://github.com/swd3k/antilag-next"><img src="https://img.shields.io/badge/github-swd3k%2Fantilag--next-181717?logo=github" alt="GitHub" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT" /></a>
-  <a href="https://dotnet.microsoft.com/download/dotnet/8.0"><img src="https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet" alt=".NET 8" /></a>
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6?logo=windows" alt="Windows" />
-  <img src="https://img.shields.io/badge/size-≤%205%20MB%20FDD-orange" alt="Size" />
-</p>
+Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks (timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry, and related options) to reduce **scheduling latency**. One-click **Enable**, full **Reset all**, optional tray + autostart.
 
-<p align="center">
-  <b>Developer:</b> <a href="https://github.com/swd3k"><strong>swd3k</strong></a>
-  · <b>License:</b> MIT © 2026 swd3k
-</p>
+**Developer:** [swd3k](https://github.com/swd3k) · **License:** [MIT](./LICENSE) · **Repo:** [github.com/swd3k/antilag-next](https://github.com/swd3k/antilag-next)
 
 ---
 
-## What it is
+> [!CAUTION]
+> ### 🚫 FAKES
+> I do **not** run any other pages, groups, Telegram, or YouTube channels for this project.  
+> The **only** official source is **this GitHub repository**.  
+> Anything distributed under my name outside this repo is a **FAKE**.
 
-**AntiLag Next** is a clean-room, open-source successor to the *ideas* behind [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) — **not a fork** (original is closed binary, CC BY-NC-ND).
+> [!WARNING]
+> ### 🛡️ ANTIVIRUS & SmartScreen
+> AntiLag Next requests **Administrator (UAC)** and may change power settings, registry keys, and timer resolution. Security software or Windows SmartScreen may flag the unsigned build.  
+> This is **not a virus**: the source is fully open — review it or build it yourself.
+>
+> The executable is **not signed** with a paid code-signing certificate, so you may see *“Windows protected your PC”*. If you trust the source (and verified the download from GitHub Releases), choose **More info → Run anyway**. Add the app folder to antivirus exclusions if needed.
 
-| | **Before** | **After** |
-|---|------------|-----------|
-| Status | Idle / not optimized | Optimized |
-| Chart | High / unstable (red zone) | Lower / stable (green zone) |
-| Action | — | **Enable AntiLag Next** |
-
-> The µs chart is a **scheduling-latency proxy** — not kernel DPC and not network ping. Numbers help you compare *before vs after*, not absolute input lag.
-
----
-
-## Highlights
-
-| Area | What you get |
-|------|----------------|
-| **Quick Boost** | One-click Gaming / Office / Max Performance |
-| **Core** | Timer resolution, power plan, core parking, Game Mode / HAGS, GPU low-latency registry |
-| **Safety** | JSON backup, registry allowlist, incomplete-apply recovery, optional restore point |
-| **Tray** | Minimize to tray · optional Windows logon (only after **confirm**) |
-| **CLI** | `--apply gaming --silent` · `--revert` · `--status` |
-| **Size** | Portable UI ~**1.5 MB** (framework-dependent) |
-
-📚 [Architecture](docs/ARCHITECTURE.md) · [Plugins](docs/PLUGINS.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md)
+> [!IMPORTANT]
+> ### 🔐 What you should know
+> - Prefer builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** only.  
+> - The µs chart is a **scheduling-latency proxy** — **not** kernel DPC and **not** network ping.  
+> - Experimental plugins are **MVP stubs** (disabled in the UI; they do **not** change the system).  
+> - Always use **Reset all** if something feels wrong. Not sure? Build from source (below).
 
 ---
 
-## Requirements
+## ⚙️ What the app does
 
-- Windows **10 20H2+** / **11** (x64 recommended; also **x86** / **ARM64** builds)
-- [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/) (usually preinstalled)
-- **Administrator** rights (UAC)
+On **Enable AntiLag Next**, the app applies the selected profile (Gaming / Office / Max Performance) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, and optional plugin modules (network hygiene, process priority, safe services, etc.).
+
+Changes are backed by a **JSON backup** (and optional System Restore point when available). **Reset all** / CLI `--revert` restores the previous state as far as the backup allows.
+
+**Before → After** (banner): red / high latency chart when idle → green / optimized after enable.
+
+The monitor probes scheduling latency on a short interval and shows a live bar chart so you can compare *before vs after* — not absolute input lag in games.
 
 ---
 
-## Run (users)
+## 🔒 Security notes
 
-1. Download a release or build from source (`scripts\publish.ps1`).
-2. Run **`AntiLagNext.exe` as Administrator**.
-3. Read the short onboarding → press **Enable AntiLag Next**.
-4. Optionally confirm **Start with Windows** and/or reboot.
+- Runs **elevated** by design — treat untrusted binaries of this class as high risk; prefer building from source.  
+- Registry restore uses a **strict path allowlist**; service changes use a **safe-name allowlist**.  
+- External `*.plugin.dll` loading is **opt-in**.  
+- **Start with Windows** creates a Task Scheduler job only after an **explicit confirmation** dialog.  
+- No telemetry; crash notes stay local when written.
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
+
+---
+
+## 📥 Download (ready-made .exe)
+
+Get portable zips from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
+
+| Package | Arch | Contents |
+|---------|------|----------|
+| `AntiLagNext-win-x64.zip` | Intel / AMD 64-bit | **UI** (`AntiLagNext.exe`) — *most users* |
+| `AntiLagNext-win-x86.zip` | 32-bit | UI |
+| `AntiLagNext-win-arm64.zip` | ARM64 | UI |
+| `AntiLagNext-cli-win-*.zip` | same RIDs | **CLI** (`AntiLagNext.Cli.exe`) |
+
+1. Extract the zip.  
+2. Run **`AntiLagNext.exe` as Administrator**.  
+3. Read onboarding → **Enable AntiLag Next**.  
+4. Optionally confirm autostart / reboot.  
 5. If anything feels wrong → **Reset all**.
 
-| CPU | Folder |
-|-----|--------|
-| Intel / AMD 64-bit | `dist/AntiLagNext-win-x64` or `dist/AntiLagNext` |
-| 32-bit | `dist/AntiLagNext-win-x86` |
-| ARM64 | `dist/AntiLagNext-win-arm64` |
+**Runtime required (framework-dependent builds):** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (usually preinstalled on Windows 10/11).
 
 ---
 
-## Build (developers)
+## ✨ Features
+
+- 🚀 One-click profiles: Gaming / Office / Max Performance  
+- ⏱️ Timer resolution + power plan / core parking  
+- 🎮 Game Mode / HAGS / GPU low-latency registry paths  
+- ♻️ JSON backup + **Reset all** / CLI `--revert`  
+- 🖥️ Tray icon; optional Windows logon autostart (confirm required)  
+- 📊 Live latency chart (proxy, honest labels)  
+- 🧩 Built-in plugins; experimental items marked **stub / soon**  
+- 💻 CLI: `--apply`, `--revert`, `--status`  
+- 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)
+
+---
+
+## 🛠️ Build from source
+
+Requires **.NET 8 SDK** on Windows.
 
 ```powershell
 cd AntiLagNext
 dotnet restore
 dotnet build AntiLagNext.sln -c Release
 dotnet test AntiLagNext.sln -c Release
+```
 
+```powershell
 # Shipping UI (Photino + WebView2)
 dotnet run --project src\AntiLagNext.Ui -c Release
 
@@ -93,7 +114,7 @@ dotnet run --project src\AntiLagNext.Ui -c Release
 dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 ```
 
-### Publish
+### Publish portable
 
 ```powershell
 # win-x64 only
@@ -102,7 +123,7 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 # all Windows CPUs: x64 + x86 + ARM64 (+ zip)
 .\scripts\publish-all.ps1
 
-# hard suite: restore, build, tests, publish, size gate
+# full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
 ```
 
@@ -112,42 +133,69 @@ Self-contained (includes runtime, much larger):
 .\scripts\publish-all.ps1 -SelfContained
 ```
 
+CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.0.0`) with multi-arch zips attached.
+
 ---
 
-## Repository layout
+## 👨‍💻 For development
+
+```powershell
+cd AntiLagNext
+dotnet restore
+dotnet build AntiLagNext.sln -c Debug
+dotnet test tests\AntiLagNext.Core.Tests\AntiLagNext.Core.Tests.csproj -c Release
+dotnet test tests\AntiLagNext.SmokeTests\AntiLagNext.SmokeTests.csproj -c Release
+```
+
+Shipping host: **`AntiLagNext.Ui`** (Photino).  
+Legacy WPF **`AntiLagNext.App`** is reference-only and **not built by default**.
+
+---
+
+## 📂 Repository layout
 
 ```
 ├── AntiLagNext/                 # .NET solution
 │   ├── src/AntiLagNext.Ui       # ★ Photino UI (shipping)
-│   ├── src/AntiLagNext.Cli      # Console frontend
+│   ├── src/AntiLagNext.Cli
 │   ├── src/AntiLagNext.Core
 │   ├── src/AntiLagNext.Infrastructure
-│   ├── src/AntiLagNext.App      # Legacy WPF (not built by default)
+│   ├── src/AntiLagNext.App      # legacy WPF (not default build)
 │   └── tests/
-├── docs/                        # Architecture, plugins, banner
+├── docs/                        # architecture, plugins, banner
 ├── scripts/                     # publish / hard-test
 ├── installer/                   # Inno Setup (optional)
-├── LICENSE                      # MIT © swd3k
+├── LICENSE
 └── README.md
 ```
 
 ---
 
-## Safety
+## 🔗 Useful links
 
-- Experimental plugins are **MVP stubs** (toggles disabled — they do **not** change the system).
-- **Reset all** / `--revert` restores from backup when possible.
-- Autostart = Task Scheduler job, **only after you confirm**.
-- Higher power draw / heat under High Performance + high timer resolution is expected.
-
----
-
-## Disclaimer
-
-**Use at your own risk.** The developer (**swd3k**) is not liable for instability, data loss, or hardware stress. Some registry / service changes may need a reboot.
+- 💻 Source — https://github.com/swd3k/antilag-next  
+- 📦 Releases — https://github.com/swd3k/antilag-next/releases  
+- 📐 Architecture — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)  
+- 🔌 Plugins — [docs/PLUGINS.md](docs/PLUGINS.md)  
+- 🔐 Security policy — [SECURITY.md](SECURITY.md)  
+- 🤝 Contributing — [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ---
 
-## License
+## ⚖️ Disclaimer
 
-[MIT](LICENSE) — **Copyright © 2026 [swd3k](https://github.com/swd3k)**
+Intended for users who understand system power and registry tweaks. Changing elevated system settings is **at your own risk**. A backup is created when possible; full recovery is not guaranteed on every machine or GPO-locked PC.
+
+The author (**swd3k**) is not liable for instability, data loss, or hardware stress.
+
+---
+
+## 🧩 Tech stack
+
+`C#` · `.NET 8` · `Photino.NET` · `WebView2` · `Win32` (`ntdll` / `powrprof` / `kernel32`) · `Windows Forms` (tray)
+
+---
+
+## 📄 License
+
+[MIT](./LICENSE) © 2026 [swd3k](https://github.com/swd3k)
