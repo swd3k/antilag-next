@@ -2,6 +2,8 @@
   <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
+<br>
+
 <h1 align="center">AntiLag Next</h1>
 
 <p align="center">
@@ -9,17 +11,19 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/platform-win--64-lightgrey?style=flat-square" alt="platform win-64" />
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license MIT" /></a>
-  <img src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" alt="status release" />
-  <a href="https://github.com/swd3k/antilag-next"><img src="https://img.shields.io/badge/author-swd3k-181717?style=flat-square&logo=github" alt="author swd3k" /></a>
-  <img src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet" alt=".NET 8" />
+  <img alt="platform" src="https://img.shields.io/badge/platform-win--64-lightgrey?style=flat-square" />
+  <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
+  <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
+  <a href="https://github.com/swd3k"><img alt="author" src="https://img.shields.io/badge/author-swd3k-24292e?style=flat-square&logo=github&logoColor=white" /></a>
+  <img alt=".NET" src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white" />
 </p>
 
 <p align="center">
-  <b>Developer:</b> <a href="https://github.com/swd3k"><strong>swd3k</strong></a>
-  · <a href="https://github.com/swd3k/antilag-next/releases"><strong>Releases</strong></a>
-  · <a href="LICENSE"><strong>MIT</strong></a>
+  Developer: <a href="https://github.com/swd3k">swd3k</a>
+  ·
+  <a href="https://github.com/swd3k/antilag-next/releases">Releases</a>
+  ·
+  <a href="LICENSE">MIT</a>
 </p>
 
 ---
