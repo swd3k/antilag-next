@@ -1,0 +1,142 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore AntiLagNext/AntiLagNext.sln
+
+      - name: Build
+        run: dotnet build AntiLagNext/AntiLagNext.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test AntiLagNext/tests/AntiLagNext.Core.Tests/AntiLagNext.Core.Tests.csproj -c Release --no-build --verbosity normal
+
+      - name: Smoke tests (Win32)
+        run: dotnet test AntiLagNext/tests/AntiLagNext.SmokeTests/AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
+
+      - name: Multi-arch publish (x64, x86, ARM64)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $rids = @("win-x64", "win-x86", "win-arm64")
+          $uiProj = "AntiLagNext/src/AntiLagNext.Ui/AntiLagNext.Ui.csproj"
+          $cliProj = "AntiLagNext/src/AntiLagNext.Cli/AntiLagNext.Cli.csproj"
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+
+          foreach ($rid in $rids) {
+            $uiOut = "dist/AntiLagNext-$rid"
+            $cliOut = "dist/AntiLagNext-cli-$rid"
+            Write-Host "=== Publish $rid ===" -ForegroundColor Cyan
+
+            dotnet publish $uiProj -c Release -r $rid --self-contained false `
+              -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o $uiOut
+            if ($LASTEXITCODE -ne 0) { throw "UI publish failed: $rid" }
+
+            # Ensure wwwroot
+            if (-not (Test-Path "$uiOut/wwwroot/index.html")) {
+              Copy-Item "AntiLagNext/src/AntiLagNext.Ui/wwwroot/*" "$uiOut/wwwroot" -Recurse -Force
+            }
+            if (Test-Path "LICENSE") { Copy-Item "LICENSE" $uiOut -Force }
+            if (Test-Path "AntiLagNext/src/AntiLagNext.Ui/Assets/app.ico") {
+              Copy-Item "AntiLagNext/src/AntiLagNext.Ui/Assets/app.ico" "$uiOut/logo.ico" -Force
+            }
+
+            $uiMb = [math]::Round(((Get-ChildItem $uiOut -Recurse -File | Measure-Object Length -Sum).Sum) / 1MB, 2)
+            Write-Host "UI $rid size: $uiMb MB"
+            if ($uiMb -gt 5) { throw "UI $rid exceeds 5 MB gate ($uiMb MB)" }
+
+            dotnet publish $cliProj -c Release -r $rid --self-contained false `
+              -p:PublishSingleFile=false -p:DebugType=None -p:DebugSymbols=false -o $cliOut
+            if ($LASTEXITCODE -ne 0) { throw "CLI publish failed: $rid" }
+            if (Test-Path "LICENSE") { Copy-Item "LICENSE" $cliOut -Force }
+
+            Compress-Archive -Path "$uiOut/*" -DestinationPath "dist/AntiLagNext-$rid.zip" -Force
+            Compress-Archive -Path "$cliOut/*" -DestinationPath "dist/AntiLagNext-cli-$rid.zip" -Force
+            Write-Host "Zips ready for $rid"
+          }
+
+          Get-ChildItem dist -File -Filter "*.zip" | ForEach-Object {
+            "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
+          }
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: AntiLag Next ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## AntiLag Next ${{ github.ref_name }}
+
+            **Developer:** [swd3k](https://github.com/swd3k)  
+            **License:** MIT
+
+            Open-source Windows latency & performance optimizer (Photino + WebView2 UI + CLI).
+
+            ### Highlights
+            - **Quick Boost** — Gaming / Office / Max Performance profiles
+            - **Core** — timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry
+            - **Safety** — JSON backup, registry allowlist, Reset all / `--revert`
+            - **Tray** — minimize to tray; Windows autostart only after **confirm**
+            - **Monitoring** — scheduling-latency **proxy** (not kernel DPC / not network ping)
+            - Experimental plugins are **MVP stubs** (disabled in UI)
+
+            ### Requirements
+            - Windows 10 20H2+ / 11
+            - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
+            - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
+            - **Run as Administrator**
+
+            ### Downloads (framework-dependent)
+
+            | Package | Arch | Contents |
+            |---------|------|----------|
+            | `AntiLagNext-win-x64.zip` | Intel/AMD 64-bit | UI (`AntiLagNext.exe`) |
+            | `AntiLagNext-win-x86.zip` | 32-bit | UI |
+            | `AntiLagNext-win-arm64.zip` | ARM64 | UI |
+            | `AntiLagNext-cli-win-*.zip` | same | CLI (`AntiLagNext.Cli.exe`) |
+
+            **Most users:** download **`AntiLagNext-win-x64.zip`**, extract, run `AntiLagNext.exe` as admin.
+
+            ### CLI examples
+            ```text
+            AntiLagNext.Cli.exe --status
+            AntiLagNext.Cli.exe --apply gaming --silent
+            AntiLagNext.Cli.exe --revert --silent
+            ```
+
+            ### Notes
+            - Use **Reset all** if something feels wrong.
+            - Higher power / heat under High Performance + high timer resolution is expected.
+            - **Use at your own risk.**
+
+            Full docs: [README](https://github.com/swd3k/antilag-next#readme)
+          files: |
+            dist/AntiLagNext-win-x64.zip
+            dist/AntiLagNext-win-x86.zip
+            dist/AntiLagNext-win-arm64.zip
+            dist/AntiLagNext-cli-win-x64.zip
+            dist/AntiLagNext-cli-win-x86.zip
+            dist/AntiLagNext-cli-win-arm64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
