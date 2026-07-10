@@ -14,7 +14,7 @@
   "settings.autostart.on": "Autostart enabled",
   "settings.autostart.off": "Autostart disabled",
   "settings.autoapply": "Optimize on startup",
-  "settings.autoapply.desc": "Only after you enable optimization yourself. Re-applies at Windows logon.",
+  "settings.autoapply.desc": "Only after you enable once. Re-applies on next launch only if you left optimization ON (not after Reset / Disable).",
   "settings.lifecycle.hint": "On first Enable: tray + auto-optimize; Windows autostart only after a separate confirm; reboot is optional.",
   "settings.tray.actions": "Tray",
   "settings.tray.hint": "Double-click the icon to open. Menu: optimize, reset, exit.",

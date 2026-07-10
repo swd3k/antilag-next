@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
+using AntiLagNext.Core.Settings;
 using AntiLagNext.Infrastructure.Host;
 using AntiLagNext.Infrastructure.Storage;
 using AntiLagNext.Ui.Services;
@@ -375,10 +376,25 @@ internal static class Program
     private static void MaybeAutoApplyOnStart()
     {
         if (_engine == null || _autoApplyStarted) return;
-        // First launch: user enables optimization manually. Auto-apply only after that.
-        bool want = _engine.Settings.UserEnabledOptimization
-                    && (_engine.Settings.AutoApplyOnStartup || _autostartMode);
-        if (!want) return;
+
+        bool userOptedIn = _engine.Settings.UserEnabledOptimization;
+        bool autoFlag = _engine.Settings.AutoApplyOnStartup;
+        // Critical: after Disable/Reset ActiveState is false — must NOT re-apply on next launch
+        bool leftOn = ActiveStateStore.IsActive();
+
+        bool want = AutoApplyPolicy.ShouldAutoApplyOnStart(
+            userOptedIn, autoFlag, leftOn, _autostartMode);
+
+        if (!want)
+        {
+            string? skip = AutoApplyPolicy.DescribeSkipReason(
+                userOptedIn, autoFlag, leftOn, _autostartMode,
+                english: string.Equals(_engine.Settings.UiCulture, "en", StringComparison.OrdinalIgnoreCase));
+            if (skip != null)
+                AddLog(skip, "ok");
+            return;
+        }
+
         _autoApplyStarted = true;
 
         string profile = ResolveApplyProfileKey();
@@ -394,20 +410,32 @@ internal static class Program
             {
                 await Task.Delay(_autostartMode ? 800 : 400).ConfigureAwait(false);
                 if (_engine == null) return;
+
+                // Re-check ActiveState after delay (user may have Reset from UI immediately)
+                if (!ActiveStateStore.IsActive())
+                {
+                    AddLog(L(
+                        "Авто-оптимизация отменена: состояние уже неактивно.",
+                        "Auto-optimize cancelled: state no longer active."), "ok");
+                    return;
+                }
+
                 OperationResult result;
                 lock (EngineOpLock)
                 {
                     result = _engine.ApplyAsync(profile).GetAwaiter().GetResult();
                 }
                 AddLog(result.Success
-                        ? L("Авто-оптимизация применена", "Auto-optimize applied") + ": " + result.Message
-                        : L("Авто-оптимизация не удалась", "Auto-optimize failed") + ": " + result.Message,
+                        ? L("Авто-оптимизация применена", "Auto-optimize applied")
+                          + ": " + LocalizeEngineMessage(result.Message)
+                        : L("Авто-оптимизация не удалась", "Auto-optimize failed")
+                          + ": " + LocalizeEngineMessage(result.Message),
                     result.Success ? "ok" : "err");
                 if (result.Success)
                 {
                     _tray?.ShowBalloon(
                         L("Оптимизация включена", "Optimization on"),
-                        result.Message ?? profile);
+                        profileLabel);
                 }
             }
             catch (Exception ex)
@@ -941,9 +969,14 @@ internal static class Program
                         bool policiesApplied = false;
                         if (isApply && result.Success)
                         {
-                            // Tray + auto-apply; autostart only after explicit UI confirm (P0)
+                            // Tray + auto-apply flag; autostart only after explicit UI confirm (P0)
                             policiesApplied = ApplyOptimizationLifecyclePolicies(
                                 out offerRestart, out offerAutostart);
+                        }
+                        else if (!isApply && result.Success)
+                        {
+                            // User turned optimization OFF — do not re-apply on next launch
+                            ClearAutoApplyAfterUserDisable();
                         }
 
                         // Build state while still holding EngineOpLock (re-entrant)
@@ -992,7 +1025,8 @@ internal static class Program
     }
 
     /// <summary>
-    /// After user enables optimization: tray + auto-apply flag.
+    /// After user enables optimization: tray + allow auto-apply on later starts
+    /// (only while ActiveState remains ON — see <see cref="AutoApplyPolicy"/>).
     /// Autostart (schtasks) is NOT created here — UI must confirm (P0).
     /// </summary>
     private static bool ApplyOptimizationLifecyclePolicies(out bool offerRestart, out bool offerAutostart)
@@ -1003,6 +1037,7 @@ internal static class Program
 
         _engine.Settings.UserEnabledOptimization = true;
         _engine.Settings.MinimizeToTray = true;
+        // Prefer re-apply after reboot / next launch only while user leaves optimization ON
         _engine.Settings.AutoApplyOnStartup = true;
         _engine.Settings.FirstRunCompleted = true;
 
@@ -1011,9 +1046,25 @@ internal static class Program
 
         _engine.SettingsService.Save();
         AddLog(L(
-            "После включения: трей + авто-оптимизация при старте (автозапуск — по подтверждению)",
-            "After enable: tray + auto-optimize on boot (autostart requires confirm)"), "ok");
+            "После включения: трей + авто-оптимизация при следующих запусках, если оставить включённой (автозапуск Windows — по подтверждению)",
+            "After enable: tray + auto-optimize on later launches if left on (Windows autostart requires confirm)"), "ok");
         return true;
+    }
+
+    /// <summary>
+    /// After Reset / Disable: clear auto-apply preference so the next cold start
+    /// does not re-enable optimization without an explicit user Enable.
+    /// Keeps <see cref="AppSettings.UserEnabledOptimization"/> so Settings still show prior use.
+    /// </summary>
+    private static void ClearAutoApplyAfterUserDisable()
+    {
+        if (_engine == null) return;
+        if (!_engine.Settings.AutoApplyOnStartup) return;
+        _engine.Settings.AutoApplyOnStartup = false;
+        _engine.SettingsService.Save();
+        AddLog(L(
+            "Авто-оптимизация при старте выключена (оптимизация сброшена пользователем).",
+            "Optimize-on-startup turned off (user disabled optimization)."), "ok");
     }
 
     private static string SanitizeProfileToken(string? profile)
