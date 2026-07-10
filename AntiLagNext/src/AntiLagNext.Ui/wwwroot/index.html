@@ -1064,11 +1064,14 @@
     }
 
     async function setLang(code) {
+      try { localStorage.setItem('al_lang', code); } catch (e) {}
       await loadI18n(code);
       try {
         const r = await send('setLanguage', { lang: code });
         if (r.state) applyState(r.state);
       } catch (e) { /* offline preview */ }
+      // Re-paint dynamic bits even if host reply skipped
+      applyDynamicTexts();
       renderPlugins(state.plugins || []);
       renderLogs(state.logs || []);
       updateChartPanels();
@@ -1305,9 +1308,42 @@
       return i18n['plugin.' + id + '.desc'] || '';
     }
 
+    function normalizeProfileId(raw) {
+      if (raw == null || raw === '') return selectedProfile || 'gaming';
+      const s = String(raw).trim();
+      const lower = s.toLowerCase();
+      // Stable UI / CLI ids
+      if (lower === 'gaming' || lower === 'game') return 'gaming';
+      if (lower === 'office') return 'office';
+      if (lower === 'max' || lower === 'maxperformance' || lower === 'maximum') return 'max';
+      if (lower === 'default' || lower === 'off') return 'default';
+      // .NET ProfileKind enum names
+      if (s === 'Gaming' || s === 'ProfileKind.Gaming') return 'gaming';
+      if (s === 'Office' || s === 'ProfileKind.Office') return 'office';
+      if (s === 'MaxPerformance' || s === 'ProfileKind.MaxPerformance') return 'max';
+      if (s === 'Default' || s === 'ProfileKind.Default') return 'default';
+      // Legacy Russian / English display names stored in ActiveState or settings
+      if (/игровой|gaming/i.test(s)) return 'gaming';
+      if (/офисн|office/i.test(s)) return 'office';
+      if (/максимал|maximum|max perf/i.test(s)) return 'max';
+      if (/умолчани|default/i.test(s)) return 'default';
+      return selectedProfile || 'gaming';
+    }
+
     function profileLabel(id) {
       const map = { gaming: 'profile.gaming', office: 'profile.office', max: 'profile.max', default: 'profile.default' };
-      return t(map[id] || 'profile.gaming');
+      const key = map[normalizeProfileId(id)] || 'profile.gaming';
+      return t(key);
+    }
+
+    /** Always paint Active profile card from i18n + selectedProfileId (never raw backend Name). */
+    function updateProfileNameDisplay() {
+      const el = document.getElementById('profileName');
+      if (!el) return;
+      const id = normalizeProfileId(
+        state.selectedProfileId || state.profileKey || state.profileKind || selectedProfile
+      );
+      el.textContent = profileLabel(id);
     }
 
     function applyDynamicTexts() {
@@ -1332,6 +1368,7 @@
       }
       document.getElementById('timerHint').textContent =
         state.timerHeld ? t('metric.timerHeld') : t('metric.timerFree');
+      updateProfileNameDisplay();
       setChartUi(chartEnabled);
     }
 
@@ -1411,7 +1448,7 @@
         setMetricsLoading(false);
       }
 
-      document.getElementById('profileName').textContent = s.profile || '—';
+      // Profile card: always localize via selectedProfileId / profileKey (not raw s.profile)
       document.getElementById('optFlag').style.color = s.optimized ? 'var(--green)' : '';
 
       if (s.timerMs != null && s.timerMs > 0)
@@ -1442,8 +1479,9 @@
       const elAa = document.getElementById('optAutoApply');
       if (elAa && typeof s.autoApplyOnStartup === 'boolean') elAa.checked = s.autoApplyOnStartup;
 
-      if (s.selectedProfileId) {
-        selectedProfile = s.selectedProfileId;
+      const pid = s.selectedProfileId || s.profileKey;
+      if (pid) {
+        selectedProfile = normalizeProfileId(pid);
         document.querySelectorAll('.power-card').forEach(c => {
           c.classList.toggle('active', c.dataset.profile === selectedProfile);
         });
@@ -1704,7 +1742,7 @@
       try {
         const r = await send('setProfile', { profile: name });
         if (r.state) applyState(r.state);
-        toast(t('toast.profile') + ': ' + (r.profile || profileLabel(name)));
+        toast(t('toast.profile') + ': ' + profileLabel(r.profileKey || r.kind || name));
       } catch (e) { toast(e.message); }
     }
 
@@ -1902,7 +1940,14 @@
 
     // boot: state first, then light metrics loop (probe starts on host uiReady)
     (async () => {
-      await loadI18n('ru');
+      // Prefer last UI language (localStorage), then browser, default ru
+      let bootLang = 'ru';
+      try {
+        const saved = localStorage.getItem('al_lang');
+        if (saved === 'en' || saved === 'ru') bootLang = saved;
+        else if ((navigator.language || '').toLowerCase().startsWith('en')) bootLang = 'en';
+      } catch (e) {}
+      await loadI18n(bootLang);
       setMetricsLoading(true);
       renderPlugins([]);
       renderLogs([]);

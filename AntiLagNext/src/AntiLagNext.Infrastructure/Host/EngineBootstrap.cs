@@ -109,7 +109,10 @@ public sealed class EngineBootstrap : IDisposable
         return new
         {
             optimized = active.Active,
-            profile = active.ProfileName ?? Settings.GetActiveProfile().Name,
+            // Prefer stable key (gaming/office/max); fall back to stored name / preset name
+            profile = active.ProfileName
+                      ?? OptimizationProfile.UiId(Settings.GetActiveProfile().Kind),
+            profileName = Settings.GetActiveProfile().Name,
             timerMs = timer.ActualMs,
             timerHeld = timer.IsActive,
             incompleteApply = ApplySessionGuard.HasIncompleteApply(),

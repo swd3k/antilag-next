@@ -382,9 +382,10 @@ internal static class Program
         _autoApplyStarted = true;
 
         string profile = ResolveApplyProfileKey();
+        string profileLabel = LocalizeProfileLabelFromToken(profile, ProfileKind.Gaming);
         AddLog(L(
-            $"Авто-оптимизация при старте («{profile}»)…",
-            $"Auto-optimize on start (\"{profile}\")…"), "ok");
+            $"Авто-оптимизация при старте («{profileLabel}»)…",
+            $"Auto-optimize on start (\"{profileLabel}\")…"), "ok");
 
         // Delay slightly so window/tray init finishes
         _ = Task.Run(async () =>
@@ -894,9 +895,14 @@ internal static class Program
         }
 
         if (isApply)
-            AddLog(L($"Применение профиля «{profile}»…", $"Applying profile \"{profile}\"…"), "ok");
+        {
+            string applyLabel = LocalizeProfileLabelFromToken(profile, ProfileKind.Gaming);
+            AddLog(L($"Применение профиля «{applyLabel}»…", $"Applying profile \"{applyLabel}\"…"), "ok");
+        }
         else
+        {
             AddLog(L("Сбросить всё…", "Reset all…"), "warn");
+        }
 
         _ = Task.Run(() =>
         {
@@ -916,9 +922,13 @@ internal static class Program
                             ? _engine.ApplyAsync(profile).GetAwaiter().GetResult()
                             : _engine.RevertAsync().GetAwaiter().GetResult();
 
+                        string doneLabel = isApply
+                            ? LocalizeProfileLabelFromToken(profile, ProfileKind.Gaming)
+                            : "";
                         AddLog(isApply
                                 ? (result.Success
-                                    ? L($"Применён «{profile}»: {result.Message}", $"Applied \"{profile}\": {result.Message}")
+                                    ? L($"Применён «{doneLabel}»", $"Applied \"{doneLabel}\"")
+                                      + (string.IsNullOrWhiteSpace(result.Message) ? "" : ": " + result.Message)
                                     : L($"Ошибка применения: {result.Message}", $"Apply failed: {result.Message}"))
                                 : (result.Success
                                     ? L("Сброс завершён: ", "Reset complete: ") + result.Message
@@ -1033,8 +1043,17 @@ internal static class Program
         if (!_engine.Settings.Profiles.Any(x => x.Id == resolved.Id))
             _engine.Settings.Profiles.Add(resolved);
         _engine.SettingsService.Save();
-        AddLog(L($"Выбран профиль: {resolved.Name}", $"Profile selected: {resolved.Name}"), "ok");
-        return new { success = true, profile = resolved.Name, kind = resolved.Kind.ToString(), state = BuildUiState() };
+        string key = MapKindToUiId(resolved.Kind);
+        string label = LocalizeProfileLabel(resolved.Kind);
+        AddLog(L($"Выбран профиль: {label}", $"Profile selected: {label}"), "ok");
+        return new
+        {
+            success = true,
+            profile = label,
+            profileKey = key,
+            kind = resolved.Kind.ToString(),
+            state = BuildUiState()
+        };
     }
 
     private static object HandleSetPlugin(JsonElement root)
@@ -1166,12 +1185,20 @@ internal static class Program
             _ => "dark"
         };
 
+        string profileKey = MapKindToUiId(profile.Kind);
+        // Prefer Kind-based label; map legacy ActiveState names ("Игровой") and keys ("gaming")
+        string profileLabel = LocalizeProfileLabelFromToken(
+            active.ProfileName ?? profile.Name,
+            profile.Kind);
+
         return new
         {
             optimized = active.Active,
-            profile = active.ProfileName ?? profile.Name,
+            // Display string for current UI culture (UI prefers selectedProfileId + i18n)
+            profile = profileLabel,
+            profileKey,
             profileKind = profile.Kind.ToString(),
-            selectedProfileId = MapKindToUiId(profile.Kind),
+            selectedProfileId = profileKey,
             lang = culture,
             theme,
             chartEnabled = chartOn,
@@ -1222,13 +1249,49 @@ internal static class Program
         };
     }
 
-    private static string MapKindToUiId(AntiLagNext.Core.Enums.ProfileKind kind) => kind switch
+    private static string MapKindToUiId(AntiLagNext.Core.Enums.ProfileKind kind) =>
+        OptimizationProfile.UiId(kind);
+
+    /// <summary>Localized profile label for logs / BuildUiState (UI still re-localizes via i18n keys).</summary>
+    private static string LocalizeProfileLabel(AntiLagNext.Core.Enums.ProfileKind kind) => kind switch
     {
-        AntiLagNext.Core.Enums.ProfileKind.Office => "office",
-        AntiLagNext.Core.Enums.ProfileKind.MaxPerformance => "max",
-        AntiLagNext.Core.Enums.ProfileKind.Default => "default",
-        _ => "gaming"
+        ProfileKind.Office => L("Офисный", "Office"),
+        ProfileKind.MaxPerformance => L("Максимальная", "Maximum"),
+        ProfileKind.Default => L("По умолчанию", "Default"),
+        ProfileKind.Gaming => L("Игровой", "Gaming"),
+        _ => L("Пользовательский", "Custom")
     };
+
+    private static string LocalizeProfileLabelFromToken(string? token, ProfileKind fallbackKind)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return LocalizeProfileLabel(fallbackKind);
+
+        string k = token.Trim();
+        // Stable UI ids stored in ActiveState after apply
+        if (k.Equals("gaming", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("game", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("игровой", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("Gaming", StringComparison.Ordinal))
+            return LocalizeProfileLabel(ProfileKind.Gaming);
+        if (k.Equals("office", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("офисный", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("Office", StringComparison.Ordinal))
+            return LocalizeProfileLabel(ProfileKind.Office);
+        if (k.Equals("max", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("maxperformance", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("maximum", StringComparison.OrdinalIgnoreCase)
+            || k.Contains("Максимал", StringComparison.OrdinalIgnoreCase)
+            || k.Contains("Maximum", StringComparison.OrdinalIgnoreCase))
+            return LocalizeProfileLabel(ProfileKind.MaxPerformance);
+        if (k.Equals("default", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("off", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("По умолчанию", StringComparison.OrdinalIgnoreCase)
+            || k.Equals("Default", StringComparison.Ordinal))
+            return LocalizeProfileLabel(ProfileKind.Default);
+
+        return LocalizeProfileLabel(fallbackKind);
+    }
 
     /// <summary>Windows user preference: AppsUseLightTheme (1 = light).</summary>
     private static bool OsPrefersLightTheme()

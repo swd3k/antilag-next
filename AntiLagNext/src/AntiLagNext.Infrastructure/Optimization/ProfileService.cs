@@ -57,19 +57,19 @@ public sealed class ProfileService : IProfileService
     private async Task<OperationResult> ApplyCoreAsync(OptimizationProfile profile, CancellationToken cancellationToken)
     {
         if (profile == null)
-            return OperationResult.Fail("Профиль не задан.");
+            return OperationResult.Fail("Profile is not set.");
 
         var messages = new List<string>();
         var errors = new List<string>();
 
-        // 1. Защита
-        var before = await _safety.BeforeChangesAsync($"Активация профиля «{profile.Name}»", cancellationToken);
-        // T? для unconstrained T=Guid не даёт Nullable<Guid> — Value это Guid
+        // 1. Safety backup
+        var before = await _safety.BeforeChangesAsync($"Activate profile '{profile.Name}'", cancellationToken);
+        // T? for unconstrained T=Guid is not Nullable<Guid> — Value is Guid
         if (!before.Success || before.Value == Guid.Empty)
-            return OperationResult.Fail("Не удалось подготовить защиту.", detail: before.Detail ?? before.Message);
+            return OperationResult.Fail("Could not prepare safety backup.", detail: before.Detail ?? before.Message);
 
         Guid sessionId = before.Value;
-        ApplySessionGuard.MarkBegin(sessionId, $"Активация профиля «{profile.Name}»");
+        ApplySessionGuard.MarkBegin(sessionId, $"Activate profile '{profile.Name}'");
 
         // Привязка сессии к менеджерам, умеющим snapshot
         if (_gameMode is GameModeManager gmm) gmm.BindBackupSession(sessionId);
@@ -193,22 +193,24 @@ public sealed class ProfileService : IProfileService
             if (errors.Count == 0)
             {
                 ApplySessionGuard.MarkComplete();
-                ActiveStateStore.MarkActive(profile.Name);
-                return OperationResult.Ok($"Профиль «{profile.Name}» применён. " + string.Join(" ", messages));
+                // Store stable UI id (gaming/office/max) so UI can localize the name
+                ActiveStateStore.MarkActive(OptimizationProfile.UiId(profile.Kind));
+                return OperationResult.Ok(
+                    $"Profile '{profile.Name}' applied. " + string.Join(" ", messages));
             }
 
             // Partial: still clear incomplete flag (state is known; user can Reset)
             ApplySessionGuard.MarkComplete();
             ActiveStateStore.MarkInactive();
             return OperationResult.Fail(
-                $"Профиль «{profile.Name}» применён частично.",
+                $"Profile '{profile.Name}' applied partially.",
                 detail: string.Join("; ", errors) + " | " + string.Join(" ", messages));
         }
         catch (Exception ex)
         {
             try { _safety.CommitChanges(sessionId); } catch { /* best-effort */ }
             // Leave incomplete marker so next start can recover
-            return OperationResult.Fail("Сбой применения профиля.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Profile apply failed.", detail: ex.Message, ex: ex);
         }
     }
 

@@ -12,16 +12,18 @@ namespace AntiLagNext.Core.Tests.Models;
 public class OptimizationProfileTests
 {
     [Theory]
-    [InlineData(ProfileKind.Gaming,   "Игровой")]
-    [InlineData(ProfileKind.Office,   "Офисный")]
-    [InlineData(ProfileKind.Default,  "По умолчанию")]
-    public void CreatePreset_HasCorrectName(ProfileKind kind, string expectedName)
+    [InlineData(ProfileKind.Gaming,   "Gaming", "gaming")]
+    [InlineData(ProfileKind.Office,   "Office", "office")]
+    [InlineData(ProfileKind.Default,  "Default", "default")]
+    [InlineData(ProfileKind.MaxPerformance, "Maximum performance", "max")]
+    public void CreatePreset_HasCorrectName_AndUiId(ProfileKind kind, string expectedName, string uiId)
     {
         var profile = OptimizationProfile.CreatePreset(kind);
 
         profile.Name.Should().Be(expectedName);
         profile.Kind.Should().Be(kind);
-        profile.Description.Should().NotBeEmpty("у каждого профиля должно быть описание для пользователя");
+        OptimizationProfile.UiId(kind).Should().Be(uiId);
+        profile.Description.Should().NotBeEmpty("each preset should have a user-facing description");
     }
 
     [Fact]

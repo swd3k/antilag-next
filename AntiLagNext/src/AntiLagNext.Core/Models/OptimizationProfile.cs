@@ -66,15 +66,40 @@ public sealed class OptimizationProfile
     public List<string> GameExecutables { get; set; } = new();
 
     /// <summary>
-    /// Создаёт предустановленный профиль заданного типа с разумными параметрами.
+    /// Stable UI / CLI id for a built-in profile kind (used for i18n keys, not display text).
+    /// </summary>
+    public static string UiId(ProfileKind kind) => kind switch
+    {
+        ProfileKind.Office => "office",
+        ProfileKind.MaxPerformance => "max",
+        ProfileKind.Default => "default",
+        ProfileKind.Gaming => "gaming",
+        _ => "gaming"
+    };
+
+    /// <summary>
+    /// English stable name stored in settings JSON. UI localizes via Kind / UiId.
+    /// </summary>
+    public static string DefaultEnglishName(ProfileKind kind) => kind switch
+    {
+        ProfileKind.Office => "Office",
+        ProfileKind.MaxPerformance => "Maximum performance",
+        ProfileKind.Default => "Default",
+        ProfileKind.Gaming => "Gaming",
+        _ => "Custom"
+    };
+
+    /// <summary>
+    /// Creates a built-in profile with sensible defaults.
+    /// Display names are English keys; Photino UI localizes via i18n (profile.*).
     /// </summary>
     public static OptimizationProfile CreatePreset(ProfileKind kind) => kind switch
     {
         ProfileKind.Gaming => new OptimizationProfile
         {
-            Name = "Игровой",
+            Name = DefaultEnglishName(ProfileKind.Gaming),
             Kind = ProfileKind.Gaming,
-            Description = "Максимальная отзывчивость: таймер 0.5 мс, High Performance, все ядра активны, Game Mode/HAGS. Выше энергопотребление и температура.",
+            Description = "Max responsiveness: timer 0.5 ms, High Performance, all cores, Game Mode/HAGS. Higher power and heat.",
             EnableTimer = true,
             TimerTargetMs = 0.5,
             EnablePowerScheme = true,
@@ -89,9 +114,9 @@ public sealed class OptimizationProfile
         },
         ProfileKind.Office => new OptimizationProfile
         {
-            Name = "Офисный",
+            Name = DefaultEnglishName(ProfileKind.Office),
             Kind = ProfileKind.Office,
-            Description = "Мягкие настройки для повседневной работы: таймер 1.0 мс, High Performance, P-cores активны, E-cores в покое. Тише и прохладнее.",
+            Description = "Mild daily use: timer 1.0 ms, High Performance, P-cores active, E-cores idle. Quieter and cooler.",
             EnableTimer = true,
             TimerTargetMs = 1.0,
             EnablePowerScheme = true,
@@ -106,9 +131,9 @@ public sealed class OptimizationProfile
         },
         ProfileKind.MaxPerformance => new OptimizationProfile
         {
-            Name = "Максимальная производительность",
+            Name = DefaultEnglishName(ProfileKind.MaxPerformance),
             Kind = ProfileKind.MaxPerformance,
-            Description = "Ultimate Performance (если доступна), таймер 0.5 мс, все ядра, Game Mode/HAGS/GPU LLM. Максимум тепла и потребления.",
+            Description = "Ultimate Performance when available, timer 0.5 ms, all cores, Game Mode/HAGS/GPU LLM. Max heat and power.",
             EnableTimer = true,
             TimerTargetMs = 0.5,
             EnablePowerScheme = true,
@@ -123,9 +148,9 @@ public sealed class OptimizationProfile
         },
         _ => new OptimizationProfile
         {
-            Name = "По умолчанию",
+            Name = DefaultEnglishName(ProfileKind.Default),
             Kind = ProfileKind.Default,
-            Description = "Система в исходном состоянии: все оптимизации отключены.",
+            Description = "System defaults: all optimizations off.",
         }
     };
 }
