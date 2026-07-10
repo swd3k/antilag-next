@@ -786,7 +786,11 @@
               <div class="card" role="group" aria-labelledby="metricProfileLabel">
                 <div class="metric-label" id="metricProfileLabel" data-i18n="metric.profile">Активный профиль</div>
                 <div class="metric-val" style="font-size:17px;font-family:inherit"
-                     id="profileName" role="status" aria-live="polite" aria-atomic="true">—</div>
+                     id="profileName" role="status" aria-live="polite" aria-atomic="true"
+                     data-gaming-en="Gaming" data-gaming-ru="Игровой"
+                     data-office-en="Office" data-office-ru="Офисный"
+                     data-max-en="Maximum" data-max-ru="Максимальная"
+                     data-default-en="Default" data-default-ru="По умолчанию">—</div>
                 <div class="note" id="cpuNote">CPU —</div>
               </div>
               <div class="card">
@@ -1368,12 +1372,35 @@
     };
     const CYRILLIC_RE = /[\u0400-\u04FF]/;
 
+    /** Language for profile title: visible RU/EN toggle first, then lang var. */
+    function resolveProfileUiLang() {
+      const ruBtn = document.getElementById('langRu');
+      const enBtn = document.getElementById('langEn');
+      if (ruBtn && ruBtn.classList.contains('active')) return 'ru';
+      if (enBtn && enBtn.classList.contains('active')) return 'en';
+      try {
+        const saved = localStorage.getItem('al_lang');
+        if (saved === 'en' || saved === 'ru') return saved;
+      } catch (e) {}
+      return (lang === 'en' || lang === 'ru') ? lang : 'ru';
+    }
+
     function profileLabel(id) {
       const nid = normalizeProfileId(id);
-      // Strict: title follows UI language only (ru → Игровой, en → Gaming)
-      const L = (lang === 'en' || lang === 'ru') ? lang : 'ru';
-      const pack = PROFILE_LABELS[L] || PROFILE_LABELS.ru;
-      return pack[nid] || pack.gaming;
+      const L = resolveProfileUiLang();
+      // 1) data-* on the card (always present in HTML)
+      const el = document.getElementById('profileName');
+      if (el) {
+        const fromDom = el.getAttribute('data-' + nid + '-' + L);
+        if (fromDom) return fromDom;
+      }
+      // 2) PROFILE_LABELS table
+      const pack = (typeof PROFILE_LABELS !== 'undefined' && PROFILE_LABELS[L])
+        ? PROFILE_LABELS[L]
+        : null;
+      if (pack && pack[nid]) return pack[nid];
+      // 3) last resort
+      return L === 'en' ? 'Gaming' : '\u0418\u0433\u0440\u043e\u0432\u043e\u0439';
     }
 
     function updateProfileNameDisplay() {
@@ -1382,10 +1409,17 @@
       const id = normalizeProfileId(
         state.selectedProfileId || state.profileKey || state.profileKind || selectedProfile || 'gaming'
       );
-      const label = profileLabel(id);
+      // Sync JS lang with the button the user actually sees
+      const L = resolveProfileUiLang();
+      if (L === 'en' || L === 'ru') lang = L;
+      // Prefer host dual labels when present, else data-* / PROFILE_LABELS
+      let label = null;
+      if (L === 'en' && state.profileEn) label = state.profileEn;
+      else if (L === 'ru' && state.profileRu) label = state.profileRu;
+      if (!label) label = profileLabel(id);
       el.textContent = label;
       el.setAttribute('data-profile-id', id);
-      el.setAttribute('data-ui-lang', (lang === 'en' || lang === 'ru') ? lang : 'ru');
+      el.setAttribute('data-ui-lang', L);
       const mt = t('metric.profile');
       el.setAttribute('aria-label', (mt && mt !== 'metric.profile' ? mt : 'profile') + ': ' + label);
     }
@@ -1482,11 +1516,21 @@
       if (!s || s.preview) return;
       const wasBooting = uiBooting;
       state = Object.assign(state, s);
-      // Sync language BEFORE painting (prevents RU pack painting under EN chrome)
-      if (s.lang === 'en' || s.lang === 'ru') {
-        if (s.lang !== lang || !i18n['profile.gaming'] ||
-            (s.lang === 'en' && CYRILLIC_RE.test(i18n['profile.gaming'] || ''))) {
-          await loadI18n(s.lang);
+      // Language: prefer user toggle / localStorage over host settings (avoids EN host
+      // overwriting a visible RU UI and leaving profile title stuck as "Gaming").
+      let preferLang = null;
+      try { preferLang = localStorage.getItem('al_lang'); } catch (e) {}
+      if (preferLang !== 'en' && preferLang !== 'ru') {
+        const ruBtn = document.getElementById('langRu');
+        if (ruBtn && ruBtn.classList.contains('active')) preferLang = 'ru';
+        else if (document.getElementById('langEn')?.classList.contains('active')) preferLang = 'en';
+        else if (s.lang === 'en' || s.lang === 'ru') preferLang = s.lang;
+      }
+      if (preferLang === 'en' || preferLang === 'ru') {
+        if (preferLang !== lang || !i18n['profile.gaming']) {
+          await loadI18n(preferLang);
+        } else {
+          lang = preferLang;
         }
       }
       if (s.theme) applyTheme(s.theme === 'light' ? 'light' : 'dark');

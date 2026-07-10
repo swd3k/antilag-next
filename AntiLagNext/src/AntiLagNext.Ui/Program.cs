@@ -1262,8 +1262,10 @@ internal static class Program
         return new
         {
             optimized = active.Active,
-            // Already localized for current UiCulture — UI re-localizes via selectedProfileId + i18n
+            // Display helpers for both UI languages (card picks by RU/EN toggle)
             profile = profileLabel,
+            profileEn = OptimizationProfile.LocalizedName(profile.Kind, "en"),
+            profileRu = OptimizationProfile.LocalizedName(profile.Kind, "ru"),
             profileKey,
             profileKind = profile.Kind.ToString(),
             selectedProfileId = profileKey,
