@@ -13,10 +13,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "8.0.x"
 
@@ -82,20 +82,35 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          # Official installer (portable/silent extract). Avoids flaky choco on runners.
+          # Do not let native command non-zero exits kill the step (ISCC /? returns 1).
+          $PSNativeCommandUseErrorActionPreference = $false
+
           $url = "https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe"
           $installer = Join-Path $env:RUNNER_TEMP "innosetup-6.7.3.exe"
           $dest = Join-Path $env:RUNNER_TEMP "InnoSetup6"
           Write-Host "Downloading Inno Setup from $url"
           Invoke-WebRequest -Uri $url -OutFile $installer -UseBasicParsing
+          if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
           New-Item -ItemType Directory -Force -Path $dest | Out-Null
-          # Silent portable install into temp (no admin required)
-          $p = Start-Process -FilePath $installer -ArgumentList @(
+
+          # Portable silent install into RUNNER_TEMP (no admin)
+          $args = @(
             "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-",
-            "/CURRENTUSER", "/NOICONS", "/DIR=$dest"
-          ) -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "Inno Setup installer exit code $($p.ExitCode)" }
+            "/CURRENTUSER", "/PORTABLE=1", "/NOICONS",
+            "/DIR=$dest"
+          )
+          Write-Host "Installing: $installer $($args -join ' ')"
+          $p = Start-Process -FilePath $installer -ArgumentList $args -Wait -PassThru
+          Write-Host "Installer exit code: $($p.ExitCode)"
+          if ($p.ExitCode -ne 0) {
+            throw "Inno Setup installer exit code $($p.ExitCode)"
+          }
+
           $iscc = Join-Path $dest "ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $found = Get-ChildItem $dest -Recurse -Filter "ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $iscc = $found.FullName }
+          }
           if (-not (Test-Path $iscc)) {
             $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           }
@@ -103,18 +118,22 @@ jobs:
             $iscc = "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
           }
           if (-not (Test-Path $iscc)) {
-            Get-ChildItem $dest -Recurse -Filter "ISCC.exe" -ErrorAction SilentlyContinue | ForEach-Object { $iscc = $_.FullName }
+            Write-Host "Contents of $dest :"
+            Get-ChildItem $dest -ErrorAction SilentlyContinue | ForEach-Object { $_.Name }
+            throw "ISCC.exe not found after Inno Setup install"
           }
-          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found after Inno Setup install" }
+
           Write-Host "ISCC: $iscc"
-          # Expose for next steps
           "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-          & $iscc /?
+          # Verify compiler starts (ISCC with no args / help often exits 1 — ignore)
+          & $iscc 2>&1 | Select-Object -First 3 | ForEach-Object { Write-Host $_ }
+          Write-Host "Inno Setup ready (ISCC exit ignored: $LASTEXITCODE)"
 
       - name: Build Setup.exe installers
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $false
           $tag = "${{ github.ref_name }}"
           $ver = $tag.TrimStart("v", "V")
           if ($ver -notmatch '^\d+\.\d+\.\d+') {
@@ -128,6 +147,7 @@ jobs:
             Write-Host "Using ISCC from env: $($env:ISCC_PATH)"
           }
           & .\scripts\build-installer.ps1 -Version $ver -Rid @("win-x64", "win-x86", "win-arm64") @isccArg
+          if ($LASTEXITCODE -ne 0) { throw "build-installer.ps1 failed with exit $LASTEXITCODE" }
           Get-ChildItem dist\installers -Filter "*.exe" | ForEach-Object {
             "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
           }

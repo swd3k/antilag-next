@@ -31,6 +31,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+# ISCC returns non-zero for help / some warnings — do not auto-throw on native codes
+if (Get-Variable PSNativeCommandUseErrorActionPreference -ErrorAction SilentlyContinue) {
+  $PSNativeCommandUseErrorActionPreference = $false
+}
 $root = Split-Path -Parent $PSScriptRoot
 $iss = Join-Path $root "installer\AntiLagNext.iss"
 $outDir = Join-Path $root "dist\installers"
