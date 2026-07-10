@@ -1237,16 +1237,32 @@ internal static class Program
             _ => "dark"
         };
 
+        // ALWAYS localize from Kind / ActiveProfile — never from stored Russian display names
+        // (active-state.json may still contain legacy "Игровой")
         string profileKey = MapKindToUiId(profile.Kind);
-        // Prefer Kind-based label; map legacy ActiveState names ("Игровой") and keys ("gaming")
-        string profileLabel = LocalizeProfileLabelFromToken(
-            active.ProfileName ?? profile.Name,
-            profile.Kind);
+        string profileLabel = LocalizeProfileLabel(profile.Kind);
+
+        // Heal legacy ActiveState display names → stable key (gaming/office/max)
+        try
+        {
+            if (active.Active
+                && !string.IsNullOrEmpty(active.ProfileName)
+                && !string.Equals(active.ProfileName, profileKey, StringComparison.OrdinalIgnoreCase)
+                && (active.ProfileName.IndexOfAny(new[] { 'А', 'а', 'И', 'и', 'О', 'о', 'П', 'п', 'М', 'м' }) >= 0
+                    || active.ProfileName.Contains("Игровой", StringComparison.OrdinalIgnoreCase)
+                    || active.ProfileName.Contains("Офис", StringComparison.OrdinalIgnoreCase)
+                    || active.ProfileName.Contains("Максим", StringComparison.OrdinalIgnoreCase)
+                    || active.ProfileName.Contains("умолчан", StringComparison.OrdinalIgnoreCase)))
+            {
+                ActiveStateStore.MarkActive(profileKey);
+            }
+        }
+        catch { /* best-effort heal */ }
 
         return new
         {
             optimized = active.Active,
-            // Display string for current UI culture (UI prefers selectedProfileId + i18n)
+            // Already localized for current UiCulture — UI re-localizes via selectedProfileId + i18n
             profile = profileLabel,
             profileKey,
             profileKind = profile.Kind.ToString(),

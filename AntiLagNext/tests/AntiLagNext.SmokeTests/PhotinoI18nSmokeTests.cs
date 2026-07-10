@@ -92,4 +92,22 @@ public class PhotinoI18nSmokeTests
             en[key].Should().NotBe(ru[key], $"{key} should differ between en and ru");
         }
     }
+
+    [Fact]
+    public void IndexHtml_HasHardcodedEnProfileFallbacks()
+    {
+        var root = FindUiI18nDir();
+        if (root is null) return;
+        var index = Path.GetFullPath(Path.Combine(root, "..", "index.html"));
+        if (!File.Exists(index)) return;
+
+        var html = File.ReadAllText(index);
+        html.Should().Contain("PROFILE_LABELS");
+        html.Should().Contain("gaming: 'Gaming'");
+        html.Should().Contain("CYRILLIC_RE");
+        html.Should().Contain("updateProfileNameDisplay");
+        // Must not assign raw backend profile string to the card
+        html.Should().NotContain("profileName').textContent = s.profile");
+        html.Should().NotContain("profileName').textContent = s.profile ||");
+    }
 }
