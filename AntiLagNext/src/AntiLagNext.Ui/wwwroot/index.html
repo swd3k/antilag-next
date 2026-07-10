@@ -1034,17 +1034,15 @@
         if (!pack || typeof pack !== 'object') throw new Error('empty i18n pack');
         i18n = pack;
         lang = want;
-        const fb = PROFILE_LABELS[want] || PROFILE_LABELS.en;
+        const fb = PROFILE_LABELS[want] || PROFILE_LABELS.ru;
         for (const k of ['gaming', 'office', 'max', 'default']) {
-          const pk = 'profile.' + k;
-          if (!i18n[pk]) i18n[pk] = fb[k];
-          if (want === 'en' && CYRILLIC_RE.test(i18n[pk] || '')) i18n[pk] = fb[k];
+          i18n['profile.' + k] = fb[k];
         }
         applyI18n();
         return true;
       } catch (e) {
         console.warn('i18n load failed', e);
-        const fb = PROFILE_LABELS[want] || PROFILE_LABELS.en;
+        const fb = PROFILE_LABELS[want] || PROFILE_LABELS.ru;
         lang = want;
         i18n = Object.assign({}, i18n, {
           'profile.gaming': fb.gaming,
@@ -1086,13 +1084,18 @@
     }
 
     async function setLang(code) {
-      const want = (code === 'en' || code === 'ru') ? code : 'en';
+      const want = (code === 'en' || code === 'ru') ? code : 'ru';
       try { localStorage.setItem('al_lang', want); } catch (e) {}
+      lang = want;
       await loadI18n(want);
       try {
         const r = await send('setLanguage', { lang: want });
-        if (r && r.state) await applyState(r.state);
+        if (r && r.state) {
+          r.state.lang = want;
+          await applyState(r.state);
+        }
       } catch (e) { /* offline preview */ }
+      lang = want;
       applyDynamicTexts();
       updateProfileNameDisplay();
       renderPlugins(state.plugins || []);
@@ -1367,28 +1370,24 @@
 
     function profileLabel(id) {
       const nid = normalizeProfileId(id);
-      const key = 'profile.' + nid;
-      let s = i18n[key];
-      const fb = (PROFILE_LABELS[lang] || PROFILE_LABELS.en)[nid] || PROFILE_LABELS.en.gaming;
-      if (s == null || s === '' || s === key) return fb;
-      if (lang === 'en' && CYRILLIC_RE.test(s)) return fb;
-      if (lang === 'ru' && PROFILE_LABELS.en[nid] && s === PROFILE_LABELS.en[nid]) return fb;
-      return s;
+      // Strict: title follows UI language only (ru → Игровой, en → Gaming)
+      const L = (lang === 'en' || lang === 'ru') ? lang : 'ru';
+      const pack = PROFILE_LABELS[L] || PROFILE_LABELS.ru;
+      return pack[nid] || pack.gaming;
     }
 
-    /** Active profile card: Kind id + lang only — NEVER state.profile raw text. */
     function updateProfileNameDisplay() {
       const el = document.getElementById('profileName');
       if (!el) return;
       const id = normalizeProfileId(
         state.selectedProfileId || state.profileKey || state.profileKind || selectedProfile || 'gaming'
       );
-      let label = profileLabel(id);
-      if (lang === 'en' && CYRILLIC_RE.test(label)) label = PROFILE_LABELS.en[id] || 'Gaming';
-      if (lang === 'ru' && !CYRILLIC_RE.test(label)) label = PROFILE_LABELS.ru[id] || PROFILE_LABELS.ru.gaming;
+      const label = profileLabel(id);
       el.textContent = label;
       el.setAttribute('data-profile-id', id);
-      el.setAttribute('aria-label', (t('metric.profile') || 'Active profile') + ': ' + label);
+      el.setAttribute('data-ui-lang', (lang === 'en' || lang === 'ru') ? lang : 'ru');
+      const mt = t('metric.profile');
+      el.setAttribute('aria-label', (mt && mt !== 'metric.profile' ? mt : 'profile') + ': ' + label);
     }
 
     function applyDynamicTexts() {
