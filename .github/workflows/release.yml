@@ -52,6 +52,7 @@ jobs:
 
             # Ensure wwwroot
             if (-not (Test-Path "$uiOut/wwwroot/index.html")) {
+              New-Item -ItemType Directory -Force -Path "$uiOut/wwwroot" | Out-Null
               Copy-Item "AntiLagNext/src/AntiLagNext.Ui/wwwroot/*" "$uiOut/wwwroot" -Recurse -Force
             }
             if (Test-Path "LICENSE") { Copy-Item "LICENSE" $uiOut -Force }
@@ -74,6 +75,35 @@ jobs:
           }
 
           Get-ChildItem dist -File -Filter "*.zip" | ForEach-Object {
+            "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          choco install innosetup -y --no-progress
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            $iscc = "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+          }
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found after choco install" }
+          Write-Host "ISCC: $iscc"
+          & $iscc /?
+
+      - name: Build Setup.exe installers
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart("v", "V")
+          if ($ver -notmatch '^\d+\.\d+\.\d+') {
+            Write-Host "Tag $tag is not semver — using 1.0.0 for VersionInfo"
+            $ver = "1.0.0"
+          }
+          Write-Host "Installer version: $ver (tag=$tag)"
+          & .\scripts\build-installer.ps1 -Version $ver -Rid @("win-x64", "win-x86", "win-arm64")
+          Get-ChildItem dist\installers -Filter "*.exe" | ForEach-Object {
             "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
           }
 
@@ -107,8 +137,16 @@ jobs:
             - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
             - **Run as Administrator**
 
-            ### Downloads (framework-dependent)
+            ### Downloads
 
+            **Recommended (installer):**
+            | Package | Arch | Notes |
+            |---------|------|-------|
+            | `AntiLagNext-Setup-win-x64.exe` | Intel/AMD 64-bit | **Setup installer** — most users |
+            | `AntiLagNext-Setup-win-x86.exe` | 32-bit | Setup |
+            | `AntiLagNext-Setup-win-arm64.exe` | ARM64 | Setup |
+
+            **Portable (zip):**
             | Package | Arch | Contents |
             |---------|------|----------|
             | `AntiLagNext-win-x64.zip` | Intel/AMD 64-bit | UI (`AntiLagNext.exe`) |
@@ -116,7 +154,7 @@ jobs:
             | `AntiLagNext-win-arm64.zip` | ARM64 | UI |
             | `AntiLagNext-cli-win-*.zip` | same | CLI (`AntiLagNext.Cli.exe`) |
 
-            **Most users:** download **`AntiLagNext-win-x64.zip`**, extract, run `AntiLagNext.exe` as admin.
+            **Most users:** download **`AntiLagNext-Setup-win-x64.exe`**, install, run as admin.
 
             ### CLI examples
             ```text
@@ -138,5 +176,8 @@ jobs:
             dist/AntiLagNext-cli-win-x64.zip
             dist/AntiLagNext-cli-win-x86.zip
             dist/AntiLagNext-cli-win-arm64.zip
+            dist/installers/AntiLagNext-Setup-win-x64.exe
+            dist/installers/AntiLagNext-Setup-win-x86.exe
+            dist/installers/AntiLagNext-Setup-win-arm64.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

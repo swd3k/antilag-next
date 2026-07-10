@@ -83,22 +83,34 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ---
 
-## 📥 Download (ready-made .exe)
+## 📥 Download
 
-Get portable zips from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
+Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
+
+### Setup installer (recommended)
+
+| Package | Arch | Notes |
+|---------|------|-------|
+| `AntiLagNext-Setup-win-x64.exe` | Intel / AMD 64-bit | **Installer** — *most users* |
+| `AntiLagNext-Setup-win-x86.exe` | 32-bit | Installer |
+| `AntiLagNext-Setup-win-arm64.exe` | ARM64 | Installer |
+
+1. Run the **Setup** `.exe` (UAC / Administrator).  
+2. Finish the wizard → launch **AntiLag Next**.  
+3. Read onboarding → **Enable AntiLag Next**.  
+4. If anything feels wrong → **Reset all**.
+
+### Portable zip
 
 | Package | Arch | Contents |
 |---------|------|----------|
-| `AntiLagNext-win-x64.zip` | Intel / AMD 64-bit | **UI** (`AntiLagNext.exe`) — *most users* |
+| `AntiLagNext-win-x64.zip` | Intel / AMD 64-bit | **UI** (`AntiLagNext.exe`) |
 | `AntiLagNext-win-x86.zip` | 32-bit | UI |
 | `AntiLagNext-win-arm64.zip` | ARM64 | UI |
 | `AntiLagNext-cli-win-*.zip` | same RIDs | **CLI** (`AntiLagNext.Cli.exe`) |
 
 1. Extract the zip.  
-2. Run **`AntiLagNext.exe` as Administrator**.  
-3. Read onboarding → **Enable AntiLag Next**.  
-4. Optionally confirm autostart / reboot.  
-5. If anything feels wrong → **Reset all**.
+2. Run **`AntiLagNext.exe` as Administrator**.
 
 **Runtime required (framework-dependent builds):** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (usually preinstalled on Windows 10/11).
 
@@ -137,14 +149,20 @@ dotnet run --project src\AntiLagNext.Ui -c Release
 dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 ```
 
-### Publish portable
+### Publish portable + Setup installers
 
 ```powershell
-# win-x64 only
+# win-x64 only (portable folder + zip)
 .\scripts\publish.ps1
 
 # all Windows CPUs: x64 + x86 + ARM64 (+ zip)
 .\scripts\publish-all.ps1
+
+# Inno Setup installers (requires Inno Setup 6)
+.\scripts\build-installer.ps1 -Version 1.0.0
+
+# publish + all Setup.exe in one go
+.\scripts\build-installer.ps1 -Version 1.0.0 -PublishFirst
 
 # full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
@@ -154,9 +172,10 @@ Self-contained (includes runtime, much larger):
 
 ```powershell
 .\scripts\publish-all.ps1 -SelfContained
+.\scripts\build-installer.ps1 -Version 1.0.0
 ```
 
-CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.0.0`) with multi-arch zips attached.
+CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.0.0`) with multi-arch **Setup.exe** installers and portable zips attached.
 
 ---
 
@@ -187,7 +206,7 @@ Legacy WPF **`AntiLagNext.App`** is reference-only and **not built by default**.
 │   └── tests/
 ├── docs/                        # architecture, plugins, banner
 ├── scripts/                     # publish / hard-test
-├── installer/                   # Inno Setup (optional)
+├── installer/                   # Inno Setup script → Setup.exe
 ├── LICENSE
 └── README.md
 ```

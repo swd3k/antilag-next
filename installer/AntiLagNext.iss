@@ -1,23 +1,27 @@
 ; AntiLag Next — Inno Setup script
-; Параметры командной строки ISCC:
-;   /DArch=x86|x64|amd64
-;   /DSourceDir=...  (папка publish)
-;   /DOutName=...    (имя Setup.exe без расширения)
+; ISCC defines:
+;   /DArch=x64|x86|arm64
+;   /DSourceDir=...   (published UI folder, e.g. dist\AntiLagNext-win-x64)
+;   /DOutName=...     (Setup.exe base name without extension)
+;   /DMyAppVersion=1.0.0
 
 #ifndef Arch
   #define Arch "x64"
 #endif
 
 #ifndef SourceDir
-  #define SourceDir "..\dist\AntiLagNext-x64-64bit"
+  #define SourceDir "..\dist\AntiLagNext-win-x64"
 #endif
 
 #ifndef OutName
-  #define OutName "AntiLagNext-Setup-x64"
+  #define OutName "AntiLagNext-Setup-win-x64"
+#endif
+
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.0"
 #endif
 
 #define MyAppName "AntiLag Next"
-#define MyAppVersion "1.0.0"
 #define MyAppPublisher "swd3k"
 #define MyAppAuthorURL "https://github.com/swd3k"
 #define MyAppURL "https://github.com/swd3k/antilag-next"
@@ -28,18 +32,22 @@
   #define MyArchLabel "32-bit (x86)"
   #define MyArchitecturesAllowed "x86compatible"
   #define MyArchitecturesInstallIn64BitMode ""
-#elif Arch == "amd64"
-  #define MyArchLabel "AMD64 (64-bit)"
-  #define MyArchitecturesAllowed "x64compatible"
-  #define MyArchitecturesInstallIn64BitMode "x64compatible"
+  #define MyAppId "{{B5C6D7E8-A1A1-4A2B-9C0D-E1F2A3B4C586}"
+#elif Arch == "arm64"
+  ; Inno Setup uses "arm64" (not arm64compatible) for Arm64 packages
+  #define MyArchLabel "ARM64"
+  #define MyArchitecturesAllowed "arm64"
+  #define MyArchitecturesInstallIn64BitMode "arm64"
+  #define MyAppId "{{B5C6D7E8-A1A1-4A2B-9C0D-E1F2A3B4C5A4}"
 #else
   #define MyArchLabel "64-bit (x64)"
   #define MyArchitecturesAllowed "x64compatible"
   #define MyArchitecturesInstallIn64BitMode "x64compatible"
+  #define MyAppId "{{B5C6D7E8-A1A1-4A2B-9C0D-E1F2A3B4C564}"
 #endif
 
 [Setup]
-AppId={{B5C6D7E8-ALN1-4A2B-9C0D-E1F2A3B4C5D6}-{{Arch}}
+AppId={#MyAppId}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion} ({#MyArchLabel})
@@ -52,13 +60,13 @@ DefaultDirName={autopf}\AntiLagNext
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
+InfoBeforeFile=
 OutputDir=..\dist\installers
 OutputBaseFilename={#OutName}
-SetupIconFile=..\AntiLagNext\src\AntiLagNext.App\Assets\app.ico
+SetupIconFile=..\AntiLagNext\src\AntiLagNext.Ui\Assets\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-; Установщик всегда с UAC (admin). Без OverridesAllowed — нельзя «без прав».
 PrivilegesRequired=admin
 MinVersion=10.0
 #if MyArchitecturesInstallIn64BitMode != ""
@@ -69,12 +77,15 @@ ArchitecturesAllowed={#MyArchitecturesAllowed}
 #endif
 UninstallDisplayIcon={app}\{#MyAppExeName}
 UninstallDisplayName={#MyAppName} ({#MyArchLabel})
-VersionInfoVersion={#MyAppVersion}
+VersionInfoVersion={#MyAppVersion}.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoCopyright={#MyAppCopyright}
 VersionInfoDescription={#MyAppName} Setup ({#MyArchLabel}) by {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
+VersionInfoProductVersion={#MyAppVersion}.0
 VersionInfoTextVersion={#MyAppVersion}
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -82,21 +93,20 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "quicklaunchicon"; Description: "Запускать при входе в Windows"; GroupDescription: "Автозапуск:"; Flags: unchecked
+Name: "startupicon"; Description: "Start with Windows (Run registry)"; GroupDescription: "Autostart:"; Flags: unchecked
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{group}\Удалить {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{group}\Репозиторий (GitHub)"; Filename: "{#MyAppURL}"
-Name: "{group}\Автор swd3k"; Filename: "{#MyAppAuthorURL}"
+Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
+Name: "{group}\GitHub repository"; Filename: "{#MyAppURL}"
+Name: "{group}\Author swd3k"; Filename: "{#MyAppAuthorURL}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]
-; Автозапуск (опционально) — держит timer resolution в сессии
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AntiLagNext"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: quicklaunchicon
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "AntiLagNext"; ValueData: """{app}\{#MyAppExeName}"""; Flags: uninsdeletevalue; Tasks: startupicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runascurrentuser
