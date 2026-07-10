@@ -2,15 +2,34 @@
   <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
-# ⚡ AntiLag Next
+<h1 align="center">AntiLag Next</h1>
+
+<p align="center">
+  AntiLag Next makes your system run as smooth as possible with lower input latency and a higher frame rate.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-win--64-lightgrey?style=flat-square" alt="platform win-64" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="license MIT" /></a>
+  <img src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" alt="status release" />
+  <a href="https://github.com/swd3k/antilag-next"><img src="https://img.shields.io/badge/author-swd3k-181717?style=flat-square&logo=github" alt="author swd3k" /></a>
+  <img src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet" alt=".NET 8" />
+</p>
+
+<p align="center">
+  <b>Developer:</b> <a href="https://github.com/swd3k"><strong>swd3k</strong></a>
+  · <a href="https://github.com/swd3k/antilag-next/releases"><strong>Releases</strong></a>
+  · <a href="LICENSE"><strong>MIT</strong></a>
+</p>
+
+---
 
 > [!NOTE]
 > **Unofficial open-source** tool. Not affiliated with any game publisher or anti-cheat vendor.  
+> Clean-room successor to the *ideas* behind [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) (**not a fork**).  
 > **Use at your own risk.** Requires **Administrator** rights (UAC).
 
 Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks (timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry, and related options) to reduce **scheduling latency**. One-click **Enable**, full **Reset all**, optional tray + autostart.
-
-**Developer:** [swd3k](https://github.com/swd3k) · **License:** [MIT](./LICENSE) · **Repo:** [github.com/swd3k/antilag-next](https://github.com/swd3k/antilag-next)
 
 ---
 
