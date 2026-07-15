@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="AntiLagNext/src/AntiLagNext.App/Assets/logo.png" alt="AntiLag Next" width="96" height="96">
+  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
 <br>
@@ -44,10 +44,6 @@
 <p align="center">
   <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.0.3-win-x64.exe"><code>AntiLagNext-Setup-1.0.3-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
-</p>
-
-<p align="center">
-  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
 ---
