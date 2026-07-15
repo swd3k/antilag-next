@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
+  <img src="AntiLagNext/src/AntiLagNext.App/Assets/logo.png" alt="AntiLag Next" width="96" height="96">
 </p>
 
 <br>
@@ -26,7 +26,28 @@
   ·
   <a href="https://github.com/swd3k/antilag-next/releases">Releases</a>
   ·
+  <a href="CHANGELOG.md">Changelog</a>
+  ·
   <a href="LICENSE">MIT</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.0.3-win-x64.exe">
+    <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
+  </a>
+  &nbsp;
+  <a href="https://github.com/swd3k/antilag-next/releases/latest">
+    <img alt="All releases" src="https://img.shields.io/badge/All%20releases-gray?style=for-the-badge" />
+  </a>
+</p>
+
+<p align="center">
+  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.0.3-win-x64.exe"><code>AntiLagNext-Setup-1.0.3-win-x64.exe</code></a>
+  · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
+</p>
+
+<p align="center">
+  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Before (red latency) vs After (green optimized)" width="100%">
 </p>
 
 ---
