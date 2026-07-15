@@ -128,3 +128,5 @@ Internal history before the first public tag (for completeness):
 - Repository: https://github.com/swd3k/antilag-next  
 - Releases: https://github.com/swd3k/antilag-next/releases  
 - Security: [SECURITY.md](SECURITY.md)
+
+<!-- release-notes-source -->
