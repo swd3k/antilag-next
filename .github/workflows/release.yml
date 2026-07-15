@@ -152,6 +152,24 @@ jobs:
             "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
           }
 
+      - name: Build release notes from CHANGELOG.md
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "${{ github.ref_name }}"
+          $ver = $tag.TrimStart("v", "V")
+          $text = Get-Content CHANGELOG.md -Raw -Encoding UTF8
+          $pattern = "(?s)## \[$([regex]::Escape($ver))\][^\n]*\n(.*?)(?=\n## \[|\z)"
+          $m = [regex]::Match($text, $pattern)
+          if (-not $m.Success) { throw "No CHANGELOG section for version $ver" }
+          $body = $m.Groups[1].Value.Trim()
+          $body = [regex]::Replace($body, "\r?\n---\s*$", "").Trim()
+          $header = "# AntiLag Next $tag`n`n"
+          $footer = "`n`n---`n`n**Requirements:** Windows 10/11 · [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) · [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) · **Run as Administrator**`n`nFull history: [CHANGELOG.md](https://github.com/swd3k/antilag-next/blob/main/CHANGELOG.md) · [README](https://github.com/swd3k/antilag-next#readme)`n"
+          $notes = $header + $body + $footer
+          [System.IO.File]::WriteAllText("release_body.md", $notes, [System.Text.UTF8Encoding]::new($false))
+          Write-Host "Wrote release_body.md for $tag ($($notes.Length) chars)"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -159,61 +177,8 @@ jobs:
           name: AntiLag Next ${{ github.ref_name }}
           draft: false
           prerelease: false
-          generate_release_notes: true
-          body: |
-            ## AntiLag Next ${{ github.ref_name }}
-
-            **Developer:** [swd3k](https://github.com/swd3k)  
-            **License:** MIT
-
-            Open-source Windows latency & performance optimizer (Photino + WebView2 UI + CLI).
-
-            ### Highlights
-            - **Quick Boost** — Gaming / Office / Max Performance profiles
-            - **Core** — timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry
-            - **Safety** — JSON backup, registry allowlist, Reset all / `--revert`
-            - **Tray** — minimize to tray; Windows autostart only after **confirm**
-            - **Monitoring** — scheduling-latency **proxy** (not kernel DPC / not network ping)
-            - Experimental plugins are **MVP stubs** (disabled in UI)
-
-            ### Requirements
-            - Windows 10 20H2+ / 11
-            - [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/8.0)
-            - [WebView2 Runtime](https://developer.microsoft.com/microsoft-edge/webview2/)
-            - **Run as Administrator**
-
-            ### Downloads
-
-            **Recommended (installer):**
-            | Package | Arch | Notes |
-            |---------|------|-------|
-            | `AntiLagNext-Setup-win-x64.exe` | Intel/AMD 64-bit | **Setup installer** — most users |
-            | `AntiLagNext-Setup-win-x86.exe` | 32-bit | Setup |
-            | `AntiLagNext-Setup-win-arm64.exe` | ARM64 | Setup |
-
-            **Portable (zip):**
-            | Package | Arch | Contents |
-            |---------|------|----------|
-            | `AntiLagNext-win-x64.zip` | Intel/AMD 64-bit | UI (`AntiLagNext.exe`) |
-            | `AntiLagNext-win-x86.zip` | 32-bit | UI |
-            | `AntiLagNext-win-arm64.zip` | ARM64 | UI |
-            | `AntiLagNext-cli-win-*.zip` | same | CLI (`AntiLagNext.Cli.exe`) |
-
-            **Most users:** download **`AntiLagNext-Setup-win-x64.exe`**, install, run as admin.
-
-            ### CLI examples
-            ```text
-            AntiLagNext.Cli.exe --status
-            AntiLagNext.Cli.exe --apply gaming --silent
-            AntiLagNext.Cli.exe --revert --silent
-            ```
-
-            ### Notes
-            - Use **Reset all** if something feels wrong.
-            - Higher power / heat under High Performance + high timer resolution is expected.
-            - **Use at your own risk.**
-
-            Full docs: [README](https://github.com/swd3k/antilag-next#readme)
+          generate_release_notes: false
+          body_path: release_body.md
           files: |
             dist/AntiLagNext-win-x64.zip
             dist/AntiLagNext-win-x86.zip
