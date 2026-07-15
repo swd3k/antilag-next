@@ -186,8 +186,6 @@ jobs:
             dist/AntiLagNext-cli-win-x64.zip
             dist/AntiLagNext-cli-win-x86.zip
             dist/AntiLagNext-cli-win-arm64.zip
-            dist/installers/AntiLagNext-Setup-win-x64.exe
-            dist/installers/AntiLagNext-Setup-win-x86.exe
-            dist/installers/AntiLagNext-Setup-win-arm64.exe
+            dist/installers/AntiLagNext-Setup-*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
