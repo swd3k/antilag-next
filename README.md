@@ -11,10 +11,13 @@
 </p>
 
 <p align="center">
-  <img alt="platform" src="https://img.shields.io/badge/platform-win--64-lightgrey?style=flat-square" />
+  <a href="https://github.com/swd3k/antilag-next/releases/latest"><img alt="version" src="https://img.shields.io/github/v/release/swd3k/antilag-next?style=flat-square&label=version" /></a>
+  <img alt="platform" src="https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" />
   <img alt="status" src="https://img.shields.io/badge/status-release-brightgreen?style=flat-square" />
   <a href="https://github.com/swd3k"><img alt="author" src="https://img.shields.io/badge/author-swd3k-24292e?style=flat-square&logo=github&logoColor=white" /></a>
+  <img alt="C%23" src="https://img.shields.io/badge/C%23-239120?style=flat-square&logo=csharp&logoColor=white" />
+  <img alt="JavaScript" src="https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black" />
   <img alt=".NET" src="https://img.shields.io/badge/.NET-8-512BD4?style=flat-square&logo=dotnet&logoColor=white" />
 </p>
 
