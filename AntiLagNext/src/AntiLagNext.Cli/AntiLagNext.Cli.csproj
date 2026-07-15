@@ -9,7 +9,7 @@
     <ApplicationIcon>..\AntiLagNext.App\Assets\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <Version>1.0.0</Version>
+    <!-- Version from Directory.Build.props -->
     <Product>AntiLag Next CLI</Product>
     <Description>Console frontend: --apply gaming --silent</Description>
   </PropertyGroup>

@@ -109,13 +109,21 @@
       width: 208px; background: var(--panel); border-right: 1px solid var(--border);
       display: flex; flex-direction: column; padding: 16px 10px 12px;
     }
-    .brand { display: flex; gap: 10px; align-items: center; padding: 0 8px 16px; }
-    .brand-mark {
-      width: 36px; height: 36px; border-radius: 10px;
-      background: transparent; border: 1px solid var(--border);
-      display: grid; place-items: center; overflow: hidden;
+    /* Brand row: same horizontal inset as nav buttons, no frame behind logo */
+    .brand {
+      display: flex; gap: 12px; align-items: center;
+      padding: 2px 12px 18px; min-height: 40px; box-sizing: border-box;
     }
-    .brand-mark img { width: 36px; height: 36px; object-fit: cover; border-radius: 10px; display: block; }
+    .brand-mark {
+      width: 36px; height: 36px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 0; border-radius: 0; overflow: visible;
+      padding: 0; margin: 0;
+    }
+    .brand-mark img {
+      width: 36px; height: 36px; object-fit: contain;
+      display: block; border-radius: 0; background: transparent;
+    }
     .brand-title {
       margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.03em;
       line-height: 1.2; white-space: nowrap;
@@ -680,14 +688,14 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver">1.0</span>
+      <span class="ver" id="appVersion">1.0.3</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
       <aside class="sidebar">
         <div class="brand">
-          <div class="brand-mark">
-            <img src="logo.png" alt="" width="36" height="36"
+          <div class="brand-mark" aria-hidden="true">
+            <img src="logo.png" alt="" width="36" height="36" draggable="false"
                  onerror="this.remove()" />
           </div>
           <div class="brand-title">AntiLag <span>Next</span></div>

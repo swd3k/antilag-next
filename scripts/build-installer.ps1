@@ -103,7 +103,7 @@ $failed = @()
 foreach ($r in $Rid) {
   $arch = Get-ArchFromRid $r
   $sourceDir = Join-Path $root "dist\AntiLagNext-$r"
-  $outName = "AntiLagNext-Setup-$r"
+  $outName = "AntiLagNext-Setup-$ver-$r"
   $exePath = Join-Path $outDir "$outName.exe"
 
   Write-Host "=== Build Setup $r ($arch) ===" -ForegroundColor Green
