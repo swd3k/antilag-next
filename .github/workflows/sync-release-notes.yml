@@ -1,0 +1,73 @@
+name: Sync release notes from CHANGELOG
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "CHANGELOG.md"
+      - ".github/workflows/sync-release-notes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update GitHub Release bodies from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -f CHANGELOG.md ]]; then
+            echo "CHANGELOG.md missing"
+            exit 1
+          fi
+
+          # Extract "## [X.Y.Z] — date" sections into notes files
+          python3 <<'PY'
+          import re
+          from pathlib import Path
+
+          text = Path("CHANGELOG.md").read_text(encoding="utf-8")
+          # Match each version section until next ## [ or EOF
+          pattern = re.compile(
+              r"## \[(\d+\.\d+\.\d+)\][^\n]*\n(.*?)(?=\n## \[|\Z)",
+              re.S,
+          )
+          Path("release-notes").mkdir(exist_ok=True)
+          found = []
+          for m in pattern.finditer(text):
+              ver, body = m.group(1), m.group(2).strip()
+              # Drop trailing version-map / links if captured (stop at --- after section content is already handled by next ##)
+              # Remove trailing horizontal rules only
+              body = re.sub(r"\n---\s*$", "", body).strip()
+              notes = f"# AntiLag Next v{ver}\n\n{body}\n\n---\n\nFull history: [CHANGELOG.md](https://github.com/swd3k/antilag-next/blob/main/CHANGELOG.md)\n"
+              path = Path("release-notes") / f"v{ver}.md"
+              path.write_text(notes, encoding="utf-8")
+              found.append(ver)
+              print(f"extracted v{ver} -> {path} ({len(notes)} bytes)")
+          Path("release-notes/versions.txt").write_text("\n".join(found) + "\n", encoding="utf-8")
+          PY
+
+          while IFS= read -r ver || [[ -n "$ver" ]]; do
+            [[ -z "$ver" ]] && continue
+            tag="v${ver}"
+            notes="release-notes/v${ver}.md"
+            if ! gh release view "$tag" >/dev/null 2>&1; then
+              echo "Skip $tag — release does not exist yet"
+              continue
+            fi
+            echo "Updating $tag ..."
+            gh release edit "$tag" \
+              --repo "${{ github.repository }}" \
+              --title "AntiLag Next ${tag}" \
+              --notes-file "$notes"
+            echo "Updated $tag"
+          done < release-notes/versions.txt
