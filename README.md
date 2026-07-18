@@ -111,9 +111,9 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 | Package | Arch | Notes |
 |---------|------|-------|
-| `AntiLagNext-Setup-win-x64.exe` | Intel / AMD 64-bit | **Installer** — *most users* |
-| `AntiLagNext-Setup-win-x86.exe` | 32-bit | Installer |
-| `AntiLagNext-Setup-win-arm64.exe` | ARM64 | Installer |
+| [`AntiLagNext-Setup-1.1.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
+| [`AntiLagNext-Setup-1.1.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x86.exe) | 32-bit | Installer |
+| [`AntiLagNext-Setup-1.1.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-arm64.exe) | ARM64 | Installer |
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
