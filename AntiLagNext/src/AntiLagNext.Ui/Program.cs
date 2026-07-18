@@ -72,7 +72,11 @@ internal static class Program
     private static readonly double[] PeakSecMax = new double[PeakWindowSeconds];
     private static readonly long[] PeakSecUnix = new long[PeakWindowSeconds];
     /// <summary>Probe glitches above this (µs) are clamped for peak/max display (10 ms).</summary>
-    private const double ProbeGlitchCapUs = 10_000;
+    /// <summary>
+    /// Probe outliers above this (µs) are treated as measurement glitches.
+    /// Must sit above the highest chart Y rung (15 ms) so real spikes remain visible.
+    /// </summary>
+    private const double ProbeGlitchCapUs = 20_000;
 
     private static string CrashLogPath =>
         Path.Combine(
@@ -1769,7 +1773,8 @@ internal static class Program
     private static int _metricsPollCount;
 
     /// <summary>UI soft-cap label (same order of magnitude as probe glitch clamp).</summary>
-    private const double PeakDisplayCapUs = 5000;
+    /// <summary>Display/wire peak ceiling — matches top fixed Y scale (15_000 µs).</summary>
+    private const double PeakDisplayCapUs = 15_000;
 
     private static object BuildMetricsOnly()
     {
