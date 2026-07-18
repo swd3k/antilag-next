@@ -307,3 +307,24 @@ public interface IAuditService
 {
     IReadOnlyList<AuditFinding> Scan();
 }
+
+/// <summary>
+/// Check GitHub Releases and apply silent Setup upgrades.
+/// </summary>
+public interface IUpdateService
+{
+    /// <summary>Local app version (assembly InformationalVersion / Version).</summary>
+    string LocalVersion { get; }
+
+    /// <summary>Query latest stable release (ignores prerelease).</summary>
+    Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Download Setup for current RID and start silent Inno install, then exit process.
+    /// Portable installs: returns fail with release browser URL.
+    /// </summary>
+    Task<OperationResult> DownloadAndInstallAsync(
+        UpdateCheckResult check,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
+}

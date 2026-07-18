@@ -18,7 +18,7 @@
 #endif
 
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.0"
+  #define MyAppVersion "1.2.0"
 #endif
 
 #define MyAppName "AntiLag Next"
@@ -58,7 +58,13 @@ AppUpdatesURL={#MyAppURL}/releases
 AppCopyright={#MyAppCopyright}
 DefaultDirName={autopf}\AntiLagNext
 DefaultGroupName={#MyAppName}
+; Reinstall / silent update: keep previous folder, skip dir page, no "folder exists?" prompt
+UsePreviousAppDir=yes
+UsePreviousGroup=yes
+UsePreviousTasks=yes
+DisableDirPage=auto
 DisableProgramGroupPage=yes
+DirExistsWarning=no
 LicenseFile=..\LICENSE
 InfoBeforeFile=
 OutputDir=..\dist\installers
@@ -84,8 +90,11 @@ VersionInfoDescription={#MyAppName} Setup ({#MyArchLabel}) by {#MyAppPublisher}
 VersionInfoProductName={#MyAppName}
 VersionInfoProductVersion={#MyAppVersion}.0
 VersionInfoTextVersion={#MyAppVersion}
+; Close running app so files can be replaced (in-app updater + manual reinstall)
 CloseApplications=yes
+CloseApplicationsFilter=AntiLagNext.exe
 RestartApplications=no
+AllowNoIcons=yes
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

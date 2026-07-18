@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe"><code>AntiLagNext-Setup-1.1.0-win-x64.exe</code></a>
+  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe"><code>AntiLagNext-Setup-1.2.0-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -111,9 +111,9 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 | Package | Arch | Notes |
 |---------|------|-------|
-| [`AntiLagNext-Setup-1.1.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
-| [`AntiLagNext-Setup-1.1.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x86.exe) | 32-bit | Installer |
-| [`AntiLagNext-Setup-1.1.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-arm64.exe) | ARM64 | Installer |
+| [`AntiLagNext-Setup-1.2.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
+| [`AntiLagNext-Setup-1.2.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x86.exe) | 32-bit | Installer |
+| [`AntiLagNext-Setup-1.2.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-arm64.exe) | ARM64 | Installer |
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
@@ -144,13 +144,14 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 - 📋 **Health** page: latency **audit**, desired-state **drift**, Fix safe / Fix all / Reapply (Admin)  
 - 🔧 Extra latency registry pack with profiles (network, input queues, kernel/power tweaks)  
 - 📊 Live latency chart: area-line, **fixed Y-scale** rungs, Peak = max of last **60 s** (proxy µs, not ping)  
+- 🔄 **Auto-update** from GitHub Releases (silent Setup for Program Files installs)  
 - ♻️ JSON backup + **Reset all** / CLI `--revert`  
 - 🖥️ Tray icon; optional Windows logon autostart (confirm required)  
 - 🧩 Built-in plugins; experimental items marked **stub / soon**  
 - 💻 CLI: `--apply`, `--revert`, `--status`  
 - 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)  
 
-Details for **1.1.0**: [CHANGELOG.md](CHANGELOG.md).
+Details: [CHANGELOG.md](CHANGELOG.md) (**1.2.0**).
 
 ---
 
@@ -218,7 +219,7 @@ dotnet test tests\AntiLagNext.SmokeTests\AntiLagNext.SmokeTests.csproj -c Releas
 ```
 
 Shipping host: **`AntiLagNext.Ui`** (Photino).  
-Legacy WPF **`AntiLagNext.App`** is reference-only and **not built by default**.
+Shipping GUI is **Photino** (`AntiLagNext.Ui`) only. Legacy WPF was removed in 1.2.0.
 
 ---
 
@@ -230,7 +231,6 @@ Legacy WPF **`AntiLagNext.App`** is reference-only and **not built by default**.
 │   ├── src/AntiLagNext.Cli
 │   ├── src/AntiLagNext.Core
 │   ├── src/AntiLagNext.Infrastructure
-│   ├── src/AntiLagNext.App      # legacy WPF (not default build)
 │   └── tests/
 ├── docs/                        # architecture, plugins, banner
 ├── scripts/                     # publish / hard-test

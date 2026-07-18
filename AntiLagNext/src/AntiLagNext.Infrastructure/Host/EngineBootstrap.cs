@@ -27,6 +27,7 @@ public sealed class EngineBootstrap : IDisposable
     public ISettingsService SettingsService { get; }
     public IDriftService Drift { get; }
     public IAuditService Audit { get; }
+    public IUpdateService Update { get; }
 
     private EngineBootstrap(ServiceProvider provider)
     {
@@ -40,6 +41,7 @@ public sealed class EngineBootstrap : IDisposable
         SettingsService = provider.GetRequiredService<ISettingsService>();
         Drift = provider.GetRequiredService<IDriftService>();
         Audit = provider.GetRequiredService<IAuditService>();
+        Update = provider.GetRequiredService<IUpdateService>();
     }
 
     public static async Task<EngineBootstrap> CreateAsync(CancellationToken cancellationToken = default)

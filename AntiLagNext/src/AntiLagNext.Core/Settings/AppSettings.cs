@@ -79,6 +79,12 @@ public sealed class AppSettings
     /// </summary>
     public bool AllowExternalPlugins { get; set; }
 
+    /// <summary>Check GitHub for updates shortly after startup (default on).</summary>
+    public bool CheckUpdatesOnStartup { get; set; } = true;
+
+    /// <summary>UTC of last successful update check (throttle).</summary>
+    public DateTime? LastUpdateCheckUtc { get; set; }
+
     /// <summary>
     /// Создаёт настройки с предустановленными профилями по умолчанию.
     /// </summary>

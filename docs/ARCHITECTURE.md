@@ -30,11 +30,12 @@ Author: [swd3k](https://github.com/swd3k) · Repo: https://github.com/swd3k/anti
 ```
 AntiLagNext.Ui           Photino (WebView2) UI — shipping host (≤5 MB FDD)
 AntiLagNext.Cli          Console: --apply / --revert / --status
-AntiLagNext.App          Legacy WPF (reference; not published)
-AntiLagNext.Infrastructure  Managers, PluginHost, safety, EngineBootstrap
+AntiLagNext.Infrastructure  Managers, PluginHost, safety, EngineBootstrap, UpdateService
 AntiLagNext.Core         Models, contracts, plugin interfaces (no Win32)
 plugins/*.dll            Optional external IAntiLagPlugin assemblies
 ```
+
+**Stack (1.2.0):** C# + Photino HTML/JS + PowerShell (build) + Inno Setup. No Python, no optional native C++ DLL required.
 
 ## Core (always present)
 

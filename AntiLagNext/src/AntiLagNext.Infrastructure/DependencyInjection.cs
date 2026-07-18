@@ -68,6 +68,7 @@ public static class DependencyInjection
         services.AddSingleton<IGameDetectionService, GameDetectionService>();
         services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddSingleton<IBenchmarkService, BenchmarkService>();
+        services.AddSingleton<IUpdateService, UpdateService>();
 
         return services;
     }

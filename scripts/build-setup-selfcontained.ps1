@@ -8,13 +8,13 @@
   Self-contained installers are larger (~60–80 MB) but run without installing .NET.
 
 .PARAMETER Version
-  Version for the installer (default 1.1.0).
+  Version for the installer (default 1.2.0).
 
 .PARAMETER Rid
   Target RIDs (default win-x64 only — most users).
 #>
 param(
-  [string]$Version = "1.1.0",
+  [string]$Version = "1.2.0",
   [string[]]$Rid = @("win-x64")
 )
 

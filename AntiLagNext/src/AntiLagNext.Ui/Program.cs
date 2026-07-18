@@ -690,6 +690,16 @@ internal static class Program
                 QueueFixAudit(id, safeOnly);
                 return;
             }
+            if (cmd == "checkUpdate")
+            {
+                QueueCheckUpdate(id);
+                return;
+            }
+            if (cmd == "startUpdate")
+            {
+                QueueStartUpdate(id);
+                return;
+            }
 
             // Allowlist commands only (fast path on message thread)
             object payload = cmd switch
@@ -710,6 +720,7 @@ internal static class Program
                 "setAppOptions" => HandleSetAppOptions(root),
                 "hideToTray" => HandleHideToTray(),
                 "restartPc" => HandleRestartPc(root),
+                "openReleases" => HandleOpenReleases(),
                 _ => new { error = "unknown cmd" }
             };
 
@@ -761,6 +772,10 @@ internal static class Program
         }
         // Refresh tray labels after culture is known
         try { _tray?.RebuildMenu(L); } catch { /* ignore */ }
+
+        // Background update check (non-blocking)
+        if (_engine?.Settings.CheckUpdatesOnStartup == true)
+            ScheduleStartupUpdateCheck();
 
         // Allow minimize→tray only after dashboard is up (normal launch stays visible like product UI)
         if (!_autostartMode)
@@ -1648,8 +1663,208 @@ internal static class Program
             logs = SnapshotLogs(),
             // Compact health summary for dashboard badges (no full entry lists)
             drift = BuildDriftSummary(),
-            audit = BuildAuditSummary()
+            audit = BuildAuditSummary(),
+            appVersion = _engine.Update.LocalVersion,
+            update = _lastUpdateCheck is null ? null : new
+            {
+                hasUpdate = _lastUpdateCheck.HasUpdate,
+                local = _lastUpdateCheck.LocalVersion,
+                latest = _lastUpdateCheck.LatestVersion,
+                canSilent = _lastUpdateCheck.CanSilentInstall,
+                portable = _lastUpdateCheck.IsPortable,
+                releaseUrl = _lastUpdateCheck.ReleaseUrl,
+                error = _lastUpdateCheck.Error
+            }
         };
+    }
+
+    private static UpdateCheckResult? _lastUpdateCheck;
+
+    private static void ScheduleStartupUpdateCheck()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(4000).ConfigureAwait(false);
+                if (_engine == null) return;
+                // Throttle: at most once per 6 hours
+                var last = _engine.Settings.LastUpdateCheckUtc;
+                if (last is DateTime t && DateTime.UtcNow - t < TimeSpan.FromHours(6))
+                    return;
+                var result = await _engine.Update.CheckAsync().ConfigureAwait(false);
+                _lastUpdateCheck = result;
+                _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+                if (result.HasUpdate)
+                {
+                    AddLog(L(
+                        $"Доступно обновление {result.LatestVersion} (сейчас {result.LocalVersion})",
+                        $"Update available {result.LatestVersion} (now {result.LocalVersion})"), "ok");
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("StartupUpdateCheck", ex);
+            }
+        });
+    }
+
+    private static void QueueCheckUpdate(string? id)
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_engine == null)
+                {
+                    ReplyOnUiThread(id, new { success = false, error = "no engine" });
+                    return;
+                }
+                AddLog(L("Проверка обновлений…", "Checking for updates…"), "ok");
+                var result = await _engine.Update.CheckAsync().ConfigureAwait(false);
+                _lastUpdateCheck = result;
+                _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+
+                if (!string.IsNullOrEmpty(result.Error) && !result.HasUpdate)
+                {
+                    AddLog(L("Обновление: ", "Update: ") + result.Error, "err");
+                    ReplyOnUiThread(id, new
+                    {
+                        success = false,
+                        error = result.Error,
+                        local = result.LocalVersion,
+                        releaseUrl = result.ReleaseUrl,
+                        state = BuildUiState()
+                    });
+                    return;
+                }
+
+                AddLog(result.HasUpdate
+                        ? L($"Доступна {result.LatestVersion}", $"Available {result.LatestVersion}")
+                        : L("Уже актуальная версия", "Already up to date"),
+                    "ok");
+                ReplyOnUiThread(id, new
+                {
+                    success = true,
+                    hasUpdate = result.HasUpdate,
+                    local = result.LocalVersion,
+                    latest = result.LatestVersion,
+                    canSilent = result.CanSilentInstall,
+                    portable = result.IsPortable,
+                    releaseUrl = result.ReleaseUrl,
+                    downloadUrl = result.DownloadUrl,
+                    state = BuildUiState()
+                });
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("CheckUpdate", ex);
+                ReplyOnUiThread(id, new { success = false, error = ex.Message });
+            }
+        });
+    }
+
+    private static void QueueStartUpdate(string? id)
+    {
+        if (!TryBeginHeavyOp(id))
+            return;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                if (_engine == null)
+                {
+                    ReplyOnUiThread(id, new { success = false, error = "no engine" });
+                    return;
+                }
+
+                var check = _lastUpdateCheck;
+                if (check is null || !check.HasUpdate)
+                    check = await _engine.Update.CheckAsync().ConfigureAwait(false);
+                _lastUpdateCheck = check;
+
+                if (!check.HasUpdate)
+                {
+                    ReplyOnUiThread(id, new
+                    {
+                        success = true,
+                        hasUpdate = false,
+                        message = L("Уже актуальная версия", "Already up to date"),
+                        state = BuildUiState()
+                    });
+                    return;
+                }
+
+                if (!check.CanSilentInstall)
+                {
+                    ReplyOnUiThread(id, new
+                    {
+                        success = false,
+                        needsBrowser = true,
+                        releaseUrl = check.ReleaseUrl ?? AntiLagNext.Infrastructure.Services.UpdateService.ReleasesPage,
+                        message = L(
+                            "Тихая установка только из Program Files. Откройте страницу Releases.",
+                            "Silent install requires Program Files install. Open Releases page."),
+                        state = BuildUiState()
+                    });
+                    return;
+                }
+
+                AddLog(L(
+                    $"Скачивание {check.LatestVersion}…",
+                    $"Downloading {check.LatestVersion}…"), "ok");
+
+                var result = await _engine.Update.DownloadAndInstallAsync(check).ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    AddLog(L("Обновление не удалось: ", "Update failed: ") + result.Message, "err");
+                    ReplyOnUiThread(id, new
+                    {
+                        success = false,
+                        error = result.Message,
+                        detail = result.Detail,
+                        releaseUrl = check.ReleaseUrl,
+                        state = BuildUiState()
+                    });
+                    return;
+                }
+
+                AddLog(L("Установщик запущен — выход…", "Setup started — exiting…"), "ok");
+                ReplyOnUiThread(id, new { success = true, exiting = true, message = result.Message });
+
+                // Exit so Inno can replace files
+                await Task.Delay(500).ConfigureAwait(false);
+                try { _forceExit = true; } catch { /* ignore */ }
+                Environment.Exit(0);
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("StartUpdate", ex);
+                ReplyOnUiThread(id, new { success = false, error = ex.Message });
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+            }
+        });
+    }
+
+    private static object HandleOpenReleases()
+    {
+        try
+        {
+            string url = _lastUpdateCheck?.ReleaseUrl
+                         ?? AntiLagNext.Infrastructure.Services.UpdateService.ReleasesPage;
+            Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+            return new { success = true, url };
+        }
+        catch (Exception ex)
+        {
+            return new { success = false, error = ex.Message };
+        }
     }
 
     private static object BuildDriftSummary()

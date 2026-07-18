@@ -6,7 +6,7 @@
     <RootNamespace>AntiLagNext.Cli</RootNamespace>
     <AssemblyName>AntiLagNext.Cli</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>..\AntiLagNext.App\Assets\app.ico</ApplicationIcon>
+    <ApplicationIcon>..\AntiLagNext.Ui\Assets\app.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Version from Directory.Build.props -->

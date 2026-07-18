@@ -10,7 +10,7 @@ Thanks for helping improve this open-source Windows latency / performance tool.
 - Prefer **Win32 APIs** (`powrprof`, `ntdll`, `kernel32`) over shelling out when possible.
 - Every system mutation must go through **backup/restore** (`ISafetyService` / `IBackupService`).
 - **Shipping UI** is **Photino + WebView2** (`AntiLagNext.Ui` + `wwwroot`). Domain code lives in `AntiLagNext.Core`.
-- Legacy WPF (`AntiLagNext.App`) is **reference only** and is **not** built by default.
+- Shipping GUI is Photino (`AntiLagNext.Ui`) only (legacy WPF removed in 1.2.0).
 
 ## Setup
 

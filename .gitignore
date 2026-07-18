@@ -37,6 +37,7 @@ Desktop.ini
 .vscode/
 *.swp
 *~
+*.lnk
 
 # Secrets / local
 *.pfx

@@ -1,14 +1,10 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-# AntiLag Next — shipping host: Photino UI + CLI (+ Core/Infrastructure/tests)
-# AntiLagNext.App (legacy WPF) is in the solution for reference but NOT built by default.
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AntiLagNext.Core", "src\AntiLagNext.Core\AntiLagNext.Core.csproj", "{11111111-0001-0001-0001-000000000001}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AntiLagNext.Infrastructure", "src\AntiLagNext.Infrastructure\AntiLagNext.Infrastructure.csproj", "{22222222-0002-0002-0002-000000000002}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AntiLagNext.App", "src\AntiLagNext.App\AntiLagNext.App.csproj", "{33333333-0003-0003-0003-000000000003}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AntiLagNext.Core.Tests", "tests\AntiLagNext.Core.Tests\AntiLagNext.Core.Tests.csproj", "{44444444-0004-0004-0004-000000000004}"
 EndProject
@@ -34,8 +30,6 @@ Global
 		{22222222-0002-0002-0002-000000000002}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{22222222-0002-0002-0002-000000000002}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{22222222-0002-0002-0002-000000000002}.Release|Any CPU.Build.0 = Release|Any CPU
-		{33333333-0003-0003-0003-000000000003}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{33333333-0003-0003-0003-000000000003}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{44444444-0004-0004-0004-000000000004}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{44444444-0004-0004-0004-000000000004}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{44444444-0004-0004-0004-000000000004}.Release|Any CPU.ActiveCfg = Release|Any CPU

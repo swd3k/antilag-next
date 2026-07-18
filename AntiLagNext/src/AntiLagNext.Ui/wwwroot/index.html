@@ -776,7 +776,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.1.0</span>
+      <span class="ver" id="appVersion">1.2.0</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -836,6 +836,22 @@
           <div id="dashboard" class="section active">
             <h2 data-i18n="dash.title">Системный обзор</h2>
             <div class="sub selectable" data-i18n="dash.sub">Прокси scheduling latency (не DPC / не network) и статус оптимизаций</div>
+            <div class="card" id="updateBanner" hidden style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))">
+              <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+                <div>
+                  <div class="title" id="updateBannerTitle" style="font-weight:600"></div>
+                  <div class="desc note" id="updateBannerDesc" style="margin-top:4px"></div>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="installUpdate()">
+                    <span data-i18n="settings.updates.install">Установить</span>
+                  </button>
+                  <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
+                    <span data-i18n="settings.updates.manual">Releases</span>
+                  </button>
+                </div>
+              </div>
+            </div>
             <div class="card" id="chartCard">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <div class="metric-label" style="color:var(--cyan)" data-i18n="chart.title">Монитор latency</div>
@@ -1042,6 +1058,24 @@
               <p class="note" data-i18n="settings.lifecycle.hint">
                 При первом «Включить»: трей + авто-оптимизация; автозапуск Windows — только после подтверждения; reboot — по желанию.
               </p>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="metric-label" data-i18n="settings.updates">Обновления</div>
+              <p class="note" style="margin:10px 0 8px" data-i18n="settings.updates.desc">
+                Проверка GitHub Releases. Установка из Program Files — тихая, без мастера.
+              </p>
+              <p class="note" id="updateStatusLine" style="margin:0 0 12px">—</p>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="checkForUpdates()">
+                  <span data-i18n="settings.updates.check">Проверить</span>
+                </button>
+                <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" id="btnInstallUpdate" onclick="installUpdate()" hidden>
+                  <span data-i18n="settings.updates.install">Установить</span>
+                </button>
+                <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
+                  <span data-i18n="settings.updates.manual">Releases</span>
+                </button>
+              </div>
             </div>
             <div class="card" style="margin-top:14px">
               <div class="metric-label" data-i18n="settings.tray.actions">Трей</div>
@@ -1739,6 +1773,14 @@
       const elAa = document.getElementById('optAutoApply');
       if (elAa && typeof s.autoApplyOnStartup === 'boolean') elAa.checked = s.autoApplyOnStartup;
 
+      if (s.appVersion) {
+        const verEl = document.getElementById('appVersion');
+        if (verEl) verEl.textContent = s.appVersion;
+        const us = document.getElementById('updateStatusLine');
+        if (us && !s.update) us.textContent = (t('settings.updates.current') || 'Current') + ': ' + s.appVersion;
+      }
+      applyUpdateUi(s.update, s.appVersion);
+
       const pid = s.selectedProfileId || s.profileKey || s.profileKind;
       if (pid) {
         selectedProfile = normalizeProfileId(pid);
@@ -2140,6 +2182,87 @@
       } finally {
         setBusy(false);
         setHealthBusy(false);
+      }
+    }
+
+    function applyUpdateUi(u, appVersion) {
+      const banner = document.getElementById('updateBanner');
+      const btn = document.getElementById('btnInstallUpdate');
+      const status = document.getElementById('updateStatusLine');
+      const local = (u && u.local) || appVersion || '—';
+      if (!u) {
+        if (banner) banner.hidden = true;
+        if (btn) btn.hidden = true;
+        if (status) status.textContent = (t('settings.updates.current') || 'Current') + ': ' + local;
+        return;
+      }
+      if (u.hasUpdate) {
+        if (banner) {
+          banner.hidden = false;
+          const tEl = document.getElementById('updateBannerTitle');
+          const dEl = document.getElementById('updateBannerDesc');
+          if (tEl) tEl.textContent = (t('update.available') || 'Update available') + ': ' + (u.latest || '');
+          if (dEl) dEl.textContent = u.canSilent
+            ? (t('update.silentHint') || 'Silent install — no folder wizard')
+            : (t('update.portableHint') || 'Portable build: download Setup from Releases');
+        }
+        if (btn) btn.hidden = !u.canSilent;
+        if (status) status.textContent =
+          (t('settings.updates.current') || 'Current') + ': ' + local
+          + ' → ' + (u.latest || '')
+          + (u.canSilent ? '' : ' (' + (t('update.portable') || 'portable') + ')');
+      } else {
+        if (banner) banner.hidden = true;
+        if (btn) btn.hidden = true;
+        if (status) status.textContent =
+          (t('settings.updates.current') || 'Current') + ': ' + local
+          + ' · ' + (t('update.uptodate') || 'Up to date')
+          + (u.error ? ' · ' + u.error : '');
+      }
+    }
+
+    async function checkForUpdates() {
+      try {
+        setBusy(true);
+        const r = await send('checkUpdate');
+        if (r && r.state) await applyState(r.state);
+        else applyUpdateUi(r, r && r.local);
+        if (r && r.success === false)
+          toast(t('toast.error') + (r.error ? ': ' + r.error : ''));
+        else if (r && r.hasUpdate)
+          toast((t('update.available') || 'Update') + ': ' + (r.latest || ''));
+        else
+          toast(t('update.uptodate') || 'Up to date');
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function installUpdate() {
+      if (!confirm(t('update.confirm') || 'The app will close and update. Continue?')) return;
+      try {
+        setBusy(true);
+        const r = await send('startUpdate');
+        if (r && r.needsBrowser && r.releaseUrl) {
+          toast(r.message || t('update.portableHint'));
+          try { await send('openReleases'); } catch (e) {}
+          return;
+        }
+        if (r && r.success === false) {
+          toast(t('toast.error') + (r.error ? ': ' + r.error : ''));
+          if (r.releaseUrl) try { await send('openReleases'); } catch (e) {}
+          return;
+        }
+        if (r && r.exiting) {
+          toast(t('update.exiting') || 'Installing… app will exit');
+          return;
+        }
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+      } finally {
+        setBusy(false);
       }
     }
 

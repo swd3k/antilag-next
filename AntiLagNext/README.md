@@ -12,7 +12,6 @@ Full user documentation: **[../README.md](../README.md)**
 | `AntiLagNext.Infrastructure` | Win32 managers, safety, plugins host |
 | **`AntiLagNext.Ui`** | **Shipping** Photino + WebView2 UI |
 | `AntiLagNext.Cli` | Console: `--apply` / `--revert` / `--status` |
-| `AntiLagNext.App` | Legacy WPF (reference; **not built by default**) |
 | `tests/*` | Unit + Win32 smoke |
 
 ## Build

@@ -11,6 +11,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.0] — 2026-07-18
+
+### Added
+- **In-app auto-update** from GitHub Releases (check + silent Inno Setup install).
+- Settings → Updates: check / install / open Releases; dashboard banner when a newer version exists.
+- Startup update check (throttled, 6 h) without blocking UI.
+
+### Fixed
+- Inno reinstall no longer prompts «folder already exists» (`DirExistsWarning=no`, `DisableDirPage=auto`).
+
+### Changed
+- Product version **1.2.0**.
+- Stack cleanup: removed one-off **Python** scripts, optional **C++/CMake** native stub, legacy **WPF** `AntiLagNext.App` (Photino UI is the only GUI).
+
+### Notes
+- Silent update works for **Program Files** installs; portable zip opens Releases for manual Setup.
+- Silent flags: `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS`.
+
+---
+
 ## [1.1.0] — 2026-07-17
 
 ### Added
@@ -153,6 +173,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
 | **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |
 | **1.0.3** | 2026-07-15 | Version branding, logo/UI polish, Setup name with version |
 | **1.0.2** | 2026-07-10 | Profile i18n, auto-apply after Disable, settings migration |

@@ -11,7 +11,7 @@
   One RID or list: win-x64, win-x86, win-arm64. Default: all three.
 
 .PARAMETER Version
-  App version embedded in the installer (e.g. 1.1.0). Default: 1.1.0
+  App version embedded in the installer (e.g. 1.2.0). Default: 1.2.0
 
 .PARAMETER PublishFirst
   Run multi-arch publish before building installers.
@@ -24,7 +24,7 @@
 #>
 param(
   [string[]]$Rid = @("win-x64", "win-x86", "win-arm64"),
-  [string]$Version = "1.1.0",
+  [string]$Version = "1.2.0",
   [switch]$PublishFirst,
   [switch]$SelfContained,
   [string]$IsccPath = ""
