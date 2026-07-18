@@ -59,11 +59,11 @@ public sealed class SafetyService : ISafetyService
             _backup.SetRestorePointStatus(sessionId, rpCreated, rpError);
 
             await Task.CompletedTask;
-            return OperationResult<Guid>.Ok(sessionId, "Защита перед изменениями подготовлена.");
+            return OperationResult<Guid>.Ok(sessionId, "Safety backup prepared.");
         }
         catch (Exception ex)
         {
-            return OperationResult<Guid>.Fail("Не удалось подготовить защиту.", detail: ex.Message, ex: ex);
+            return OperationResult<Guid>.Fail("Could not prepare safety backup.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -71,8 +71,8 @@ public sealed class SafetyService : ISafetyService
     {
         var result = _backup.CommitSession(sessionId);
         return result.Success
-            ? OperationResult.Ok($"Изменения зафиксированы. {result.Message}")
-            : OperationResult.Fail("Не удалось зафиксировать бэкап.", detail: result.Detail);
+            ? OperationResult.Ok($"Changes committed. {result.Message}")
+            : OperationResult.Fail("Could not commit backup.", detail: result.Detail);
     }
 
     public Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default)
@@ -133,7 +133,7 @@ public sealed class SafetyService : ISafetyService
                 }
                 else
                 {
-                    messages.Add("Бэкап JSON не найден — soft fallback.");
+                    messages.Add("JSON backup not found — soft fallback.");
                 }
             }
             catch (Exception ex)
@@ -145,7 +145,7 @@ public sealed class SafetyService : ISafetyService
             if (!restoredFromBackup)
             {
                 var setActive = _power.SetActiveScheme(PowerGuids.SchemeBalanced);
-                if (setActive.Success) messages.Add("Схема: Balanced");
+                if (setActive.Success) messages.Add("Scheme: Balanced");
                 else errors.Add(setActive.Message);
             }
             else
@@ -156,8 +156,8 @@ public sealed class SafetyService : ISafetyService
                     && Guid.TryParse(schemeStr, out var scheme))
                 {
                     var set = _power.SetActiveScheme(scheme);
-                    if (set.Success) messages.Add("Активная схема восстановлена");
-                    else errors.Add("Схема: " + set.Message);
+                    if (set.Success) messages.Add("Active power scheme restored");
+                    else errors.Add("Scheme: " + set.Message);
                 }
             }
 
@@ -170,8 +170,8 @@ public sealed class SafetyService : ISafetyService
             cancellationToken.ThrowIfCancellationRequested();
 
             string summary = errors.Count == 0
-                ? "Все оптимизации сброшены (таймер, бэкап, плагины)."
-                : "Сброс выполнен частично.";
+                ? "All optimizations reset (timer, backup, plugins)."
+                : "Reset completed partially.";
 
             if (messages.Count > 0)
                 summary += " " + string.Join(" · ", messages.Take(6));
@@ -183,17 +183,17 @@ public sealed class SafetyService : ISafetyService
         catch (Exception ex)
         {
             ActiveStateStore.MarkInactive();
-            return OperationResult.Fail("Сбой при сбросе оптимизаций.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Optimization reset failed.", detail: ex.Message, ex: ex);
         }
     }
 
     private (bool success, string? error) TryCreateRestorePoint(string description)
     {
         if ((DateTime.UtcNow - _lastRestorePointUtc).TotalSeconds < 10)
-            return (false, "Слишком частое создание точки (квота).");
+            return (false, "Restore point rate limit.");
 
         if (!IsSystemRestoreEnabled())
-            return (false, "System Restore отключён.");
+            return (false, "System Restore is disabled.");
 
         try
         {

@@ -1,3 +1,4 @@
+using System.Globalization;
 using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
 
@@ -21,8 +22,8 @@ public sealed class AppSettings
     /// <summary>Текущая тема UI (Dark / Light / System).</summary>
     public AppTheme Theme { get; set; } = AppTheme.Dark;
 
-    /// <summary>UI culture: ru, en, … (JSON packs in i18n/).</summary>
-    public string UiCulture { get; set; } = "ru";
+    /// <summary>UI culture: ru, en, … (JSON packs in i18n/). Default follows OS UI language.</summary>
+    public string UiCulture { get; set; } = DetectDefaultUiCulture();
 
     /// <summary>Plugin id → enabled. Core facades always documented as on.</summary>
     public Dictionary<string, bool> PluginEnabled { get; set; } = new(StringComparer.OrdinalIgnoreCase);
@@ -129,6 +130,7 @@ public sealed class AppSettings
 
         dirty |= EnsureBuiltInPresets();
         dirty |= NormalizeBuiltInProfileLabels();
+        dirty |= SanitizeRuntimeLimits();
 
         if (SchemaVersion < CurrentSchemaVersion)
         {
@@ -140,6 +142,58 @@ public sealed class AppSettings
             // Future client wrote a higher version — clamp, still try to run safely
             SchemaVersion = CurrentSchemaVersion;
             dirty = true;
+        }
+
+        return dirty;
+    }
+
+    /// <summary>
+    /// Clamp user-editable numeric settings so a hand-edited JSON cannot freeze the UI
+    /// or prune backups to zero / absurd values.
+    /// </summary>
+    public bool SanitizeRuntimeLimits()
+    {
+        bool dirty = false;
+
+        int interval = MonitoringIntervalMs;
+        int clampedInterval = Math.Clamp(interval is <= 0 ? 15 : interval, 5, 1000);
+        if (clampedInterval != MonitoringIntervalMs)
+        {
+            MonitoringIntervalMs = clampedInterval;
+            dirty = true;
+        }
+
+        int backups = MaxBackupsToKeep;
+        int clampedBackups = Math.Clamp(backups is <= 0 ? 20 : backups, 1, 200);
+        if (clampedBackups != MaxBackupsToKeep)
+        {
+            MaxBackupsToKeep = clampedBackups;
+            dirty = true;
+        }
+
+        string culture = (UiCulture ?? "").Trim().ToLowerInvariant();
+        if (culture is not ("ru" or "en"))
+        {
+            UiCulture = DetectDefaultUiCulture();
+            dirty = true;
+        }
+
+        // Timer targets on profiles (malicious / corrupted settings)
+        foreach (var p in Profiles)
+        {
+            double t = p.TimerTargetMs;
+            if (double.IsNaN(t) || double.IsInfinity(t) || t < 0.5 || t > 15.6)
+            {
+                p.TimerTargetMs = Math.Clamp(
+                    double.IsFinite(t) ? t : 0.5, 0.5, 15.6);
+                dirty = true;
+            }
+
+            if (p.MaxPreRenderedFrames is < 0 or > 8)
+            {
+                p.MaxPreRenderedFrames = Math.Clamp(p.MaxPreRenderedFrames, 0, 8);
+                dirty = true;
+            }
         }
 
         return dirty;
@@ -212,5 +266,18 @@ public sealed class AppSettings
                 return true;
         }
         return false;
+    }
+
+    /// <summary>en if OS UI is English; otherwise ru (product ships RU+EN).</summary>
+    public static string DetectDefaultUiCulture()
+    {
+        try
+        {
+            string two = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+            if (two.Equals("en", StringComparison.OrdinalIgnoreCase))
+                return "en";
+        }
+        catch { /* ignore */ }
+        return "ru";
     }
 }

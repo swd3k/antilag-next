@@ -94,8 +94,8 @@ public sealed class TimerManager : ITimerManager
             if (bestPeriod == 0)
             {
                 return OperationResult<TimerState>.Fail(
-                    "Не удалось подобрать стабильное разрешение таймера.",
-                    detail: "Все кандидаты завершились с ошибкой NTSTATUS.");
+                    "Could not find a stable timer resolution.",
+                    detail: "All candidates failed with NTSTATUS errors.");
             }
 
             lock (_lock)
@@ -113,15 +113,15 @@ public sealed class TimerManager : ITimerManager
 
             return OperationResult<TimerState>.Ok(
                 CurrentState,
-                $"Таймер: {CurrentState.ActualMs:F3} мс (джиттер {bestJitter:F1} мкс).");
+                $"Timer: {CurrentState.ActualMs:F3} ms (jitter {bestJitter:F1} µs).");
         }
         catch (OperationCanceledException)
         {
-            return OperationResult<TimerState>.Fail("Подбор таймера отменён.");
+            return OperationResult<TimerState>.Fail("Timer calibration cancelled.");
         }
         catch (Exception ex)
         {
-            return OperationResult<TimerState>.Fail("Сбой подбора разрешения таймера.", detail: ex.Message, ex: ex);
+            return OperationResult<TimerState>.Fail("Timer resolution calibration failed.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -136,11 +136,11 @@ public sealed class TimerManager : ITimerManager
                 _state = new TimerState { Caps = _state.Caps, IsActive = false };
             }
             StateChanged?.Invoke(this, CurrentState);
-            return OperationResult.Ok("Таймер отпущен, система вернётся к разрешению по умолчанию.");
+            return OperationResult.Ok("Timer released; system will return to default resolution.");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось отпустить таймер.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not release timer.", detail: ex.Message, ex: ex);
         }
     }
 

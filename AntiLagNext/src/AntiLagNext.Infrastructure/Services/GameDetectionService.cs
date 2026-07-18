@@ -33,7 +33,7 @@ public sealed class GameDetectionService : IGameDetectionService, IDisposable
                 StringComparer.OrdinalIgnoreCase);
 
             if (_watched.Count == 0)
-                return OperationResult.Ok("Game Detection: список игр пуст — мониторинг не запущен.");
+                return OperationResult.Ok("Game Detection: game list empty — monitoring not started.");
         }
 
         try

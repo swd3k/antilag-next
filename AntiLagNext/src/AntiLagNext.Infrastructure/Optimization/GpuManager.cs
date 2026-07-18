@@ -54,20 +54,20 @@ public sealed class GpuManager : IGpuManager
             {
                 "NVIDIA" => SetNvidiaLowLatency(enabled),
                 "AMD" => SetAmdAntiLag(enabled),
-                "Intel" => OperationResult.Ok("Intel GPU: Low Latency через драйвер Xe не автоматизируется (ручная настройка в Graphics Command Center)."),
-                _ => OperationResult.Fail("GPU-вендор не определён. Установите драйвер NVIDIA/AMD.")
+                "Intel" => OperationResult.Ok("Intel GPU: Low Latency is not automated (set in Graphics Command Center)."),
+                _ => OperationResult.Fail("GPU vendor unknown. Install NVIDIA/AMD drivers.")
             };
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось применить GPU Low Latency.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not apply GPU Low Latency.", detail: ex.Message, ex: ex);
         }
     }
 
     public OperationResult SetMaxPreRenderedFrames(int frames)
     {
         if (frames <= 0)
-            return OperationResult.Ok("Pre-rendered frames: без изменений.");
+            return OperationResult.Ok("Pre-rendered frames: unchanged.");
 
         frames = Math.Clamp(frames, 1, 8);
         try
@@ -89,7 +89,7 @@ public sealed class GpuManager : IGpuManager
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось ограничить очередь кадров.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not limit pre-rendered frame queue.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -165,8 +165,8 @@ public sealed class GpuManager : IGpuManager
         {
             SnapshotAndSetDword(Registry.LocalMachine, path, "LowLatencyMode", enabled ? 1 : 0);
             return OperationResult.Ok(enabled
-                ? "NVIDIA: Low Latency Mode (registry) включён. Для Reflex — в настройках игры."
-                : "NVIDIA: Low Latency Mode (registry) выключен.");
+                ? "NVIDIA: Low Latency Mode (registry) on. Use in-game Reflex for best results."
+                : "NVIDIA: Low Latency Mode (registry) off.");
         }
         catch (Exception ex)
         {
@@ -182,13 +182,13 @@ public sealed class GpuManager : IGpuManager
         {
             SnapshotAndSetDword(Registry.LocalMachine, path, "AntiLag", enabled ? 1 : 0);
             return OperationResult.Ok(enabled
-                ? "AMD: Anti-Lag (registry) включён. Проверьте Radeon Software."
-                : "AMD: Anti-Lag (registry) выключен.");
+                ? "AMD: Anti-Lag (registry) on. Check Radeon Software."
+                : "AMD: Anti-Lag (registry) off.");
         }
         catch (Exception ex)
         {
             return OperationResult.Fail(
-                "AMD registry write failed (проверьте Radeon Software вручную).",
+                "AMD registry write failed (set Anti-Lag in Radeon Software).",
                 detail: ex.Message, ex: ex);
         }
     }
@@ -233,7 +233,7 @@ internal static class NativeBridge
         {
             if (Aln_IsAvailable() == 0)
             {
-                message = "Native DLL без NVAPI.";
+                message = "Native DLL without NVAPI.";
                 return false;
             }
             int rc = Aln_SetGpuLowLatency(enabled ? 1 : 0);
@@ -242,12 +242,12 @@ internal static class NativeBridge
         }
         catch (DllNotFoundException)
         {
-            message = "AntiLagNext.Native.dll не найдена.";
+            message = "AntiLagNext.Native.dll not found.";
             return false;
         }
         catch (EntryPointNotFoundException)
         {
-            message = "Экспорт Aln_SetGpuLowLatency отсутствует.";
+            message = "Export Aln_SetGpuLowLatency missing.";
             return false;
         }
     }

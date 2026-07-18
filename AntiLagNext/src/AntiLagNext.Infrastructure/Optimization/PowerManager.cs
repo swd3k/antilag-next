@@ -21,7 +21,7 @@ public sealed class PowerManager : IPowerManager
         {
             uint rc = PowrProf.PowerGetActiveScheme(IntPtr.Zero, out IntPtr ptr);
             if (rc != 0)
-                return OperationResult<Guid>.Fail("PowerGetActiveScheme: код " + rc);
+                return OperationResult<Guid>.Fail("PowerGetActiveScheme: code " + rc);
 
             try
             {
@@ -36,7 +36,7 @@ public sealed class PowerManager : IPowerManager
         }
         catch (Exception ex)
         {
-            return OperationResult<Guid>.Fail("Не удалось получить активную схему.", detail: ex.Message, ex: ex);
+            return OperationResult<Guid>.Fail("Could not get active power scheme.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -46,12 +46,12 @@ public sealed class PowerManager : IPowerManager
         {
             uint rc = PowrProf.PowerSetActiveScheme(IntPtr.Zero, ref schemeGuid);
             if (rc != 0)
-                return OperationResult.Fail("PowerSetActiveScheme: код " + rc);
-            return OperationResult.Ok($"Схема {schemeGuid} активирована.");
+                return OperationResult.Fail("PowerSetActiveScheme: code " + rc);
+            return OperationResult.Ok($"Power scheme {schemeGuid} activated.");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось активировать схему.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not activate power scheme.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -80,7 +80,7 @@ public sealed class PowerManager : IPowerManager
                     rc = PowrProf.PowerReadDCValueIndex(IntPtr.Zero, schPtr, subPtr, setPtr, out value);
 
                 if (rc != 0)
-                    return OperationResult<uint>.Fail("PowerReadValue: код " + rc);
+                    return OperationResult<uint>.Fail("PowerReadValue: code " + rc);
                 return OperationResult<uint>.Ok(value);
             }
             finally
@@ -92,7 +92,7 @@ public sealed class PowerManager : IPowerManager
         }
         catch (Exception ex)
         {
-            return OperationResult<uint>.Fail("Не удалось прочитать значение настройки.", detail: ex.Message, ex: ex);
+            return OperationResult<uint>.Fail("Could not read power setting.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -113,13 +113,13 @@ public sealed class PowerManager : IPowerManager
             // отдельного PowerApplySetting в powrprof нет).
             uint rcApply = PowrProf.PowerSetActiveScheme(IntPtr.Zero, ref sch);
             if (rcApply != 0)
-                return OperationResult.Fail("PowerSetActiveScheme (apply): код " + rcApply);
+                return OperationResult.Fail("PowerSetActiveScheme (apply): code " + rcApply);
 
-            return OperationResult.Ok("Настройка питания применена.");
+            return OperationResult.Ok("Power setting applied.");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось записать значение настройки.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not write power setting.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -144,15 +144,15 @@ public sealed class PowerManager : IPowerManager
                 RedirectStandardOutput = true
             };
             using var p = System.Diagnostics.Process.Start(psi);
-            if (p == null) return OperationResult.Fail("Не удалось запустить powercfg.");
+            if (p == null) return OperationResult.Fail("Could not start powercfg.");
             p.WaitForExit(5000);
             if (p.ExitCode != 0)
-                return OperationResult.Fail("powercfg -attributes завершился с кодом " + p.ExitCode);
-            return OperationResult.Ok("Настройка сделана видимой.");
+                return OperationResult.Fail("powercfg -attributes exited with code " + p.ExitCode);
+            return OperationResult.Ok("Power setting made visible.");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось снять скрытие настройки.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not unhide power setting.", detail: ex.Message, ex: ex);
         }
     }
 

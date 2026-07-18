@@ -49,8 +49,9 @@ public static class RegistryPathPolicy
         // Normalize separators
         string path = keyPath.Replace('/', '\\').TrimStart('\\');
 
-        // Explicit allowlist prefixes first (e.g. Tcpip\Parameters, GPU driver keys)
-        if (AllowedPrefixes.Any(a => path.StartsWith(a, StringComparison.OrdinalIgnoreCase)))
+        // Explicit allowlist prefixes first (e.g. Tcpip\Parameters, GPU driver keys).
+        // Require exact match or path boundary after prefix — reject SOFTWARE\AntiLagNextEvil.
+        if (AllowedPrefixes.Any(a => IsUnderPrefix(path, a)))
             return true;
 
         // Service Start-type restore: only allowlisted service names, key root only
@@ -72,4 +73,19 @@ public static class RegistryPathPolicy
     /// <summary>SCM Start type must be a known SERVICE_* constant (0–4).</summary>
     public static bool IsValidServiceStartType(int startType) =>
         startType is >= 0 and <= 4;
+
+    /// <summary>
+    /// True if <paramref name="path"/> equals <paramref name="prefix"/> or is a subkey
+    /// (<c>prefix\…</c>). Prevents prefix-bypass via sibling keys with a longer name.
+    /// </summary>
+    internal static bool IsUnderPrefix(string path, string prefix)
+    {
+        if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(prefix))
+            return false;
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (path.Length == prefix.Length)
+            return true;
+        return path[prefix.Length] == '\\';
+    }
 }

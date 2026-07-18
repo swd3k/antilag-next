@@ -145,6 +145,15 @@ public sealed class PluginCatalog : IPluginCatalog, IDisposable
                         try { plugin.Dispose(); } catch { /* ignore */ }
                         continue;
                     }
+                    // Refuse colliding with already-loaded (built-in) plugin ids
+                    if (_plugins.Any(p => string.Equals(p.Id, plugin.Id, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        Trace.TraceWarning(
+                            "Plugin rejected (id collision '{0}') from {1}",
+                            plugin.Id, Path.GetFileName(full));
+                        try { plugin.Dispose(); } catch { /* ignore */ }
+                        continue;
+                    }
                     _plugins.Add(plugin);
                     Trace.TraceInformation("External plugin: {0} from {1}", plugin.Id, Path.GetFileName(full));
                 }
@@ -192,10 +201,10 @@ public sealed class PluginCatalog : IPluginCatalog, IDisposable
         PersistEnabledFlags();
 
         if (errors.Count > 0 && messages.Count == 0)
-            return OperationResult.Fail("Плагины: ошибки", detail: string.Join("; ", errors));
+            return OperationResult.Fail("Plugins: errors", detail: string.Join("; ", errors));
 
         string msg = messages.Count == 0
-            ? "Доп. плагины: нечего применять (все opt-in выкл. или applied-by-core)."
+            ? "Extra plugins: nothing to apply (all opt-in off or applied-by-core)."
             : string.Join(" · ", messages);
         if (errors.Count > 0)
             msg += " | warn: " + string.Join("; ", errors);

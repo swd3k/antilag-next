@@ -776,7 +776,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.2.1</span>
+      <span class="ver" id="appVersion">1.2.2</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -2355,7 +2355,7 @@
       hideRestartModal();
       if (yes) {
         try {
-          const r = await send('restartPc', { delaySec: 30 });
+          const r = await send('restartPc', { delaySec: 30, confirmed: true });
           if (r && r.success)
             toast(t('restart.scheduled', { sec: r.delaySec || 30 }));
           else
@@ -2775,6 +2775,10 @@
         else if ((navigator.language || '').toLowerCase().startsWith('en')) bootLang = 'en';
       } catch (e) {}
       await loadI18n(bootLang);
+      // Sync host UiCulture BEFORE uiReady so chart/startup logs match EN/RU UI
+      try {
+        await send('setLanguage', { lang: bootLang });
+      } catch (e) { /* host may not be ready yet */ }
       setMetricsLoading(true);
       renderPlugins([]);
       renderLogs([]);

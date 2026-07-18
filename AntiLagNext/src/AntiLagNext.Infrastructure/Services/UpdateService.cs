@@ -142,42 +142,85 @@ public sealed class UpdateService : IUpdateService
                 "Silent update requires Program Files install. Open Releases to download Setup.",
                 detail: check.ReleaseUrl);
 
-        if (!IsAllowedDownloadUrl(check.DownloadUrl))
+        // Always download from the canonical Setup URL for this version+RID.
+        // Never trust browser_download_url / asset name from a remote JSON payload.
+        string rid = GetCurrentRid();
+        string version = check.LatestVersion ?? "";
+        if (!SemVer.TryParse(version, out _))
+            return OperationResult.Fail("Invalid update version.");
+
+        string downloadUrl = BuildSetupDownloadUrl(version, rid);
+        string fileName = BuildSetupAssetName(version, rid);
+
+        if (!IsAllowedDownloadUrl(downloadUrl))
             return OperationResult.Fail("Download URL rejected (not official repo).");
 
         try
         {
             string dir = Path.Combine(Path.GetTempPath(), "AntiLagNext-update");
             Directory.CreateDirectory(dir);
-            string fileName = check.AssetName ?? "AntiLagNext-Setup-update.exe";
-            foreach (var c in Path.GetInvalidFileNameChars())
-                fileName = fileName.Replace(c, '_');
             string dest = Path.Combine(dir, fileName);
 
             using var resp = await Http.GetAsync(
-                    check.DownloadUrl,
+                    downloadUrl,
                     HttpCompletionOption.ResponseHeadersRead,
                     cancellationToken)
                 .ConfigureAwait(false);
             resp.EnsureSuccessStatusCode();
+
+            // Final URL after redirects must still be allowlisted (open redirect defense).
+            string? finalUrl = resp.RequestMessage?.RequestUri?.ToString();
+            if (!string.IsNullOrEmpty(finalUrl) && !IsAllowedDownloadUrl(finalUrl))
+                return OperationResult.Fail("Download redirect rejected (not official CDN).");
+
             long? total = resp.Content.Headers.ContentLength;
-            await using (var input = await resp.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
-            await using (var output = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            if (total is > MaxSetupBytes)
+                return OperationResult.Fail("Setup package too large.");
+
+            long readTotal = 0;
+            bool sizeExceeded = false;
+            try
             {
+                await using var input = await resp.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+                await using var output = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
                 var buffer = new byte[81920];
-                long readTotal = 0;
                 int read;
                 while ((read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), cancellationToken)
                            .ConfigureAwait(false)) > 0)
                 {
-                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     readTotal += read;
+                    if (readTotal > MaxSetupBytes)
+                    {
+                        sizeExceeded = true;
+                        break;
+                    }
+                    await output.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     if (total is > 0)
                         progress?.Report(Math.Clamp(readTotal / (double)total.Value, 0, 1));
                 }
             }
+            catch
+            {
+                try { if (File.Exists(dest)) File.Delete(dest); } catch { /* ignore */ }
+                throw;
+            }
+
+            if (sizeExceeded || readTotal > MaxSetupBytes || readTotal < 64)
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail(readTotal < 64 && !sizeExceeded
+                    ? "Downloaded file is too small to be a Setup."
+                    : "Setup package exceeded size limit.");
+            }
 
             progress?.Report(1);
+
+            // Sanity: must look like a Windows PE (Inno Setup is an .exe).
+            if (!LooksLikePeExecutable(dest))
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail("Downloaded file is not a valid Windows executable.");
+            }
 
             string args =
                 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS";
@@ -198,6 +241,9 @@ public sealed class UpdateService : IUpdateService
             return OperationResult.Fail(msg, detail: code + ": " + ex.GetType().Name, ex: ex);
         }
     }
+
+    /// <summary>Hard cap for Setup download (disk / DoS protection).</summary>
+    public const long MaxSetupBytes = 120L * 1024 * 1024;
 
     public static string GetCurrentRid()
     {
@@ -412,7 +458,7 @@ public sealed class UpdateService : IUpdateService
                     }
                 };
                 using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
                 client.DefaultRequestHeaders.Host = "api.github.com";
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
 
@@ -445,8 +491,12 @@ public sealed class UpdateService : IUpdateService
             return UpToDate(local, ReleasesPage);
 
         string? tag = root.TryGetProperty("tag_name", out var t) ? t.GetString() : null;
-        string? htmlUrl = root.TryGetProperty("html_url", out var h) ? h.GetString() : ReleasesPage;
+        string? htmlUrlRaw = root.TryGetProperty("html_url", out var h) ? h.GetString() : null;
         string? body = root.TryGetProperty("body", out var b) ? b.GetString() : null;
+        // Never shell-open untrusted html_url from JSON
+        string htmlUrl = IsAllowedReleasePageUrl(htmlUrlRaw ?? "")
+            ? htmlUrlRaw!
+            : ReleasesPage;
 
         if (!SemVer.TryParse(tag, out var latest) || !SemVer.TryParse(local, out var localSem))
         {
@@ -456,44 +506,16 @@ public sealed class UpdateService : IUpdateService
                 LatestVersion = tag?.TrimStart('v', 'V'),
                 Error = "Could not parse version",
                 ErrorCode = ErrorCodes.Parse,
-                ReleaseUrl = htmlUrl ?? ReleasesPage,
+                ReleaseUrl = htmlUrl,
                 IsPortable = IsPortableInstall()
             };
         }
 
         bool hasUpdate = latest > localSem;
         string rid = GetCurrentRid();
-        string? downloadUrl = null;
-        string? assetName = null;
-
-        if (hasUpdate && root.TryGetProperty("assets", out var assets)
-            && assets.ValueKind == JsonValueKind.Array)
-        {
-            string prefer = BuildSetupAssetName(latest.ToString(), rid);
-            foreach (var a in assets.EnumerateArray())
-            {
-                string? name = a.TryGetProperty("name", out var n) ? n.GetString() : null;
-                string? url = a.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
-                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
-                if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
-                if (!name.Contains("Setup", StringComparison.OrdinalIgnoreCase)) continue;
-
-                if (name.Equals(prefer, StringComparison.OrdinalIgnoreCase)
-                    || name.Contains(rid, StringComparison.OrdinalIgnoreCase))
-                {
-                    downloadUrl = url;
-                    assetName = name;
-                    if (name.Equals(prefer, StringComparison.OrdinalIgnoreCase))
-                        break;
-                }
-            }
-        }
-
-        if (hasUpdate && downloadUrl is null)
-        {
-            downloadUrl = BuildSetupDownloadUrl(latest.ToString(), rid);
-            assetName = BuildSetupAssetName(latest.ToString(), rid);
-        }
+        // Always use canonical download URL (ignore browser_download_url from API).
+        string? downloadUrl = hasUpdate ? BuildSetupDownloadUrl(latest.ToString(), rid) : null;
+        string? assetName = hasUpdate ? BuildSetupAssetName(latest.ToString(), rid) : null;
 
         bool portable = IsPortableInstall();
         return new UpdateCheckResult
@@ -503,7 +525,7 @@ public sealed class UpdateService : IUpdateService
             HasUpdate = hasUpdate,
             DownloadUrl = downloadUrl,
             AssetName = assetName,
-            ReleaseUrl = htmlUrl ?? ReleasesPage,
+            ReleaseUrl = htmlUrl,
             ReleaseNotes = body is { Length: > 2000 } ? body[..2000] + "…" : body,
             CanSilentInstall = hasUpdate && downloadUrl is not null && !portable,
             IsPortable = portable
@@ -541,7 +563,7 @@ public sealed class UpdateService : IUpdateService
     {
         using var handler = CreateHandler(allowAutoRedirect: false);
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
         client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
@@ -601,9 +623,9 @@ public sealed class UpdateService : IUpdateService
         string? assetName = hasUpdate ? BuildSetupAssetName(latest.ToString(), rid) : null;
         bool portable = IsPortableInstall();
 
-        string html = releaseUrl;
-        if (!html.Contains("/releases/", StringComparison.OrdinalIgnoreCase))
-            html = $"https://github.com/{Owner}/{Repo}/releases/tag/v{latest}";
+        string html = IsAllowedReleasePageUrl(releaseUrl)
+            ? releaseUrl
+            : $"https://github.com/{Owner}/{Repo}/releases/tag/v{latest}";
 
         return new UpdateCheckResult
         {
@@ -627,25 +649,96 @@ public sealed class UpdateService : IUpdateService
         IsPortable = IsPortableInstall()
     };
 
-    private static bool IsAllowedDownloadUrl(string url)
+    /// <summary>
+    /// Official Setup / release-asset hosts only.
+    /// Rejects raw.githubusercontent.com and arbitrary githubusercontent subdomains
+    /// (user-controlled content).
+    /// </summary>
+    public static bool IsAllowedDownloadUrl(string url)
     {
         if (string.IsNullOrWhiteSpace(url)) return false;
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
         if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
             return false;
+        if (uri.UserInfo.Length > 0)
+            return false;
 
         string host = uri.Host;
+        string path = uri.AbsolutePath;
+
+        // Canonical release download: github.com/{owner}/{repo}/releases/download/...
         if (host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
-            && uri.AbsolutePath.Contains($"/{Owner}/{Repo}/", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (host.Equals("release-assets.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
-            return true;
-        if (host.EndsWith(".githubusercontent.com", StringComparison.OrdinalIgnoreCase))
-            return true;
+            || host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            string prefix = $"/{Owner}/{Repo}/releases/download/";
+            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                   && path.EndsWith(".exe", StringComparison.OrdinalIgnoreCase);
+        }
+
+        // GitHub CDN after redirect from /releases/download/
+        if (host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("release-assets.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Length > 1 && path.Length < 2048;
+        }
 
         return false;
+    }
+
+    /// <summary>Only official release pages may be opened via shell (no file: / js: / arbitrary hosts).</summary>
+    public static bool IsAllowedReleasePageUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url) || url.Length > 512) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (uri.UserInfo.Length > 0) return false;
+
+        string host = uri.Host;
+        if (!host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+            && !host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        string path = uri.AbsolutePath.TrimEnd('/');
+        string root = $"/{Owner}/{Repo}";
+        if (path.Equals(root, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (path.StartsWith(root + "/releases", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    /// <summary>MZ / PE header check before executing a downloaded Setup.</summary>
+    public static bool LooksLikePeExecutable(string path)
+    {
+        try
+        {
+            var fi = new FileInfo(path);
+            if (!fi.Exists || fi.Length < 64 || fi.Length > MaxSetupBytes)
+                return false;
+
+            using var fs = File.OpenRead(path);
+            Span<byte> mz = stackalloc byte[2];
+            if (fs.Read(mz) != 2) return false;
+            if (mz[0] != (byte)'M' || mz[1] != (byte)'Z') return false;
+
+            // Optional: PE signature at e_lfanew
+            if (fi.Length < 0x40) return true;
+            fs.Seek(0x3C, SeekOrigin.Begin);
+            Span<byte> peOffBytes = stackalloc byte[4];
+            if (fs.Read(peOffBytes) != 4) return true;
+            int peOff = BitConverter.ToInt32(peOffBytes);
+            if (peOff <= 0 || peOff > fi.Length - 4) return true;
+            fs.Seek(peOff, SeekOrigin.Begin);
+            Span<byte> pe = stackalloc byte[4];
+            if (fs.Read(pe) != 4) return true;
+            // PE\0\0
+            return pe[0] == (byte)'P' && pe[1] == (byte)'E' && pe[2] == 0 && pe[3] == 0;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static bool HasUninstallEntry()
@@ -702,7 +795,7 @@ public sealed class UpdateService : IUpdateService
             Timeout = TimeSpan.FromSeconds(60)
         };
         // Minimal defaults — per-request Accept avoids fighting Atom vs JSON
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
         c.DefaultRequestHeaders.Accept.ParseAdd("*/*");
         return c;
     }

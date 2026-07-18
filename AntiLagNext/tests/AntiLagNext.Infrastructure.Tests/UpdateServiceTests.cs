@@ -49,6 +49,49 @@ public class UpdateServiceTests
             .Should().Be("AntiLagNext-Setup-1.2.1-win-arm64.exe");
     }
 
+    [Theory]
+    [InlineData("https://github.com/swd3k/antilag-next/releases/download/v1.2.1/AntiLagNext-Setup-1.2.1-win-x64.exe", true)]
+    [InlineData("https://objects.githubusercontent.com/github-production-release-asset-2e65be/1/x", true)]
+    [InlineData("https://release-assets.githubusercontent.com/github-production-release-asset/1", true)]
+    [InlineData("https://raw.githubusercontent.com/swd3k/antilag-next/main/evil.exe", false)]
+    [InlineData("https://evil.githubusercontent.com/payload", false)]
+    [InlineData("https://github.com/evil/repo/releases/download/v1/x.exe", false)]
+    [InlineData("https://github.com/swd3k/antilag-next/archive/refs/heads/main.zip", false)]
+    [InlineData("http://github.com/swd3k/antilag-next/releases/download/v1/x.exe", false)]
+    [InlineData("file:///C:/Windows/System32/calc.exe", false)]
+    public void IsAllowedDownloadUrl_policy(string url, bool ok)
+    {
+        UpdateService.IsAllowedDownloadUrl(url).Should().Be(ok);
+    }
+
+    [Theory]
+    [InlineData("https://github.com/swd3k/antilag-next/releases/latest", true)]
+    [InlineData("https://github.com/swd3k/antilag-next/releases/tag/v1.2.1", true)]
+    [InlineData("https://github.com/swd3k/antilag-next", true)]
+    [InlineData("https://github.com/swd3k/other/releases", false)]
+    [InlineData("https://evil.com/swd3k/antilag-next/releases", false)]
+    [InlineData("file:///C:/temp/x", false)]
+    [InlineData("javascript:alert(1)", false)]
+    public void IsAllowedReleasePageUrl_policy(string url, bool ok)
+    {
+        UpdateService.IsAllowedReleasePageUrl(url).Should().Be(ok);
+    }
+
+    [Fact]
+    public void LooksLikePeExecutable_rejects_text()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "antilag-pe-test-" + Guid.NewGuid().ToString("N") + ".exe");
+        try
+        {
+            File.WriteAllText(path, "not a pe");
+            UpdateService.LooksLikePeExecutable(path).Should().BeFalse();
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { /* ignore */ }
+        }
+    }
+
     [Fact]
     public void ClassifyError_never_uses_raw_russian_socket_text()
     {

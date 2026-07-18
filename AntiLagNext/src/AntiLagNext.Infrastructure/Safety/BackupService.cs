@@ -159,7 +159,7 @@ public sealed class BackupService : IBackupService
         lock (_lock)
         {
             if (!_sessions.TryGetValue(sessionId, out var record))
-                return OperationResult<BackupRecord>.Fail("Сессия бэкапа не найдена.", detail: sessionId.ToString());
+                return OperationResult<BackupRecord>.Fail("Backup session not found.", detail: sessionId.ToString());
 
             try
             {
@@ -169,11 +169,11 @@ public sealed class BackupService : IBackupService
                 JsonStorage.Save(path, record);
                 _sessions.Remove(sessionId);
                 PruneOldBackups();
-                return OperationResult<BackupRecord>.Ok(record, $"Бэкап сохранён: {fileName}");
+                return OperationResult<BackupRecord>.Ok(record, $"Backup saved: {fileName}");
             }
             catch (Exception ex)
             {
-                return OperationResult<BackupRecord>.Fail("Не удалось сохранить бэкап.", detail: ex.Message, ex: ex);
+                return OperationResult<BackupRecord>.Fail("Could not save backup.", detail: ex.Message, ex: ex);
             }
         }
     }
@@ -183,14 +183,14 @@ public sealed class BackupService : IBackupService
         try
         {
             if (!Directory.Exists(BackupDirectory))
-                return OperationResult<BackupRecord>.Fail("Бэкапов пока нет.", detail: BackupDirectory);
+                return OperationResult<BackupRecord>.Fail("No backups yet.", detail: BackupDirectory);
 
             var latest = Directory.GetFiles(BackupDirectory, "backup_*.json")
                 .OrderByDescending(File.GetCreationTimeUtc)
                 .FirstOrDefault();
 
             if (latest == null)
-                return OperationResult<BackupRecord>.Fail("Бэкапов пока нет.");
+                return OperationResult<BackupRecord>.Fail("No backups yet.");
 
             // Size cap: reject absurd / malicious huge JSON
             var fi = new FileInfo(latest);
@@ -232,21 +232,21 @@ public sealed class BackupService : IBackupService
         try
         {
             if (record?.SourceFilePath is not { Length: > 0 } path)
-                return OperationResult.Fail("Файл бэкапа не найден.");
+                return OperationResult.Fail("Backup file not found.");
 
             // Path traversal guard: only files under BackupDirectory
             if (!IsPathInsideDirectory(path, BackupDirectory))
-                return OperationResult.Fail("Отказ: путь бэкапа вне каталога приложения.");
+                return OperationResult.Fail("Rejected: backup path outside app directory.");
 
             if (!File.Exists(path))
-                return OperationResult.Fail("Файл бэкапа не найден.");
+                return OperationResult.Fail("Backup file not found.");
 
             File.Delete(path);
-            return OperationResult.Ok("Бэкап удалён.");
+            return OperationResult.Ok("Backup deleted.");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось удалить бэкап.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not delete backup.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -269,7 +269,7 @@ public sealed class BackupService : IBackupService
 
     public async Task<OperationResult> RestoreAsync(BackupRecord record, CancellationToken cancellationToken = default)
     {
-        if (record == null) return OperationResult.Fail("Пустая запись бэкапа.");
+        if (record == null) return OperationResult.Fail("Empty backup record.");
 
         int restoredRegistry = 0, restoredPower = 0, restoredServices = 0;
         var errors = new List<string>();

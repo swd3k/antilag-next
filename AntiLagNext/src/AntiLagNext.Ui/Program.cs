@@ -80,8 +80,10 @@ internal static class Program
             "AntiLagNext", "crash.log");
 
     /// <summary>Localize log/UI strings by Settings.UiCulture (en → English, else Russian).</summary>
-    static string L(string ru, string en) =>
-        string.Equals(_engine?.Settings.UiCulture, "en", StringComparison.OrdinalIgnoreCase) ? en : ru;
+    static bool IsEnglishUi() =>
+        string.Equals(_engine?.Settings.UiCulture, "en", StringComparison.OrdinalIgnoreCase);
+
+    static string L(string ru, string en) => IsEnglishUi() ? en : ru;
 
     [STAThread]
     private static void Main(string[] args)
@@ -810,24 +812,48 @@ internal static class Program
         return new { success = true };
     }
 
-    /// <summary>Optional reboot after first optimize — user confirms in UI.</summary>
+    /// <summary>Optional reboot after first optimize — UI must send confirmed:true after dialog.</summary>
     private static object HandleRestartPc(JsonElement root)
     {
+        // Require explicit confirm flag so a rogue IPC message cannot reboot silently.
+        bool confirmed = root.TryGetProperty("confirmed", out var conf)
+                         && conf.ValueKind == JsonValueKind.True;
+        if (!confirmed)
+        {
+            return new
+            {
+                success = false,
+                needsConfirm = true,
+                error = "confirm required",
+                message = L(
+                    "Подтвердите перезагрузку в диалоге.",
+                    "Confirm reboot in the dialog.")
+            };
+        }
+
         int delaySec = 30;
         if (root.TryGetProperty("delaySec", out var d) && d.TryGetInt32(out int ds))
             delaySec = Math.Clamp(ds, 5, 300);
 
         try
         {
+            // Use System32 path — avoid PATH hijack under elevation
+            string shutdown = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.System),
+                "shutdown.exe");
+            if (!File.Exists(shutdown))
+                shutdown = "shutdown.exe";
+
             string comment = L(
                 "AntiLag Next: перезагрузка для применения части твиков реестра/служб",
                 "AntiLag Next: reboot so some registry/service tweaks fully apply");
             var psi = new ProcessStartInfo
             {
-                FileName = "shutdown.exe",
+                FileName = shutdown,
                 Arguments = $"/r /t {delaySec} /c \"{comment.Replace("\"", "'")}\"",
                 UseShellExecute = false,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
             };
             Process.Start(psi);
             AddLog(L(
@@ -910,10 +936,19 @@ internal static class Program
         if (lang is not ("ru" or "en"))
             return new { success = false, error = "lang must be ru|en" };
 
-        _engine!.Settings.UiCulture = lang;
-        _engine.SettingsService.Save();
-        try { _tray?.RebuildMenu(L); } catch { /* ignore */ }
-        AddLog(L($"Язык: {lang}", $"Language: {lang}"), "ok");
+        bool changed = !string.Equals(_engine!.Settings.UiCulture, lang, StringComparison.OrdinalIgnoreCase);
+        _engine.Settings.UiCulture = lang;
+        if (changed)
+        {
+            _engine.SettingsService.Save();
+            try { _tray?.RebuildMenu(L); } catch { /* ignore */ }
+            AddLog(L($"Язык: {lang}", $"Language: {lang}"), "ok");
+        }
+        else
+        {
+            // Still rebuild tray in case labels were built before culture was known
+            try { _tray?.RebuildMenu(L); } catch { /* ignore */ }
+        }
         return new { success = true, lang, state = BuildUiState() };
     }
 
@@ -948,18 +983,8 @@ internal static class Program
         if (string.IsNullOrWhiteSpace(url) || url.Length > 512)
             return new { success = false, error = "bad url" };
 
-        // Strict allowlist — no arbitrary shell open
-        string[] allowed =
-        {
-            "https://github.com/swd3k/antilag-next",
-            "https://github.com/swd3k/antilag-next/",
-        };
-        bool ok = allowed.Any(a =>
-            url.Equals(a, StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith(a + "?", StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith(a + "#", StringComparison.OrdinalIgnoreCase));
-
-        if (!ok)
+        // Same policy as release pages — no file:/js:/arbitrary hosts via shell
+        if (!AntiLagNext.Infrastructure.Services.UpdateService.IsAllowedReleasePageUrl(url))
             return new { success = false, error = "url not allowed" };
 
         try
@@ -1048,7 +1073,7 @@ internal static class Program
                         payload = new
                         {
                             success = result.Success,
-                            message = result.Message,
+                            message = engineMsg,
                             detail = result.Detail,
                             offerRestart,
                             offerAutostart,
@@ -1190,7 +1215,9 @@ internal static class Program
                             payload = new
                             {
                                 success = false,
-                                message = before.Message ?? "Could not prepare safety backup.",
+                                message = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
+                                    ? bm
+                                    : L("Не удалось подготовить защиту.", "Could not prepare safety backup."),
                                 detail = before.Detail,
                                 state = BuildUiStateCore()
                             };
@@ -1203,12 +1230,12 @@ internal static class Program
                                 .GetAwaiter().GetResult();
                             var commit = _engine.Safety.CommitChanges(sessionId);
                             bool ok = result.Success && commit.Success;
-                            string msg = result.Message
-                                         + (commit.Success ? "" : " · " + commit.Message);
+                            string msg = LocalizeEngineMessage(result.Message)
+                                         + (commit.Success ? "" : " · " + LocalizeEngineMessage(commit.Message));
                             AddLog(ok
-                                    ? L("Drift reapply: ", "Drift reapply: ") + LocalizeEngineMessage(msg)
+                                    ? L("Drift reapply: ", "Drift reapply: ") + msg
                                     : L("Drift reapply не удался: ", "Drift reapply failed: ")
-                                      + LocalizeEngineMessage(msg),
+                                      + msg,
                                 ok ? "ok" : "err");
                             payload = new
                             {
@@ -1319,7 +1346,9 @@ internal static class Program
             return new
             {
                 success = false,
-                message = before.Message ?? "Could not prepare safety backup.",
+                message = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
+                    ? bm
+                    : L("Не удалось подготовить защиту.", "Could not prepare safety backup."),
                 detail = before.Detail,
                 state = BuildUiStateCore()
             };
@@ -1330,7 +1359,8 @@ internal static class Program
         var result = engine.ApplyAsync(defs, sessionId).GetAwaiter().GetResult();
         var commit = _engine.Safety.CommitChanges(sessionId);
         bool ok = result.Success && commit.Success;
-        string msg = result.Message + (commit.Success ? "" : " · " + commit.Message);
+        string msg = LocalizeEngineMessage(result.Message)
+                     + (commit.Success ? "" : " · " + LocalizeEngineMessage(commit.Message));
         // Surface write-level detail in logs (path/type/access) — was truncated to Message only
         if (!string.IsNullOrWhiteSpace(result.Detail))
             msg += " · " + result.Detail;
@@ -1970,6 +2000,10 @@ internal static class Program
         {
             string url = _lastUpdateCheck?.ReleaseUrl
                          ?? AntiLagNext.Infrastructure.Services.UpdateService.ReleasesPage;
+            // Shell-open only allowlisted GitHub release pages (no file:/javascript:/etc.)
+            if (!AntiLagNext.Infrastructure.Services.UpdateService.IsAllowedReleasePageUrl(url))
+                url = AntiLagNext.Infrastructure.Services.UpdateService.ReleasesPage;
+
             Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
             return new { success = true, url };
         }
@@ -2018,15 +2052,16 @@ internal static class Program
         OptimizationProfile.LocalizedName(kind, _engine?.Settings.UiCulture);
 
     /// <summary>
-    /// Map known English engine messages to the active UI culture for the log panel.
-    /// Unknown messages pass through (plugins / Win32 detail stay as-is).
+    /// Map engine messages to the active UI culture for the log panel.
+    /// Engine source of truth is English; also remaps legacy Russian fragments.
     /// </summary>
     private static string LocalizeEngineMessage(string? message)
     {
         if (string.IsNullOrWhiteSpace(message)) return message ?? "";
         string m = message.Trim();
+        bool en = IsEnglishUi();
 
-        // Exact known strings from ProfileService / SettingsService / Safety
+        // Exact known strings (EN source)
         string? mapped = m switch
         {
             "Profile is not set." => L("Профиль не задан.", "Profile is not set."),
@@ -2037,29 +2072,210 @@ internal static class Program
             "Settings loaded and migrated." => L("Настройки загружены и мигрированы.", "Settings loaded and migrated."),
             "Settings saved." => L("Настройки сохранены.", "Settings saved."),
             "Could not save settings." => L("Не удалось сохранить настройки.", "Could not save settings."),
+            "Timer released; system will return to default resolution." =>
+                L("Таймер отпущен, система вернётся к разрешению по умолчанию.", m),
+            "Could not release timer." => L("Не удалось отпустить таймер.", m),
+            "Timer calibration cancelled." => L("Подбор таймера отменён.", m),
+            "Timer resolution calibration failed." => L("Сбой подбора разрешения таймера.", m),
+            "Game Mode on." => L("Game Mode включён.", m),
+            "Game Mode on, Game DVR off." => L("Game Mode включён, Game DVR отключён.", m),
+            "Game Mode off." => L("Game Mode выключен.", m),
+            "HAGS on (reboot may be required)." => L("HAGS включён (может потребоваться перезагрузка).", m),
+            "HAGS off (reboot may be required)." => L("HAGS выключен (может потребоваться перезагрузка).", m),
+            "Registry write denied (administrator required)." =>
+                L("Нет прав на запись реестра (нужен администратор).", m),
+            "Could not change Game Mode." => L("Не удалось изменить Game Mode.", m),
+            "HAGS write denied (administrator / HKLM required)." =>
+                L("Нет прав на HAGS (нужен администратор / HKLM).", m),
+            "Could not change HAGS." => L("Не удалось изменить HAGS.", m),
+            "Core parking: system default (unchanged)." =>
+                L("Парковка: системное значение по умолчанию (без изменений).", m),
+            "Could not apply core activity mode." => L("Не удалось применить режим активности ядер.", m),
+            "Power setting applied." => L("Настройка питания применена.", m),
+            "Could not activate power scheme." => L("Не удалось активировать схему.", m),
+            "Could not write power setting." => L("Не удалось записать значение настройки.", m),
+            "Could not start powercfg." => L("Не удалось запустить powercfg.", m),
+            "Power setting made visible." => L("Настройка сделана видимой.", m),
+            "Could not unhide power setting." => L("Не удалось снять скрытие настройки.", m),
+            "Extra plugins: nothing to apply (all opt-in off or applied-by-core)." =>
+                L("Доп. плагины: нечего применять (все opt-in выкл. или applied-by-core).", m),
+            "Plugins: errors" => L("Плагины: ошибки", m),
+            "Pre-rendered frames: unchanged." => L("Pre-rendered frames: без изменений.", m),
+            "Could not apply GPU Low Latency." => L("Не удалось применить GPU Low Latency.", m),
+            "GPU vendor unknown. Install NVIDIA/AMD drivers." =>
+                L("GPU-вендор не определён. Установите драйвер NVIDIA/AMD.", m),
+            "Safety backup prepared." => L("Защита перед изменениями подготовлена.", m),
+            "All optimizations reset (timer, backup, plugins)." =>
+                L("Все оптимизации сброшены (таймер, бэкап, плагины).", m),
+            "Reset completed partially." => L("Сброс выполнен частично.", m),
+            "JSON backup not found — soft fallback." => L("Бэкап JSON не найден — soft fallback.", m),
+            "Scheme: Balanced" => L("Схема: Balanced", m),
+            "Active power scheme restored" => L("Активная схема восстановлена", m),
+            "System Restore is disabled." => L("System Restore отключён.", m),
+            "Ultimate Performance unavailable — using High Performance." =>
+                L("Ultimate Performance недоступна — использована High Performance.", m),
+            "Could not find a stable timer resolution." =>
+                L("Не удалось подобрать стабильное разрешение таймера.", m),
+            "Memory cleanup failed." => L("Ошибка очистки памяти.", m),
+            "Could not get active power scheme." => L("Не удалось получить активную схему.", m),
+            "Backup session not found." => L("Сессия бэкапа не найдена.", m),
+            "Could not save backup." => L("Не удалось сохранить бэкап.", m),
+            "No backups yet." => L("Бэкапов пока нет.", m),
+            "Backup file not found." => L("Файл бэкапа не найден.", m),
+            "Backup deleted." => L("Бэкап удалён.", m),
+            "Empty backup record." => L("Пустая запись бэкапа.", m),
+            "Optimization reset failed." => L("Сбой при сбросе оптимизаций.", m),
             _ => null
         };
         if (mapped != null) return mapped;
 
-        // Prefix patterns: Profile 'X' applied. / applied partially.
+        // Profile 'X' applied. / applied partially. (+ optional trailing detail)
         if (m.StartsWith("Profile '", StringComparison.Ordinal) && m.Contains("' applied partially.", StringComparison.Ordinal))
         {
             string name = ExtractQuoted(m) ?? m;
+            string tail = TailAfter(m, "' applied partially.");
             return L($"Профиль «{name}» применён частично.", $"Profile '{name}' applied partially.")
-                   + TailAfter(m, "' applied partially.");
+                   + LocalizeEngineFragments(tail);
         }
         if (m.StartsWith("Profile '", StringComparison.Ordinal) && m.Contains("' applied.", StringComparison.Ordinal))
         {
             string name = ExtractQuoted(m) ?? m;
+            string tail = TailAfter(m, "' applied.");
             return L($"Профиль «{name}» применён.", $"Profile '{name}' applied.")
-                   + TailAfter(m, "' applied.");
+                   + LocalizeEngineFragments(tail);
         }
 
-        // Legacy RU messages still on disk / old builds
-        if (m.Contains("Профиль", StringComparison.Ordinal) || m.Contains("применён", StringComparison.Ordinal))
-            return m;
+        // Composite detail: localize known fragments (EN↔RU)
+        string frag = LocalizeEngineFragments(m);
 
-        return m;
+        // If UI is English but message still contains Cyrillic (legacy), best-effort map
+        if (en && ContainsCyrillic(frag))
+            frag = LocalizeRussianLegacyToEnglish(frag);
+
+        return frag;
+    }
+
+    private static bool ContainsCyrillic(string s)
+    {
+        foreach (char c in s)
+        {
+            if (c is >= 'А' and <= 'я' or 'Ё' or 'ё')
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>Translate common English engine fragments to RU when UI is Russian (and reverse fragments).</summary>
+    private static string LocalizeEngineFragments(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        bool en = IsEnglishUi();
+        // Order: longer phrases first
+        (string enText, string ruText)[] pairs =
+        {
+            ("Timer released; system will return to default resolution.", "Таймер отпущен, система вернётся к разрешению по умолчанию."),
+            ("HAGS on (reboot may be required).", "HAGS включён (может потребоваться перезагрузка)."),
+            ("HAGS off (reboot may be required).", "HAGS выключен (может потребоваться перезагрузка)."),
+            ("Game Mode on, Game DVR off.", "Game Mode включён, Game DVR отключён."),
+            ("Game Mode on.", "Game Mode включён."),
+            ("Game Mode off.", "Game Mode выключен."),
+            ("Core parking: system default (unchanged).", "Парковка: системное значение по умолчанию (без изменений)."),
+            ("Core parking: all cores active", "Парковка: все ядра активны"),
+            ("Core parking: P-cores active, E-cores may park", "Парковка: P-cores активны, E-cores могут парковаться"),
+            ("all cores active (homogeneous CPU)", "все ядра активны (однородный CPU)"),
+            ("Power setting applied.", "Настройка питания применена."),
+            ("Power scheme ", "Схема питания "),
+            (" activated.", " активирована."),
+            ("Extra plugins: nothing to apply (all opt-in off or applied-by-core).",
+                "Доп. плагины: нечего применять (все opt-in выкл. или applied-by-core)."),
+            ("NVIDIA: Low Latency Mode (registry) on. Use in-game Reflex for best results.",
+                "NVIDIA: Low Latency Mode (registry) включён. Для Reflex — в настройках игры."),
+            ("NVIDIA: Low Latency Mode (registry) off.", "NVIDIA: Low Latency Mode (registry) выключен."),
+            ("AMD: Anti-Lag (registry) on. Check Radeon Software.",
+                "AMD: Anti-Lag (registry) включён. Проверьте Radeon Software."),
+            ("AMD: Anti-Lag (registry) off.", "AMD: Anti-Lag (registry) выключен."),
+            ("Intel GPU: Low Latency is not automated (set in Graphics Command Center).",
+                "Intel GPU: Low Latency через драйвер Xe не автоматизируется (ручная настройка в Graphics Command Center)."),
+            ("Pre-rendered frames: unchanged.", "Pre-rendered frames: без изменений."),
+            ("All optimizations reset (timer, backup, plugins).",
+                "Все оптимизации сброшены (таймер, бэкап, плагины)."),
+            ("Reset completed partially.", "Сброс выполнен частично."),
+            ("JSON backup not found — soft fallback.", "Бэкап JSON не найден — soft fallback."),
+            ("Active power scheme restored", "Активная схема восстановлена"),
+            ("Scheme: Balanced", "Схема: Balanced"),
+            ("Safety backup prepared.", "Защита перед изменениями подготовлена."),
+            ("Ultimate Performance unavailable — using High Performance.",
+                "Ultimate Performance недоступна — использована High Performance."),
+            ("Could not find a stable timer resolution.", "Не удалось подобрать стабильное разрешение таймера."),
+            ("Memory: trimmed ", "Очищено процессов: "),
+            (" processes, ≈ ", ", освобождено ≈ "),
+            (" MB freed, skipped ", " МБ, пропущено: "),
+            ("Changes committed.", "Изменения зафиксированы."),
+            ("Backup saved:", "Бэкап сохранён:"),
+            ("Timer: ", "Таймер: "),
+            (" ms (jitter ", " мс (джиттер "),
+            (" µs).", " мкс)."),
+            (" (jitter ", " (джиттер "),
+        };
+
+        string result = text;
+        foreach (var (enText, ruText) in pairs)
+        {
+            if (en)
+            {
+                if (result.Contains(ruText, StringComparison.Ordinal))
+                    result = result.Replace(ruText, enText, StringComparison.Ordinal);
+            }
+            else
+            {
+                if (result.Contains(enText, StringComparison.Ordinal))
+                    result = result.Replace(enText, ruText, StringComparison.Ordinal);
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Best-effort map of common legacy Russian engine strings when UI is English.</summary>
+    private static string LocalizeRussianLegacyToEnglish(string m)
+    {
+        string r = m;
+        (string ru, string en)[] pairs =
+        {
+            ("Таймер отпущен, система вернётся к разрешению по умолчанию.",
+                "Timer released; system will return to default resolution."),
+            ("Game Mode включён, Game DVR отключён.", "Game Mode on, Game DVR off."),
+            ("Game Mode включён", "Game Mode on"),
+            ("Game Mode выключен.", "Game Mode off."),
+            ("HAGS включён (может потребоваться перезагрузка).", "HAGS on (reboot may be required)."),
+            ("HAGS выключен (может потребоваться перезагрузка).", "HAGS off (reboot may be required)."),
+            ("Парковка: системное значение по умолчанию (без изменений).",
+                "Core parking: system default (unchanged)."),
+            ("Парковка: Все ядра активны", "Core parking: all cores active"),
+            ("Парковка: все ядра активны", "Core parking: all cores active"),
+            ("P-cores активны, E-cores могут парковаться", "P-cores active, E-cores may park"),
+            ("Настройка питания применена.", "Power setting applied."),
+            ("активирована.", "activated."),
+            ("Схема ", "Power scheme "),
+            ("Доп. плагины: нечего применять (все opt-in выкл. или applied-by-core).",
+                "Extra plugins: nothing to apply (all opt-in off or applied-by-core)."),
+            ("Плагины: ошибки", "Plugins: errors"),
+            ("Таймер: ", "Timer: "),
+            (" мс (джиттер ", " ms (jitter "),
+            (" мкс).", " µs)."),
+            ("применён частично", "applied partially"),
+            ("применён.", "applied."),
+            ("Профиль «", "Profile '"),
+            ("» ", "' "),
+            ("Не удалось ", "Could not "),
+            ("Нет прав на запись реестра (нужен администратор).",
+                "Registry write denied (administrator required)."),
+        };
+        foreach (var (ru, en) in pairs)
+        {
+            if (r.Contains(ru, StringComparison.Ordinal))
+                r = r.Replace(ru, en, StringComparison.Ordinal);
+        }
+        return r;
     }
 
     private static string? ExtractQuoted(string m)

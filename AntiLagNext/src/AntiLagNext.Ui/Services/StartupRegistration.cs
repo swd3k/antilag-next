@@ -57,6 +57,13 @@ internal static class StartupRegistration
                 return false;
             }
 
+            // Reject path metacharacters that would break /TR quoting or inject schtasks args
+            if (exe.IndexOfAny(new[] { '"', '\r', '\n', '\0' }) >= 0)
+            {
+                message = "exe path has unsafe characters";
+                return false;
+            }
+
             // /RL HIGHEST — elevated without UAC after task is created once as admin
             // --autostart → tray + AutoApplyOnStartup
             // Quote exe path for spaces; leave args outside the inner quotes.

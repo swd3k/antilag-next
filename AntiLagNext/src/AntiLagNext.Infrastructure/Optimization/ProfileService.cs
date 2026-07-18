@@ -106,7 +106,7 @@ public sealed class ProfileService : IProfileService
                 if (!set.Success && profile.UseUltimatePerformance)
                 {
                     set = _power.SetActiveScheme(PowerGuids.SchemeHighPerformance);
-                    messages.Add("Ultimate Performance недоступна — использована High Performance.");
+                    messages.Add("Ultimate Performance unavailable — using High Performance.");
                 }
                 if (set.Success) messages.Add(set.Message); else errors.Add(set.Message);
 
@@ -143,7 +143,11 @@ public sealed class ProfileService : IProfileService
             // 4. Timer
             if (profile.EnableTimer)
             {
-                var tune = await _timer.TuneAsync(profile.TimerTargetMs, cancellationToken);
+                double timerMs = profile.TimerTargetMs;
+                if (double.IsNaN(timerMs) || double.IsInfinity(timerMs))
+                    timerMs = 0.5;
+                timerMs = Math.Clamp(timerMs, 0.5, 15.6);
+                var tune = await _timer.TuneAsync(timerMs, cancellationToken);
                 if (tune.Success) messages.Add(tune.Message); else errors.Add(tune.Message);
             }
 

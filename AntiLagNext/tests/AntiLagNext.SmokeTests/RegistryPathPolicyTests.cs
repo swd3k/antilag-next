@@ -36,9 +36,21 @@ public class RegistryPathPolicyTests
     [InlineData("HKLM", @"SOFTWARE\AMD\Something", "x")] // broad AMD root removed
     [InlineData("HKCR", @"SOFTWARE\AntiLagNext", "x")]
     [InlineData("HKLM", @"..\SOFTWARE\AntiLagNext", "x")]
+    // Prefix-bypass: sibling key with longer name must not match SOFTWARE\AntiLagNext
+    [InlineData("HKLM", @"SOFTWARE\AntiLagNextEvil", "x")]
+    [InlineData("HKLM", @"SOFTWARE\Microsoft\GameBarEvil", "x")]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Control\PowerShell", "x")]
     public void Rejects_dangerous_paths(string hive, string path, string value)
     {
         RegistryPathPolicy.IsSafeRegistryPath(hive, path, value).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Allows_subkey_under_prefix_not_sibling_name()
+    {
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNext", "x").Should().BeTrue();
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNext\Sub", "x").Should().BeTrue();
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNextEvil", "x").Should().BeFalse();
     }
 
     [Fact]

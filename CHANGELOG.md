@@ -11,6 +11,26 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.2] — 2026-07-18
+
+### Security
+- **Registry restore allowlist** requires a path boundary after each prefix (blocks sibling-key bypass such as `SOFTWARE\AntiLagNextEvil`).
+- **Update download** always uses the canonical Setup URL for version+RID (ignores remote `browser_download_url` / asset name).
+- Download host allowlist tightened: only `github.com/…/releases/download/*.exe` and official GitHub CDN hosts — **not** `raw.githubusercontent.com` or arbitrary `*.githubusercontent.com`.
+- Reject download redirects outside the allowlist; **120 MB** size cap; **MZ/PE** header check before launching Setup.
+- Release / open-URL shell opens only allowlisted HTTPS GitHub pages for this repo (no `file:` / foreign hosts).
+- **`restartPc` IPC** requires `confirmed: true`; `shutdown.exe` resolved under System32 (PATH hijack mitigation).
+- External plugins: reject **id collision** with built-in plugins; schtasks TR rejects unsafe exe path characters.
+
+### Fixed / reliability
+- Sanitize settings on load: clamp monitoring interval, backup count, UI culture, profile timer targets and pre-rendered frames.
+- Profile apply clamps `TimerTargetMs` before `NtSetTimerResolution` tuning.
+
+### Changed
+- Product version **1.2.2**.
+
+---
+
 ## [1.2.1] — 2026-07-18
 
 ### Fixed
@@ -190,6 +210,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
 | **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |

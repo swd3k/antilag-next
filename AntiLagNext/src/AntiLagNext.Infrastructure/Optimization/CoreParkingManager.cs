@@ -102,7 +102,7 @@ public sealed class CoreParkingManager : ICoreParkingManager
         try
         {
             if (mode == CoreParkingMode.SystemDefault)
-                return OperationResult.Ok("Парковка: системное значение по умолчанию (без изменений).");
+                return OperationResult.Ok("Core parking: system default (unchanged).");
 
             // Снять скрытие CPMINCORES (best-effort)
             _power.UnhideSetting(PowerGuids.SubProcessor, PowerGuids.ProcessorCoreParkingMinCores);
@@ -140,17 +140,17 @@ public sealed class CoreParkingManager : ICoreParkingManager
 
             string modeName = mode switch
             {
-                CoreParkingMode.AllActive => "Все ядра активны",
+                CoreParkingMode.AllActive => "all cores active",
                 CoreParkingMode.KeepEfficientIdle => isHybrid
-                    ? "P-cores активны, E-cores могут парковаться"
-                    : "Все ядра активны (однородный CPU)",
-                _ => "Без изменений"
+                    ? "P-cores active, E-cores may park"
+                    : "all cores active (homogeneous CPU)",
+                _ => "unchanged"
             };
-            return OperationResult.Ok($"Парковка: {modeName} (CPMINCORES AC={minCoresAc}%).");
+            return OperationResult.Ok($"Core parking: {modeName} (CPMINCORES AC={minCoresAc}%).");
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось применить режим активности ядер.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not apply core activity mode.", detail: ex.Message, ex: ex);
         }
     }
 

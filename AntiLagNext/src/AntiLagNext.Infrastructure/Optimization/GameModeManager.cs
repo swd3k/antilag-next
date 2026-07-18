@@ -57,16 +57,16 @@ public sealed class GameModeManager : IGameModeManager
 
             return OperationResult.Ok(
                 enabled
-                    ? "Game Mode включён" + (disableGameDvr ? ", Game DVR отключён." : ".")
-                    : "Game Mode выключен.");
+                    ? "Game Mode on" + (disableGameDvr ? ", Game DVR off." : ".")
+                    : "Game Mode off.");
         }
         catch (UnauthorizedAccessException ex)
         {
-            return OperationResult.Fail("Нет прав на запись реестра (нужен администратор).", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Registry write denied (administrator required).", detail: ex.Message, ex: ex);
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось изменить Game Mode.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not change Game Mode.", detail: ex.Message, ex: ex);
         }
     }
 
@@ -84,16 +84,16 @@ public sealed class GameModeManager : IGameModeManager
 
             return OperationResult.Ok(
                 enabled
-                    ? "HAGS включён (может потребоваться перезагрузка)."
-                    : "HAGS выключен (может потребоваться перезагрузка).");
+                    ? "HAGS on (reboot may be required)."
+                    : "HAGS off (reboot may be required).");
         }
         catch (UnauthorizedAccessException ex)
         {
-            return OperationResult.Fail("Нет прав на HAGS (нужен администратор / HKLM).", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("HAGS write denied (administrator / HKLM required).", detail: ex.Message, ex: ex);
         }
         catch (Exception ex)
         {
-            return OperationResult.Fail("Не удалось изменить HAGS.", detail: ex.Message, ex: ex);
+            return OperationResult.Fail("Could not change HAGS.", detail: ex.Message, ex: ex);
         }
     }
 

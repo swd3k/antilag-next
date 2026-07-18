@@ -107,11 +107,11 @@ public sealed class MemoryManager : IMemoryManager
 
             return OperationResult<MemoryCleanupStats>.Ok(
                 stats,
-                $"Очищено процессов: {trimmed}, освобождено ≈ {bytesFreed / (1024.0 * 1024.0):F1} МБ, пропущено: {skipped}.");
+                $"Memory: trimmed {trimmed} processes, ≈ {bytesFreed / (1024.0 * 1024.0):F1} MB freed, skipped {skipped}.");
         }
         catch (Exception ex)
         {
-            return OperationResult<MemoryCleanupStats>.Fail("Ошибка очистки памяти.", detail: ex.Message, ex: ex);
+            return OperationResult<MemoryCleanupStats>.Fail("Memory cleanup failed.", detail: ex.Message, ex: ex);
         }
     }
 }

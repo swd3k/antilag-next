@@ -25,8 +25,18 @@ public class RegistryPathPolicyTests
     [InlineData(@"SYSTEM\CurrentControlSet\Services\Evil\Parameters", "x")]
     [InlineData(@"SYSTEM\CurrentControlSet\Services\SysMain\Parameters", "x")]
     [InlineData(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell")]
+    [InlineData(@"SOFTWARE\AntiLagNextEvil", "x")]
+    [InlineData(@"SOFTWARE\Microsoft\GameBarEvil", "x")]
     public void Denies_arbitrary_services_and_dangerous_paths(string path, string value)
     {
         RegistryPathPolicy.IsSafeRegistryPath("HKLM", path, value).Should().BeFalse();
+    }
+
+    [Fact]
+    public void Prefix_match_requires_path_boundary()
+    {
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNext", "a").Should().BeTrue();
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNext\Child", "a").Should().BeTrue();
+        RegistryPathPolicy.IsSafeRegistryPath("HKLM", @"SOFTWARE\AntiLagNextEvil", "a").Should().BeFalse();
     }
 }
