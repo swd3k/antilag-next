@@ -910,7 +910,7 @@
                     </div>
                     <div style="text-align:right;color:var(--muted);font-size:11px;">
                       <span data-i18n="chart.peak">Пик (1м)</span>
-                      <span id="peakCapHint" class="peak-cap-hint" hidden> · clamped</span><br/>
+                      <span id="peakCapHint" class="peak-cap-hint" hidden data-i18n="chart.clamped"> · clamped</span><br/>
                       <span id="latencyPeak" style="color:var(--chart-red);font-family:Consolas;font-size:20px;font-weight:600">—</span>
                     </div>
                   </div>
@@ -1471,7 +1471,8 @@
     function sendTimeoutMs(cmd) {
       // getMetrics is 15ms cadence — short fail avoids timer pile-up under host stall
       if (cmd === 'getMetrics') return 2500;
-      if (cmd === 'apply' || cmd === 'revert' || cmd === 'reapplyDrift' || cmd === 'fixAudit')
+      if (cmd === 'apply' || cmd === 'revert' || cmd === 'reapplyDrift'
+          || cmd === 'fixAudit' || cmd === 'fixRecommended' || cmd === 'exportDiagnostics')
         return 120000;
       // Update check may try API (timeout) then github.com Atom — allow headroom
       if (cmd === 'checkUpdate') return 45000;
@@ -1556,13 +1557,29 @@
 
     /** When true, metrics poll continues while busy (update check must not freeze chart). */
     let busyKeepChart = false;
+    let healthBusy = false;
+
+    function syncActionButtons() {
+      const blocked = busy || healthBusy;
+      document.getElementById('cta').disabled = busy;
+      ['healthFixRecBtn','healthFixSafeBtn','healthFixAllBtn','healthReapplyBtn','healthRefreshBtn']
+        .forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.disabled = blocked;
+        });
+      const eng = document.getElementById('engineLabel');
+      if (eng) {
+        if (busy || healthBusy) eng.textContent = t('engine.busy');
+        else eng.textContent = t('engine.ready');
+      }
+    }
 
     function setBusy(on, opts) {
       busy = !!on;
       busyKeepChart = !!(opts && opts.keepChart);
       if (!busy) busyKeepChart = false;
       document.getElementById('busyBar').className = 'busy-bar' + (busy ? ' on' : '');
-      document.getElementById('cta').disabled = busy;
+      syncActionButtons();
     }
 
     function setLatencyDisplay(us) {
@@ -1840,7 +1857,7 @@
         if (timer != null && timer > 0)
           document.getElementById('timerMs').textContent = Number(timer).toFixed(3);
         const cpu = m.c != null ? m.c : m.cpu;
-        if (cpu != null) document.getElementById('cpuNote').textContent = 'CPU ' + Number(cpu).toFixed(0) + '%';
+        if (cpu != null) document.getElementById('cpuNote').textContent = t('metric.cpu', { n: Number(cpu).toFixed(0) });
       }
       // rAF batch: one paint per display frame max
       scheduleChartDraw();
@@ -1907,7 +1924,7 @@
         if (latencyHistory.length > HISTORY_CAP)
           latencyHistory = latencyHistory.slice(latencyHistory.length - HISTORY_CAP);
       }
-      if (s.cpu != null) document.getElementById('cpuNote').textContent = 'CPU ' + Number(s.cpu).toFixed(0) + '%';
+      if (s.cpu != null) document.getElementById('cpuNote').textContent = t('metric.cpu', { n: Number(s.cpu).toFixed(0) });
       if (typeof s.chartEnabled === 'boolean') chartEnabled = s.chartEnabled;
       if (s.chartIntervalMs != null && s.chartIntervalMs >= 30 && s.chartIntervalMs <= 200)
         CHART_MS = Number(s.chartIntervalMs);
@@ -2011,7 +2028,7 @@
     let lastLogs = [];
     function logsToText(logs) {
       return (logs || []).map(l => {
-        const st = (l.level || 'ok') === 'ok' ? 'OK' : String(l.level || 'ok').toUpperCase();
+        const st = logLevelLabel(l.level);
         return `[${l.time || ''}] ${st}  ${l.message || ''}`;
       }).join('\n');
     }
@@ -2062,7 +2079,7 @@
         const row = document.createElement('div');
         row.className = 'log-row selectable';
         const cls = l.level === 'err' ? 'lvl-err' : (l.level === 'warn' ? 'lvl-warn' : 'lvl-ok');
-        const st = (l.level || 'ok') === 'ok' ? 'OK' : (l.level || 'ok').toUpperCase();
+        const st = logLevelLabel(l.level);
         row.innerHTML = `<div>${l.time || ''}</div><div>${escapeHtml(l.message || '')}</div><div class="${cls}">${st}</div>`;
         box.appendChild(row);
       });
@@ -2072,17 +2089,21 @@
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     }
 
+    function logLevelLabel(level) {
+      const lv = String(level || 'ok').toLowerCase();
+      if (lv === 'ok' || lv === 'info') return t('logs.level.ok');
+      if (lv === 'warn' || lv === 'warning') return t('logs.level.warn');
+      if (lv === 'err' || lv === 'error') return t('logs.level.err');
+      return lv.toUpperCase();
+    }
+
     // ── System health (audit + drift) ──────────────────────────────────
-    let healthBusy = false;
     let lastAuditFindings = [];
     let lastDriftEntries = [];
 
     function setHealthBusy(on) {
       healthBusy = !!on;
-      ['healthRefreshBtn', 'healthFixSafeBtn', 'healthFixAllBtn', 'healthReapplyBtn'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.disabled = healthBusy;
-      });
+      syncActionButtons();
     }
 
     function updateHealthNavBadge(driftedCount, issueCount) {
@@ -2135,9 +2156,16 @@
 
     function sevClass(sev) {
       const s = String(sev || 'info').toLowerCase();
-      if (s === 'critical') return 'sev-critical';
+      if (s === 'critical' || s === 'error') return 'sev-critical';
       if (s === 'warn' || s === 'warning') return 'sev-warn';
       return 'sev-info';
+    }
+
+    function sevLabel(sev) {
+      const s = String(sev || 'info').toLowerCase();
+      if (s === 'critical' || s === 'error') return t('sev.critical');
+      if (s === 'warn' || s === 'warning') return t('sev.warn');
+      return t('sev.info');
     }
 
     function auditTitle(finding) {
@@ -2147,6 +2175,26 @@
       // Fallback: humanize id / titleKey
       const raw = finding.id || key || '';
       return String(raw).replace(/^audit\./, '').replace(/\./g, ' ');
+    }
+
+    function auditDetail(finding) {
+      if (!finding) return '';
+      const id = finding.id || '';
+      const dk = id ? (id + '.detail') : '';
+      if (dk && i18n[dk] != null) return i18n[dk];
+      return finding.detail || '';
+    }
+
+    function changeItemTitle(it) {
+      if (!it) return '';
+      if (it.titleKey && i18n[it.titleKey] != null) return i18n[it.titleKey];
+      // plugin.ext.network.hygiene style id
+      if (it.id && i18n[it.id] != null) return i18n[it.id];
+      if (it.id && it.id.startsWith('plugin.')) {
+        const pk = it.id; // already plugin.ext...
+        if (i18n[pk] != null) return i18n[pk];
+      }
+      return it.detail || it.id || '';
     }
 
     function areaLabel(area) {
@@ -2193,10 +2241,10 @@
             ? `<span class="note" style="color:var(--cyan)">${escapeHtml(f.suggestedTweakId || '')}</span>`
             : '—';
           html += `<tr>
-            <td style="width:88px"><span class="sev-pill ${sevClass(sev)}">${escapeHtml(sev)}</span></td>
+            <td style="width:88px"><span class="sev-pill ${sevClass(sev)}">${escapeHtml(sevLabel(sev))}</span></td>
             <td>
               <div class="col-id">${escapeHtml(auditTitle(f))}</div>
-              <div class="note selectable" style="margin-top:4px">${escapeHtml(f.detail || '')}</div>
+              <div class="note selectable" style="margin-top:4px">${escapeHtml(auditDetail(f))}</div>
             </td>
             <td style="width:140px">${fix}</td>
           </tr>`;
@@ -2250,9 +2298,9 @@
       box.innerHTML = `<table class="health-table">
         <thead><tr>
           <th style="width:96px"></th>
-          <th>id / path</th>
-          <th style="width:18%">current</th>
-          <th style="width:18%">expected</th>
+          <th>${escapeHtml(t('health.col.path'))}</th>
+          <th style="width:18%">${escapeHtml(t('health.col.current'))}</th>
+          <th style="width:18%">${escapeHtml(t('health.col.expected'))}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
@@ -2292,7 +2340,7 @@
 
     async function reapplyDrift() {
       if (busy || healthBusy) return;
-      setBusy(true);
+      setBusy(true, { keepChart: true });
       setHealthBusy(true);
       try {
         const r = await send('reapplyDrift');
@@ -2323,7 +2371,7 @@
 
     async function fixAudit(safeOnly) {
       if (busy || healthBusy) return;
-      setBusy(true);
+      setBusy(true, { keepChart: true });
       setHealthBusy(true);
       try {
         const r = await send('fixAudit', { safeOnly: !!safeOnly });
@@ -2353,7 +2401,7 @@
 
     async function fixRecommended() {
       if (busy || healthBusy) return;
-      setBusy(true);
+      setBusy(true, { keepChart: true });
       setHealthBusy(true);
       try {
         const r = await send('fixRecommended');
@@ -2570,9 +2618,9 @@
       }
       card.hidden = false;
       list.innerHTML = summary.items.map(it => {
-        const title = (it.titleKey && i18n[it.titleKey] != null) ? i18n[it.titleKey]
-          : (it.detail || it.id || '');
+        const title = changeItemTitle(it);
         const risk = String(it.risk || 'safe').toLowerCase();
+        const riskLabel = (i18n['risk.' + risk] != null) ? t('risk.' + risk) : risk;
         const reboot = it.requiresReboot
           ? ` · <span style="color:var(--chart-yellow)">${escapeHtml(t('changed.reboot'))}</span>`
           : '';
@@ -2581,8 +2629,7 @@
           <div class="changed-body">
             <div class="changed-title">${escapeHtml(title)}</div>
             <div class="changed-meta">
-              <span class="risk-pill ${escapeHtml(risk)}">${escapeHtml(risk)}</span>${reboot}
-              ${it.detail ? ' · ' + escapeHtml(it.detail) : ''}
+              <span class="risk-pill ${escapeHtml(risk)}">${escapeHtml(riskLabel)}</span>${reboot}
             </div>
           </div>
         </li>`;
@@ -2693,8 +2740,16 @@
       try {
         const s = await send('getState');
         await applyState(s);
+        if (!busy && !healthBusy) {
+          const eng = document.getElementById('engineLabel');
+          if (eng) eng.textContent = t('engine.ready');
+        }
       } catch (e) {
-        document.getElementById('engineLabel').textContent = t('engine.timeout');
+        // Don't flash "timeout" during a long apply/health op
+        if (!busy && !healthBusy) {
+          const eng = document.getElementById('engineLabel');
+          if (eng) eng.textContent = t('engine.timeout');
+        }
       }
     }
 
@@ -2702,13 +2757,16 @@
 
     async function toggleOpt() {
       if (busy) return;
-      setBusy(true);
+      // keepChart: chart stays alive for Before/After sampling and responsive UI
+      setBusy(true, { keepChart: true });
       try {
         if (state.optimized) {
           const r = await send('revert');
           if (r && r.state) await applyState(r.state);
           else if (r && (r.success === false || r.busy || r.error))
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+          else if (r && r.success !== false)
+            toast(t('toast.reset'));
           hideChangedCard();
           lastChangeSummary = null;
           // Stop After-collection; keep Before for reference until next Enable
@@ -2725,6 +2783,7 @@
           if (r && r.changeSummary) renderChangeSummary(r.changeSummary);
           else if (r && r.state && r.state.changeSummary) renderChangeSummary(r.state.changeSummary);
           if (r && r.success) {
+            toast(t('toast.applied'));
             // After settle, collect a fresh sample window for true post-Enable median
             startAfterLatencyCapture();
             pendingAutostartAfterRestart = !!r.offerAutostart;
@@ -2840,7 +2899,7 @@
 
     async function doRevert() {
       if (busy) return;
-      setBusy(true);
+      setBusy(true, { keepChart: true });
       try {
         const r = await send('revert');
         if (r && r.state) await applyState(r.state);
