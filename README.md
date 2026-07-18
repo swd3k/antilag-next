@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.1-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe"><code>AntiLagNext-Setup-1.2.0-win-x64.exe</code></a>
+  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.1-win-x64.exe"><code>AntiLagNext-Setup-1.2.1-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -111,9 +111,9 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 | Package | Arch | Notes |
 |---------|------|-------|
-| [`AntiLagNext-Setup-1.2.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
-| [`AntiLagNext-Setup-1.2.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-x86.exe) | 32-bit | Installer |
-| [`AntiLagNext-Setup-1.2.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.0-win-arm64.exe) | ARM64 | Installer |
+| [`AntiLagNext-Setup-1.2.1-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.1-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
+| [`AntiLagNext-Setup-1.2.1-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.1-win-x86.exe) | 32-bit | Installer |
+| [`AntiLagNext-Setup-1.2.1-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.2.1-win-arm64.exe) | ARM64 | Installer |
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
@@ -151,7 +151,7 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 - 💻 CLI: `--apply`, `--revert`, `--status`  
 - 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)  
 
-Details: [CHANGELOG.md](CHANGELOG.md) (**1.2.0**).
+Details: [CHANGELOG.md](CHANGELOG.md) (**1.2.1**).
 
 ---
 

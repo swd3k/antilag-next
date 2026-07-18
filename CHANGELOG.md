@@ -11,6 +11,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.1] — 2026-07-18
+
+### Fixed
+- **Update check** no longer depends only on `api.github.com` (often blocked/timeout): falls back to GitHub **Atom** feed and `/releases/latest` redirect on `github.com`.
+- Update errors are **localized** (EN/RU) via stable error codes — no more Russian Win32 socket text on the English UI.
+- Failed check no longer shows «You are up to date» next to the error.
+- **Latency chart** no longer freezes while «Check for updates» runs (`busy` + `keepChart`).
+- Failed update checks no longer throttle the next startup check (6 h) so retries still happen.
+
+### Changed
+- Product version **1.2.1**.
+- Constructed Setup download URLs when asset list is unavailable: `AntiLagNext-Setup-{ver}-win-{rid}.exe`.
+
+---
+
 ## [1.2.0] — 2026-07-18
 
 ### Added
@@ -173,6 +188,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.2.1** | 2026-07-18 | Update check fallback (Atom), EN error i18n, chart during check |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
 | **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |
 | **1.0.3** | 2026-07-15 | Version branding, logo/UI polish, Setup name with version |

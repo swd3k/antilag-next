@@ -776,7 +776,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.2.0</span>
+      <span class="ver" id="appVersion">1.2.1</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -1337,6 +1337,9 @@
       if (cmd === 'getMetrics') return 2500;
       if (cmd === 'apply' || cmd === 'revert' || cmd === 'reapplyDrift' || cmd === 'fixAudit')
         return 120000;
+      // Update check may try API (timeout) then github.com Atom — allow headroom
+      if (cmd === 'checkUpdate') return 45000;
+      if (cmd === 'startUpdate') return 180000;
       return 30000;
     }
 
@@ -1415,10 +1418,15 @@
       setTimeout(() => el.classList.remove('show'), 2400);
     }
 
-    function setBusy(on) {
-      busy = on;
-      document.getElementById('busyBar').className = 'busy-bar' + (on ? ' on' : '');
-      document.getElementById('cta').disabled = on;
+    /** When true, metrics poll continues while busy (update check must not freeze chart). */
+    let busyKeepChart = false;
+
+    function setBusy(on, opts) {
+      busy = !!on;
+      busyKeepChart = !!(opts && opts.keepChart);
+      if (!busy) busyKeepChart = false;
+      document.getElementById('busyBar').className = 'busy-bar' + (busy ? ' on' : '');
+      document.getElementById('cta').disabled = busy;
     }
 
     function setLatencyDisplay(us) {
@@ -2185,6 +2193,14 @@
       }
     }
 
+    function localizeUpdateError(u) {
+      if (!u) return '';
+      if (u.error) return u.error; // host already localized via UiCulture
+      const code = u.errorCode || '';
+      const key = code ? ('update.err.' + code) : 'update.err.unknown';
+      return t(key) || t('update.err.unknown') || 'Update check failed';
+    }
+
     function applyUpdateUi(u, appVersion) {
       const banner = document.getElementById('updateBanner');
       const btn = document.getElementById('btnInstallUpdate');
@@ -2211,19 +2227,26 @@
           (t('settings.updates.current') || 'Current') + ': ' + local
           + ' → ' + (u.latest || '')
           + (u.canSilent ? '' : ' (' + (t('update.portable') || 'portable') + ')');
+      } else if (u.error || u.errorCode) {
+        // Failed check — never claim "up to date"
+        if (banner) banner.hidden = true;
+        if (btn) btn.hidden = true;
+        if (status) status.textContent =
+          (t('settings.updates.current') || 'Current') + ': ' + local
+          + ' · ' + localizeUpdateError(u);
       } else {
         if (banner) banner.hidden = true;
         if (btn) btn.hidden = true;
         if (status) status.textContent =
           (t('settings.updates.current') || 'Current') + ': ' + local
-          + ' · ' + (t('update.uptodate') || 'Up to date')
-          + (u.error ? ' · ' + u.error : '');
+          + ' · ' + (t('update.uptodate') || 'Up to date');
       }
     }
 
     async function checkForUpdates() {
       try {
-        setBusy(true);
+        // keepChart: metrics poll must continue (busy alone freezes the chart)
+        setBusy(true, { keepChart: true });
         const r = await send('checkUpdate');
         if (r && r.state) await applyState(r.state);
         else applyUpdateUi(r, r && r.local);
@@ -2231,10 +2254,12 @@
           toast(t('toast.error') + (r.error ? ': ' + r.error : ''));
         else if (r && r.hasUpdate)
           toast((t('update.available') || 'Update') + ': ' + (r.latest || ''));
+        else if (r && (r.error || r.errorCode))
+          toast(t('toast.error') + ': ' + localizeUpdateError(r));
         else
           toast(t('update.uptodate') || 'Up to date');
       } catch (e) {
-        toast(t('toast.error') + ': ' + e.message);
+        toast(t('toast.error') + ': ' + (e.message || e));
       } finally {
         setBusy(false);
       }
@@ -2243,7 +2268,7 @@
     async function installUpdate() {
       if (!confirm(t('update.confirm') || 'The app will close and update. Continue?')) return;
       try {
-        setBusy(true);
+        setBusy(true, { keepChart: true });
         const r = await send('startUpdate');
         if (r && r.needsBrowser && r.releaseUrl) {
           toast(r.message || t('update.portableHint'));
@@ -2260,7 +2285,7 @@
           return;
         }
       } catch (e) {
-        toast(t('toast.error') + ': ' + e.message);
+        toast(t('toast.error') + ': ' + (e.message || e));
       } finally {
         setBusy(false);
       }
@@ -2713,7 +2738,8 @@
     }
 
     async function pollMetricsOnce() {
-      if (!chartEnabled || busy || pollInFlight || uiBooting) return;
+      // busy without keepChart pauses chart (apply/revert); update check keeps chart alive
+      if (!chartEnabled || (busy && !busyKeepChart) || pollInFlight || uiBooting) return;
       if (document.hidden) return;
       if (pending.size >= PENDING_CAP - 10) return;
       pollInFlight = true;

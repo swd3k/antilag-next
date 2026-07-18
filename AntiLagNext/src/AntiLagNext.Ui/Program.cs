@@ -1673,12 +1673,55 @@ internal static class Program
                 canSilent = _lastUpdateCheck.CanSilentInstall,
                 portable = _lastUpdateCheck.IsPortable,
                 releaseUrl = _lastUpdateCheck.ReleaseUrl,
-                error = _lastUpdateCheck.Error
+                error = LocalizeUpdateError(_lastUpdateCheck),
+                errorCode = _lastUpdateCheck.ErrorCode
             }
         };
     }
 
     private static UpdateCheckResult? _lastUpdateCheck;
+
+    /// <summary>UI/log message for update errors — always respects UiCulture (never OS-locale).</summary>
+    private static string LocalizeUpdateError(UpdateCheckResult? r)
+    {
+        if (r is null) return "";
+        string code = r.ErrorCode ?? "";
+        return code switch
+        {
+            "timeout" => L(
+                "Проверка обновлений превысила время ожидания. Попробуйте снова или откройте Releases.",
+                "Update check timed out. Try again or open Releases."),
+            "network" => L(
+                "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.",
+                "Could not reach GitHub. Check network or open Releases manually."),
+            "http" => L(
+                "GitHub вернул ошибку. Откройте Releases вручную.",
+                "GitHub returned an error. Open Releases manually."),
+            "parse" => L(
+                "Не удалось разобрать версию релиза.",
+                "Could not parse release version."),
+            _ when !string.IsNullOrEmpty(r.Error) =>
+                // Prefer English catalog text already in Error; re-map known EN to RU if needed
+                L(
+                    MapUpdateErrorToRu(r.Error),
+                    r.Error!),
+            _ => L(
+                "Проверка обновлений не удалась. Откройте Releases.",
+                "Update check failed. Open Releases for the latest Setup.")
+        };
+    }
+
+    private static string MapUpdateErrorToRu(string en) => en switch
+    {
+        "Could not reach GitHub. Check network or open Releases manually." =>
+            "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.",
+        "Update check timed out. Try again or open Releases." =>
+            "Проверка обновлений превысила время ожидания. Попробуйте снова или откройте Releases.",
+        "Could not parse version" => "Не удалось разобрать версию релиза.",
+        "Update check failed. Open Releases for the latest Setup." =>
+            "Проверка обновлений не удалась. Откройте Releases.",
+        _ => en // already EN or unknown — do not invent Russian from Win32
+    };
 
     private static void ScheduleStartupUpdateCheck()
     {
@@ -1694,13 +1737,21 @@ internal static class Program
                     return;
                 var result = await _engine.Update.CheckAsync().ConfigureAwait(false);
                 _lastUpdateCheck = result;
-                _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
-                try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+                // Only stamp throttle on success (no error) so flaky network retries next launch
+                if (string.IsNullOrEmpty(result.Error))
+                {
+                    _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                    try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+                }
                 if (result.HasUpdate)
                 {
                     AddLog(L(
                         $"Доступно обновление {result.LatestVersion} (сейчас {result.LocalVersion})",
                         $"Update available {result.LatestVersion} (now {result.LocalVersion})"), "ok");
+                }
+                else if (!string.IsNullOrEmpty(result.Error))
+                {
+                    AddLog(L("Обновление: ", "Update: ") + LocalizeUpdateError(result), "err");
                 }
             }
             catch (Exception ex)
@@ -1724,16 +1775,22 @@ internal static class Program
                 AddLog(L("Проверка обновлений…", "Checking for updates…"), "ok");
                 var result = await _engine.Update.CheckAsync().ConfigureAwait(false);
                 _lastUpdateCheck = result;
-                _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
-                try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+                if (string.IsNullOrEmpty(result.Error))
+                {
+                    _engine.Settings.LastUpdateCheckUtc = DateTime.UtcNow;
+                    try { _engine.SettingsService.Save(); } catch { /* ignore */ }
+                }
+
+                string? errMsg = string.IsNullOrEmpty(result.Error) ? null : LocalizeUpdateError(result);
 
                 if (!string.IsNullOrEmpty(result.Error) && !result.HasUpdate)
                 {
-                    AddLog(L("Обновление: ", "Update: ") + result.Error, "err");
+                    AddLog(L("Обновление: ", "Update: ") + errMsg, "err");
                     ReplyOnUiThread(id, new
                     {
                         success = false,
-                        error = result.Error,
+                        error = errMsg,
+                        errorCode = result.ErrorCode,
                         local = result.LocalVersion,
                         releaseUrl = result.ReleaseUrl,
                         state = BuildUiState()
@@ -1761,7 +1818,19 @@ internal static class Program
             catch (Exception ex)
             {
                 WriteCrash("CheckUpdate", ex);
-                ReplyOnUiThread(id, new { success = false, error = ex.Message });
+                var (code, en) = AntiLagNext.Infrastructure.Services.UpdateService.ClassifyError(ex);
+                var fake = new UpdateCheckResult
+                {
+                    LocalVersion = _engine?.Update.LocalVersion ?? "0.0.0",
+                    Error = en,
+                    ErrorCode = code
+                };
+                ReplyOnUiThread(id, new
+                {
+                    success = false,
+                    error = LocalizeUpdateError(fake),
+                    errorCode = code
+                });
             }
         });
     }
@@ -1843,7 +1912,19 @@ internal static class Program
             catch (Exception ex)
             {
                 WriteCrash("StartUpdate", ex);
-                ReplyOnUiThread(id, new { success = false, error = ex.Message });
+                var (code, en) = AntiLagNext.Infrastructure.Services.UpdateService.ClassifyError(ex);
+                var fake = new UpdateCheckResult
+                {
+                    LocalVersion = _engine?.Update.LocalVersion ?? "0.0.0",
+                    Error = en,
+                    ErrorCode = code
+                };
+                ReplyOnUiThread(id, new
+                {
+                    success = false,
+                    error = LocalizeUpdateError(fake),
+                    errorCode = code
+                });
             }
             finally
             {
