@@ -303,6 +303,7 @@
     .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
     .metric-label {
       font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+      white-space: nowrap;
     }
     .metric-val { font-family: Consolas, monospace; font-size: 28px; font-weight: 600; margin-top: 10px; }
     .chart-row { display: flex; margin-top: 10px; height: 190px; align-items: stretch; }
@@ -534,7 +535,13 @@
     .risk-pill.safe { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
     .risk-pill.moderate { color: var(--chart-yellow); border-color: color-mix(in srgb, var(--chart-yellow) 40%, var(--border)); }
     .risk-pill.aggressive { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
-    .area-group { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var(--cyan); letter-spacing: .04em; text-transform: uppercase; }
+    .area-group {
+      margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var(--cyan);
+      letter-spacing: .03em; white-space: nowrap;
+    }
+    .health-section-one-line {
+      white-space: nowrap; display: inline-block;
+    }
     .peak-cap-hint { font-size: 10px; color: var(--muted); font-weight: 500; }
     .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -882,45 +889,7 @@
           <div id="dashboard" class="section active">
             <h2 data-i18n="dash.title">Системный обзор</h2>
             <div class="sub selectable" data-i18n="dash.sub">Прокси scheduling latency (не DPC / не network) и статус оптимизаций</div>
-            <div class="card" id="beforeAfterCard" hidden style="margin-bottom:14px">
-              <div class="metric-label" style="color:var(--cyan);margin-bottom:4px" data-i18n="ba.title">Before / After</div>
-              <div class="note" data-i18n="ba.sub">Median scheduling latency (µs) captured around Enable</div>
-              <div class="ba-row">
-                <div class="ba-cell">
-                  <div class="lbl" data-i18n="ba.before">Before</div>
-                  <div class="val" id="baBefore">—</div>
-                </div>
-                <div class="ba-cell">
-                  <div class="lbl" data-i18n="ba.after">After</div>
-                  <div class="val" id="baAfter">—</div>
-                </div>
-              </div>
-              <div class="note" id="baDelta" style="margin-top:8px"></div>
-            </div>
-            <div class="card" id="changedCard" hidden style="margin-bottom:14px">
-              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
-                <div class="metric-label" style="color:var(--cyan)" data-i18n="changed.title">What changed</div>
-                <button type="button" class="hdr-ctrl" style="width:auto;padding:0 10px;height:28px;font-size:11px" onclick="hideChangedCard()" data-i18n="changed.hide">Hide</button>
-              </div>
-              <div class="note" id="changedSub" data-i18n="changed.sub">Applied with JSON backup — Reset all restores prior state.</div>
-              <ul class="changed-list" id="changedList" aria-live="polite"></ul>
-            </div>
-            <div class="card" id="updateBanner" hidden style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))">
-              <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
-                <div>
-                  <div class="title" id="updateBannerTitle" style="font-weight:600"></div>
-                  <div class="desc note" id="updateBannerDesc" style="margin-top:4px"></div>
-                </div>
-                <div style="display:flex;gap:8px">
-                  <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="installUpdate()">
-                    <span data-i18n="settings.updates.install">Установить</span>
-                  </button>
-                  <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
-                    <span data-i18n="settings.updates.manual">Releases</span>
-                  </button>
-                </div>
-              </div>
-            </div>
+            <!-- Primary: latency monitor + 3 status cards (top) -->
             <div class="card" id="chartCard">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <div class="metric-label" style="color:var(--cyan)" data-i18n="chart.title">Монитор latency</div>
@@ -966,7 +935,7 @@
             </div>
             <div class="grid3" id="metricGrid">
               <div class="card">
-                <div class="metric-label" data-i18n="metric.timer" data-tip="tip.timer.resolution">Timer resolution</div>
+                <div class="metric-label" data-i18n="metric.timer" data-tip="tip.timer.resolution">Разрешение таймера</div>
                 <div class="metric-val"><span id="timerMs">—</span> <span id="timerUnit" style="font-size:12px;color:var(--muted)">ms</span></div>
                 <div class="note" id="timerHint" data-i18n="metric.timerHint"></div>
               </div>
@@ -981,7 +950,7 @@
                 <div class="note" id="cpuNote">CPU —</div>
               </div>
               <div class="card">
-                <div class="metric-label" data-i18n="metric.opt">Оптимизация</div>
+                <div class="metric-label" data-i18n="metric.opt">Состояние</div>
                 <div class="metric-val" style="font-size:20px;font-family:inherit" id="optFlag">—</div>
                 <div class="note" data-i18n="metric.backup">JSON backup + Reset</div>
               </div>
@@ -991,6 +960,48 @@
               <span id="ctaText" data-i18n="cta.enable">ВКЛЮЧИТЬ ANTILAG NEXT</span>
             </button>
             <div class="hint" id="hint"></div>
+            <!-- Secondary: comparison / changelog / updates -->
+            <div class="card" id="beforeAfterCard" hidden style="margin-top:14px;margin-bottom:14px">
+              <div class="metric-label" style="color:var(--cyan);margin-bottom:4px" data-i18n="ba.title">До / После</div>
+              <div class="note" data-i18n="ba.sub">Медиана µs по окну сэмплов (~3 с) до Enable и после стабилизации</div>
+              <div class="ba-row">
+                <div class="ba-cell">
+                  <div class="lbl" data-i18n="ba.before">До</div>
+                  <div class="val" id="baBefore">—</div>
+                  <div class="note" id="baBeforeN" style="margin-top:4px;font-size:11px"></div>
+                </div>
+                <div class="ba-cell">
+                  <div class="lbl" data-i18n="ba.after">После</div>
+                  <div class="val" id="baAfter">—</div>
+                  <div class="note" id="baAfterN" style="margin-top:4px;font-size:11px"></div>
+                </div>
+              </div>
+              <div class="note" id="baDelta" style="margin-top:8px"></div>
+            </div>
+            <div class="card" id="changedCard" hidden style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="metric-label" style="color:var(--cyan)" data-i18n="changed.title">Что изменилось</div>
+                <button type="button" class="hdr-ctrl" style="width:auto;padding:0 10px;height:28px;font-size:11px" onclick="hideChangedCard()" data-i18n="changed.hide">Скрыть</button>
+              </div>
+              <div class="note" id="changedSub" data-i18n="changed.sub">Применено с JSON-бэкапом — «Сбросить всё» вернёт прежнее состояние.</div>
+              <ul class="changed-list" id="changedList" aria-live="polite"></ul>
+            </div>
+            <div class="card" id="updateBanner" hidden style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))">
+              <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
+                <div>
+                  <div class="title" id="updateBannerTitle" style="font-weight:600"></div>
+                  <div class="desc note" id="updateBannerDesc" style="margin-top:4px"></div>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="installUpdate()">
+                    <span data-i18n="settings.updates.install">Установить</span>
+                  </button>
+                  <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
+                    <span data-i18n="settings.updates.manual">Releases</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div id="tweaks" class="section">
@@ -1026,10 +1037,10 @@
           </div>
 
           <div id="health" class="section">
-            <h2 data-i18n="health.title">Системное здоровье</h2>
-            <div class="sub" data-i18n="health.sub">Аудит latency-настроек и дрейф desired-state относительно реестра</div>
+            <h2 data-i18n="health.title">«Здоровье» системы</h2>
+            <div class="sub" data-i18n="health.sub">Проверка latency-настроек и отклонений от сохранённого состояния</div>
             <div class="note" style="margin:8px 0 12px" data-i18n="health.hint">
-              Safe = низкий риск. Fix all = Safe + Moderate. Нужны права администратора.
+              «Безопасные» = низкий риск. «Исправить всё» = безопасные + умеренные. Нужны права администратора.
             </div>
             <div class="health-toolbar">
               <button type="button" class="hdr-ctrl primary" id="healthFixRecBtn" onclick="fixRecommended()"
@@ -1061,7 +1072,7 @@
 
             <div class="card">
               <div class="health-section-title">
-                <span class="metric-label" style="color:var(--cyan)" data-i18n="health.audit">Аудит</span>
+                <span class="metric-label health-section-one-line" style="color:var(--cyan)" data-i18n="health.audit">Аудит системы</span>
                 <span class="note" id="auditCountLabel"></span>
               </div>
               <div id="auditList" class="selectable" aria-live="polite"></div>
@@ -1069,7 +1080,7 @@
 
             <div class="card">
               <div class="health-section-title">
-                <span class="metric-label" style="color:var(--cyan)" data-i18n="health.drift">Дрейф</span>
+                <span class="metric-label health-section-one-line" style="color:var(--cyan)" data-i18n="health.drift">Отклонения (drift)</span>
                 <span class="note" id="driftCountLabel"></span>
               </div>
               <div id="driftList" class="selectable" aria-live="polite"></div>
@@ -1289,9 +1300,19 @@
     let uiBooting = true;
     /** First-run wizard step 0..2 */
     let wizardStep = 0;
-    /** Before/After latency capture (µs median) */
+    /** Before/After: true median over a sample window (not a single point) */
     let baBeforeUs = null;
     let baAfterUs = null;
+    let baBeforeCount = 0;
+    let baAfterCount = 0;
+    /** Collect post-Enable samples until this timestamp (performance.now) */
+    let baAfterCollectUntil = 0;
+    let baAfterSamples = [];
+    let baAfterSettleUntil = 0;
+    const BA_MIN_SAMPLES = 12;       // need enough points for a real median
+    const BA_WINDOW_POINTS = 80;     // ~4 s at 50 ms UI poll
+    const BA_AFTER_SETTLE_MS = 1500; // ignore first 1.5 s after apply (system settling)
+    const BA_AFTER_COLLECT_MS = 3000; // then collect ~3 s of samples
     let lastChangeSummary = null;
 
     function t(key, vars) {
@@ -1798,6 +1819,8 @@
         }
         if (latencyHistory.length > HISTORY_CAP)
           latencyHistory = latencyHistory.slice(latencyHistory.length - HISTORY_CAP);
+        // Feed After-window collector (post-Enable median)
+        onBaSample(us);
       }
       const peak = m.p != null ? m.p : m.peakUs ?? m.m ?? m.maxUs;
       if (peak != null) {
@@ -2147,7 +2170,8 @@
         </div>`;
         return;
       }
-      // Group by area for scannability
+      // Group by area for scannability. Section title is already «Аудит системы» —
+      // hide a single generic "System" subgroup so we don't show AUDIT + SYSTEM stack.
       const groups = {};
       const order = ['Timer', 'Power', 'Gpu', 'Network', 'Input', 'System', 'Other'];
       lastAuditFindings.forEach(f => {
@@ -2157,8 +2181,11 @@
       });
       let html = '';
       const keys = [...order.filter(k => groups[k]), ...Object.keys(groups).filter(k => !order.includes(k))];
+      const hideAreaHeaders = keys.length <= 1
+        || (keys.length === 1 && keys[0] === 'System');
       keys.forEach(area => {
-        html += `<div class="area-group">${escapeHtml(areaLabel(area))}</div>`;
+        if (!hideAreaHeaders)
+          html += `<div class="area-group">${escapeHtml(areaLabel(area))}</div>`;
         html += `<table class="health-table"><tbody>`;
         groups[area].forEach(f => {
           const sev = String(f.severity || 'info');
@@ -2372,19 +2399,76 @@
       return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
     }
 
-    function captureBeforeLatency() {
-      const m = medianOf(latencyHistory);
-      if (m != null) baBeforeUs = Math.round(m * 10) / 10;
-      else if (state && state.latencyUs != null) baBeforeUs = Number(state.latencyUs);
-      try { localStorage.setItem('al_ba_before', baBeforeUs != null ? String(baBeforeUs) : ''); } catch (e) {}
+    /** Median of the last N chart samples — refuses single-point “fake median”. */
+    function windowMedian(history, maxPoints, minSamples) {
+      const slice = (history || []).slice(-(maxPoints || BA_WINDOW_POINTS));
+      const a = slice.map(Number).filter(n => Number.isFinite(n) && n > 0);
+      if (a.length < (minSamples || BA_MIN_SAMPLES)) return { median: null, count: a.length };
+      const med = medianOf(a);
+      return {
+        median: med != null ? Math.round(med * 10) / 10 : null,
+        count: a.length
+      };
     }
 
-    function captureAfterLatency() {
-      const m = medianOf(latencyHistory);
-      if (m != null) baAfterUs = Math.round(m * 10) / 10;
-      else if (state && state.latencyUs != null) baAfterUs = Number(state.latencyUs);
+    function captureBeforeLatency() {
+      const w = windowMedian(latencyHistory, BA_WINDOW_POINTS, BA_MIN_SAMPLES);
+      if (w.median != null) {
+        baBeforeUs = w.median;
+        baBeforeCount = w.count;
+      } else {
+        // Not enough history yet — keep card honest (no single-point lie)
+        baBeforeUs = null;
+        baBeforeCount = w.count;
+      }
+      baAfterUs = null;
+      baAfterCount = 0;
+      baAfterSamples = [];
+      baAfterSettleUntil = 0;
+      baAfterCollectUntil = 0;
+      try {
+        localStorage.setItem('al_ba_before', baBeforeUs != null ? String(baBeforeUs) : '');
+        localStorage.setItem('al_ba_before_n', String(baBeforeCount || 0));
+        localStorage.removeItem('al_ba_after');
+        localStorage.removeItem('al_ba_after_n');
+      } catch (e) {}
+      renderBeforeAfter();
+    }
+
+    /** After Enable: wait settle, then collect a fresh window of samples for median. */
+    function startAfterLatencyCapture() {
+      baAfterSamples = [];
+      baAfterUs = null;
+      baAfterCount = 0;
+      const now = performance.now();
+      baAfterSettleUntil = now + BA_AFTER_SETTLE_MS;
+      baAfterCollectUntil = baAfterSettleUntil + BA_AFTER_COLLECT_MS;
+      renderBeforeAfter();
+    }
+
+    function onBaSample(us) {
+      if (!baAfterCollectUntil) return;
+      const n = Number(us);
+      if (!Number.isFinite(n) || n <= 0) return;
+      const now = performance.now();
+      if (now < baAfterSettleUntil) return; // still settling
+      if (now <= baAfterCollectUntil) {
+        baAfterSamples.push(n);
+        return;
+      }
+      // Window closed — freeze median
+      const med = medianOf(baAfterSamples);
+      baAfterCount = baAfterSamples.length;
+      if (med != null && baAfterCount >= BA_MIN_SAMPLES) {
+        baAfterUs = Math.round(med * 10) / 10;
+      } else {
+        baAfterUs = null; // insufficient samples
+      }
+      baAfterCollectUntil = 0;
+      baAfterSettleUntil = 0;
       try {
         localStorage.setItem('al_ba_after', baAfterUs != null ? String(baAfterUs) : '');
+        localStorage.setItem('al_ba_after_n', String(baAfterCount || 0));
       } catch (e) {}
       renderBeforeAfter();
     }
@@ -2401,21 +2485,26 @@
       const bEl = document.getElementById('baBefore');
       const aEl = document.getElementById('baAfter');
       const dEl = document.getElementById('baDelta');
+      const bn = document.getElementById('baBeforeN');
+      const an = document.getElementById('baAfterN');
       if (!card) return;
-      // Restore from storage if needed
       if (baBeforeUs == null) {
         try {
           const s = localStorage.getItem('al_ba_before');
           if (s) baBeforeUs = Number(s);
+          baBeforeCount = Number(localStorage.getItem('al_ba_before_n') || 0) || baBeforeCount;
         } catch (e) {}
       }
-      if (baAfterUs == null) {
+      if (baAfterUs == null && !baAfterCollectUntil) {
         try {
           const s = localStorage.getItem('al_ba_after');
           if (s) baAfterUs = Number(s);
+          baAfterCount = Number(localStorage.getItem('al_ba_after_n') || 0) || baAfterCount;
         } catch (e) {}
       }
-      if (baBeforeUs == null && baAfterUs == null) {
+      const collecting = !!baAfterCollectUntil;
+      const show = baBeforeUs != null || baAfterUs != null || collecting || baBeforeCount > 0;
+      if (!show) {
         card.hidden = true;
         return;
       }
@@ -2425,11 +2514,28 @@
         bEl.className = 'val ' + latencyTone(baBeforeUs);
       }
       if (aEl) {
-        aEl.textContent = baAfterUs != null ? baAfterUs + ' µs' : '—';
-        aEl.className = 'val ' + latencyTone(baAfterUs);
+        if (collecting) {
+          aEl.textContent = '…';
+          aEl.className = 'val';
+        } else {
+          aEl.textContent = baAfterUs != null ? baAfterUs + ' µs' : '—';
+          aEl.className = 'val ' + latencyTone(baAfterUs);
+        }
+      }
+      if (bn) {
+        bn.textContent = baBeforeCount > 0
+          ? t('ba.samples', { n: baBeforeCount })
+          : (baBeforeUs == null ? t('ba.needSamples') : '');
+      }
+      if (an) {
+        if (collecting) an.textContent = t('ba.collecting');
+        else an.textContent = baAfterCount > 0 ? t('ba.samples', { n: baAfterCount }) : '';
       }
       if (dEl) {
-        if (baBeforeUs != null && baAfterUs != null && baBeforeUs > 0) {
+        if (collecting) {
+          dEl.textContent = t('ba.collecting');
+          dEl.style.color = 'var(--muted)';
+        } else if (baBeforeUs != null && baAfterUs != null && baBeforeUs > 0) {
           const delta = baAfterUs - baBeforeUs;
           const pct = Math.round((delta / baBeforeUs) * 100);
           const better = delta < 0;
@@ -2437,6 +2543,9 @@
             ? t('ba.improved', { us: Math.abs(Math.round(delta * 10) / 10), pct: Math.abs(pct) })
             : t('ba.delta', { us: Math.round(delta * 10) / 10, pct });
           dEl.style.color = better ? 'var(--green)' : 'var(--muted)';
+        } else if (baBeforeUs == null) {
+          dEl.textContent = t('ba.needSamples');
+          dEl.style.color = 'var(--muted)';
         } else {
           dEl.textContent = t('ba.hint');
           dEl.style.color = 'var(--muted)';
@@ -2602,8 +2711,12 @@
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
           hideChangedCard();
           lastChangeSummary = null;
+          // Stop After-collection; keep Before for reference until next Enable
+          baAfterCollectUntil = 0;
+          baAfterSettleUntil = 0;
+          baAfterSamples = [];
         } else {
-          // Capture baseline latency before enable
+          // Baseline = median of recent chart window (not one point)
           captureBeforeLatency();
           const r = await send('apply', { profile: selectedProfile });
           if (r && r.state) await applyState(r.state);
@@ -2612,8 +2725,8 @@
           if (r && r.changeSummary) renderChangeSummary(r.changeSummary);
           else if (r && r.state && r.state.changeSummary) renderChangeSummary(r.state.changeSummary);
           if (r && r.success) {
-            // Sample after a short settle so chart has post-apply samples
-            setTimeout(() => captureAfterLatency(), 1200);
+            // After settle, collect a fresh sample window for true post-Enable median
+            startAfterLatencyCapture();
             pendingAutostartAfterRestart = !!r.offerAutostart;
             if (r.offerRestart) showRestartModal();
             else if (r.offerAutostart) showAutostartModal();
