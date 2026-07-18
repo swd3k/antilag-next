@@ -44,6 +44,32 @@ plugins/*.dll            Optional external IAntiLagPlugin assemblies
 - `IProfileService` (orchestrates apply/revert)
 - `IMonitoringService` (HiPri probe, fixed buffers)
 - `IPluginHost` / `IPluginCatalog` (load built-in + external)
+- `IDesiredStateStore` / `IDriftService` / `IAuditService` (catalog latency tweaks)
+
+## TweakCatalog, Drift, Audit
+
+Latency registry tweaks live in a static **TweakCatalog** (`AntiLagNext.Infrastructure.Tweaks`):
+
+| Piece | Role |
+|-------|------|
+| `TweakCatalog` | Declarative `TweakDefinition` list (id, hive/path, desired value, risk, profile tags). `ForProfile(kind)` returns Safe+Moderate entries for Gaming / Max / Office subset. |
+| `RegistryTweakEngine` | Applies catalog rows under an open backup session; path allowlist; upserts **desired state**. |
+| `IDesiredStateStore` | Persisted expected registry values after apply (JSON under app data). |
+| `IDriftService` | `Scan()` compares desired/catalog vs live registry → `DriftEntry` (`Ok` / `Drifted` / `Missing`). `ReapplyDriftedAsync(sessionId)` rewrites drifted/missing catalog values. |
+| `IAuditService` | Read-only `Scan()` of known latency keys + active-state note → `AuditFinding` (severity, optional `SuggestedTweakId`, `CanFix`). No built-in Fix API — UI/host applies via `RegistryTweakEngine` + `ISafetyService`. |
+
+Profile apply path: after power/timer/game-mode, `ProfileService` calls `TweakCatalog.ForProfile` → `RegistryTweakEngine.ApplyAsync` on the same safety session.
+
+### Photino UI IPC (System health page)
+
+| cmd | Path | Payload |
+|-----|------|---------|
+| `getDrift` | fast | `{ ok, entries[], driftedCount, total }` |
+| `getAudit` | fast | `{ findings[], count }` |
+| `reapplyDrift` | heavy (worker) | backup session → `Drift.ReapplyDriftedAsync` → `{ success, message, state }` |
+| `fixAudit` | heavy (worker) | `safeOnly` → CanFix findings → catalog apply → `{ success, fixedCount, state }` |
+
+`BuildUiState` also exposes compact badges: `drift: { driftedCount, total }`, `audit: { issueCount }` (excludes active-state heartbeat).
 
 ## Plugin model
 
@@ -83,12 +109,20 @@ Monitoring loop:
 
 Forbidden in probe path: `Process.GetProcesses`, LINQ materialization, logging every sample, UI `Invoke` (use `BeginInvoke`).
 
+### Peak (1 min) metric
+
+- **Not** a growing all-time max.
+- Photino host (`Program.OnSample`): 60 per-second buckets → max of buckets still inside the window.
+- Samples sanitized (NaN/Inf rejected; values &gt; 10 ms clamped as probe glitches).
+- UI displays host `p` / `peakUs` as-is (no client-side forever `Math.max`).
+
 ## UI
 
-- Design tokens (zinc/cyan), DPI-aware WPF
-- **i18n**: JSON language packs `i18n/{culture}.json` + `ILocalizationService`
+- Design tokens (zinc/cyan), Photino WebView2 (shipping) + legacy WPF reference
+- **i18n**: JSON language packs `wwwroot/i18n/{culture}.json` (Photino) / `i18n/` (WPF)
 - Themes: Dark / Light / System
 - **Plugins page**: list + enable toggles + plugin-contributed setting rows
+- **System health page**: audit findings + drift table; Refresh / Fix safe / Fix all / Reapply drifted
 - Tooltips: latency impact (High / Medium / Low / Experimental)
 
 ## Roadmap
@@ -98,7 +132,8 @@ Forbidden in probe path: `Process.GetProcesses`, LINQ materialization, logging e
 | **P0** (this) | Contracts, host, built-in ext plugins, i18n RU/EN, Plugins UI, hot-path buffers, docs |
 | **P1** | ProfileService fully plugin-driven apply pipeline; settings schema per plugin |
 | **P2** | Collectible ALC unload; signed plugins; sample external plugin project |
-| **P3** | Optional: ETW DPC/ISR viewer; waitable swapchain helper app (not inject) |
+| **P3** (partial) | Winrift catalog expand (network Nagle, input); NVIDIA per-CPU DPC; Max preemption off; peak metric fix |
+| **Later** | Optional: ETW DPC/ISR viewer; waitable swapchain helper app (not inject) |
 | **Never** | Game memory write, anti-cheat bypass, hidden network MITM |
 
 ## Safety

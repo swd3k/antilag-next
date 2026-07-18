@@ -8,12 +8,13 @@ using AntiLagNext.Infrastructure.Plugins;
 using AntiLagNext.Infrastructure.Safety;
 using AntiLagNext.Infrastructure.Services;
 using AntiLagNext.Infrastructure.Storage;
+using AntiLagNext.Infrastructure.Tweaks;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace AntiLagNext.Infrastructure;
 
 /// <summary>
-/// Регистрация Infrastructure: core managers + plugin catalog + i18n.
+/// Регистрация Infrastructure: core managers + plugin catalog + i18n + latency tweaks.
 /// </summary>
 public static class DependencyInjection
 {
@@ -52,6 +53,12 @@ public static class DependencyInjection
         services.AddSingleton<SystemMutationGate>();
         services.AddSingleton<IBackupService, BackupService>();
         services.AddSingleton<ISafetyService, SafetyService>();
+
+        // Latency tweak catalog engine + desired-state / drift / audit
+        services.AddSingleton<IDesiredStateStore, DesiredStateStore>();
+        services.AddSingleton<RegistryTweakEngine>();
+        services.AddSingleton<IDriftService, DriftService>();
+        services.AddSingleton<IAuditService, AuditService>();
 
         // Plugins (before ProfileService — injects IPluginCatalog)
         services.AddSingleton<IPluginCatalog, PluginCatalog>();

@@ -26,6 +26,9 @@ public static class AppPaths
     /// <summary>Файл состояния «оптимизации активны».</summary>
     public static string ActiveStateFile { get; } = Path.Combine(AppDataRoot, "active-state.json");
 
+    /// <summary>Desired registry tweak state for drift detection.</summary>
+    public static string DesiredStateFile { get; } = Path.Combine(AppDataRoot, "desired_state.json");
+
     /// <summary>
     /// Флаг незавершённого apply: если файл есть после краша — следующий старт откатывает.
     /// </summary>

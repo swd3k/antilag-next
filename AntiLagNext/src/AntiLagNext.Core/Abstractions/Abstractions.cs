@@ -250,6 +250,18 @@ public interface IGpuManager
     /// </summary>
     OperationResult SetMaxPreRenderedFrames(int frames);
 
+    /// <summary>
+    /// NVIDIA: RmGpsPsEnablePerCpuCoreDpc on known driver paths (Winrift / AlchemyTweaks style).
+    /// No-op on non-NVIDIA. Best-effort multi-key write.
+    /// </summary>
+    OperationResult SetNvidiaPerCpuCoreDpc(bool enabled);
+
+    /// <summary>
+    /// GPU scheduler preemption. enabled=false → lower micro-stutter risk on some systems (aggressive).
+    /// Requires reboot; default profiles leave this alone unless called explicitly.
+    /// </summary>
+    OperationResult SetGpuPreemption(bool enabled);
+
     /// <summary>Прочитать текущее состояние (для UI).</summary>
     OperationResult<string> GetStatusSummary();
 }
@@ -264,4 +276,34 @@ public interface ISettingsService
     OperationResult Save();
 }
 
-// Нужен using для AppSettings — добавим в начале файла namespace Settings
+/// <summary>
+/// Persisted desired registry state for catalog latency tweaks (drift detection).
+/// </summary>
+public interface IDesiredStateStore
+{
+    DesiredStateDocument Load();
+    void Save(DesiredStateDocument document);
+    void Upsert(DesiredStateEntry entry);
+    void Clear();
+    IReadOnlyList<DesiredStateEntry> GetEntries();
+}
+
+/// <summary>
+/// Compares desired catalog state vs live registry; can re-apply drifted values.
+/// </summary>
+public interface IDriftService
+{
+    /// <summary>Scan catalog desired state against live registry.</summary>
+    IReadOnlyList<DriftEntry> Scan();
+
+    /// <summary>Re-apply all drifted/missing catalog tweaks under an open backup session.</summary>
+    Task<OperationResult> ReapplyDriftedAsync(Guid sessionId, CancellationToken cancellationToken = default);
+}
+
+/// <summary>
+/// Read-only audit of known latency-related registry settings and active state.
+/// </summary>
+public interface IAuditService
+{
+    IReadOnlyList<AuditFinding> Scan();
+}

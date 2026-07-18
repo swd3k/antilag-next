@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.0.3-win-x64.exe">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.0.3-win-x64.exe"><code>AntiLagNext-Setup-1.0.3-win-x64.exe</code></a>
+  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.1.0-win-x64.exe"><code>AntiLagNext-Setup-1.1.0-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -81,13 +81,13 @@ Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks 
 
 ## ⚙️ What the app does
 
-On **Enable AntiLag Next**, the app applies the selected profile (Gaming / Office / Max Performance) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, and optional plugin modules (network hygiene, process priority, safe services, etc.).
+On **Enable AntiLag Next**, the app applies the selected profile (Gaming / Office / Max Performance) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, a curated latency registry pack, and optional plugin modules (network hygiene, process priority, safe services, etc.).
 
-Changes are backed by a **JSON backup** (and optional System Restore point when available). **Reset all** / CLI `--revert` restores the previous state as far as the backup allows.
+Use the **Health** page to audit key latency settings, detect drift after Windows updates, and re-apply or fix with backup. Changes are stored as **JSON backup** (and optional System Restore when available). **Reset all** / CLI `--revert` restores the previous state as far as the backup allows.
 
 **Before → After** (banner): red / high latency chart when idle → green / optimized after enable.
 
-The monitor probes scheduling latency on a short interval and shows a live bar chart so you can compare *before vs after* — not absolute input lag in games.
+The monitor probes scheduling latency on a short interval and shows a live chart so you can compare *before vs after* — not absolute input lag in games.
 
 ---
 
@@ -140,13 +140,17 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 - 🚀 One-click profiles: Gaming / Office / Max Performance  
 - ⏱️ Timer resolution + power plan / core parking  
-- 🎮 Game Mode / HAGS / GPU low-latency registry paths  
+- 🎮 Game Mode / HAGS / GPU low-latency registry (NVIDIA per-CPU DPC on Gaming/Max)  
+- 📋 **Health** page: latency **audit**, desired-state **drift**, Fix safe / Fix all / Reapply (Admin)  
+- 🔧 Extra latency registry pack with profiles (network, input queues, kernel/power tweaks)  
+- 📊 Live latency chart: area-line, **fixed Y-scale** rungs, Peak = max of last **60 s** (proxy µs, not ping)  
 - ♻️ JSON backup + **Reset all** / CLI `--revert`  
 - 🖥️ Tray icon; optional Windows logon autostart (confirm required)  
-- 📊 Live latency chart (proxy, honest labels)  
 - 🧩 Built-in plugins; experimental items marked **stub / soon**  
 - 💻 CLI: `--apply`, `--revert`, `--status`  
-- 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)
+- 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)  
+
+Details for **1.1.0**: [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -261,6 +265,10 @@ The author (**swd3k**) is not liable for instability, data loss, or hardware str
 `C#` · `.NET 8` · `Photino.NET` · `WebView2` · `Win32` (`ntdll` / `powrprof` / `kernel32`) · `Windows Forms` (tray)
 
 ---
+
+## 🙏 Credits
+
+- Latency registry tweak ideas inspired by [emylfy/Winrift](https://github.com/emylfy/Winrift) (MIT). AntiLag Next reimplements a curated Safe/Moderate subset with backup, allowlist, and desired-state drift tracking — not a fork.
 
 ## 📄 License
 

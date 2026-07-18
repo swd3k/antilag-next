@@ -15,6 +15,12 @@ public class RegistryPathPolicyTests
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters", "TcpTimedWaitDelay", true)]
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\SysMain", "Start", true)]
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\DiagTrack", "Start", true)]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Control\Session Manager\kernel", "InterruptSteeringDisabled", true)]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Control\PriorityControl", "Win32PrioritySeparation", true)]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Control\Power", "PowerThrottlingOff", true)]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\mouclass\Parameters", "MouseDataQueueSize", true)]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\kbdclass\Parameters", "KeyboardDataQueueSize", true)]
+    [InlineData("HKLM", @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile", "NetworkThrottlingIndex", true)]
     public void Allows_known_safe_paths(string hive, string path, string value, bool ok)
     {
         RegistryPathPolicy.IsSafeRegistryPath(hive, path, value).Should().Be(ok);
@@ -23,6 +29,8 @@ public class RegistryPathPolicyTests
     [Theory]
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\WinDefend", "Start")] // not in service allowlist
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\SysMain\Parameters", "x")] // nested blocked
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\Evil", "Start")]
+    [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Services\Evil\Parameters", "x")]
     [InlineData("HKLM", @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}", "x")]
     [InlineData("HKLM", @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon", "Shell")]
     [InlineData("HKLM", @"SOFTWARE\AMD\Something", "x")] // broad AMD root removed

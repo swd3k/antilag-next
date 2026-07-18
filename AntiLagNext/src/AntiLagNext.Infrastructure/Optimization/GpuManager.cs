@@ -99,6 +99,63 @@ public sealed class GpuManager : IGpuManager
         return OperationResult<string>.Ok($"GPU: {vendor}. Low Latency: registry/native best-effort.");
     }
 
+    /// <inheritdoc />
+    public OperationResult SetNvidiaPerCpuCoreDpc(bool enabled)
+    {
+        if (!string.Equals(DetectVendor(), "NVIDIA", StringComparison.OrdinalIgnoreCase))
+            return OperationResult.Ok("NVIDIA per-CPU DPC: skipped (not NVIDIA).");
+
+        // Curated multi-path set from verified gaming tweak guides (Winrift / AlchemyTweaks).
+        string[] paths =
+        {
+            @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
+            @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Power",
+            @"SYSTEM\CurrentControlSet\Services\nvlddmkm",
+            @"SYSTEM\CurrentControlSet\Services\nvlddmkm\NVAPI",
+            @"SYSTEM\CurrentControlSet\Services\nvlddmkm\Global\NVTweak",
+        };
+
+        int ok = 0;
+        var errors = new List<string>();
+        foreach (var path in paths)
+        {
+            try
+            {
+                SnapshotAndSetDword(Registry.LocalMachine, path, "RmGpsPsEnablePerCpuCoreDpc", enabled ? 1 : 0);
+                ok++;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"{path}: {ex.Message}");
+            }
+        }
+
+        if (ok == 0)
+            return OperationResult.Fail("NVIDIA per-CPU DPC: no keys written.", detail: string.Join("; ", errors));
+
+        return OperationResult.Ok(enabled
+            ? $"NVIDIA per-CPU DPC enabled ({ok}/{paths.Length} paths)."
+            : $"NVIDIA per-CPU DPC cleared ({ok}/{paths.Length} paths).");
+    }
+
+    /// <inheritdoc />
+    public OperationResult SetGpuPreemption(bool enabled)
+    {
+        // EnablePreemption under GraphicsDrivers\Scheduler (0 = disable preemption)
+        const string path = @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers\Scheduler";
+        try
+        {
+            SnapshotAndSetDword(Registry.LocalMachine, path, "EnablePreemption", enabled ? 1 : 0);
+            return OperationResult.Ok(enabled
+                ? "GPU preemption enabled (default scheduler behaviour)."
+                : "GPU preemption disabled (aggressive; reboot may be required).");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.Fail("GPU preemption write failed.", detail: ex.Message, ex: ex);
+        }
+    }
+
     private OperationResult SetNvidiaLowLatency(bool enabled)
     {
         // Документированные Control Panel-ключи меняются; пишем известные legacy-ключи.

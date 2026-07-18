@@ -1,14 +1,16 @@
 using AntiLagNext.Core.Abstractions;
+using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
 using AntiLagNext.Core.Plugins;
 using AntiLagNext.Infrastructure.Safety;
 using AntiLagNext.Infrastructure.Services;
 using AntiLagNext.Infrastructure.Storage;
+using AntiLagNext.Infrastructure.Tweaks;
 
 namespace AntiLagNext.Infrastructure.Optimization;
 
 /// <summary>
-/// Применение / откат профиля: ядро (timer/power/gpu/…) + enabled extension plugins.
+/// Применение / откат профиля: ядро (timer/power/gpu/…) + catalog latency tweaks + enabled extension plugins.
 /// System mutations run under <see cref="SystemMutationGate"/>.
 /// </summary>
 public sealed class ProfileService : IProfileService
@@ -23,6 +25,7 @@ public sealed class ProfileService : IProfileService
     private readonly IBackupService _backup;
     private readonly IPluginCatalog _plugins;
     private readonly SystemMutationGate _mutationGate;
+    private readonly RegistryTweakEngine _tweakEngine;
 
     public ProfileService(
         ISafetyService safety,
@@ -34,7 +37,8 @@ public sealed class ProfileService : IProfileService
         IGpuManager gpu,
         IBackupService backup,
         IPluginCatalog plugins,
-        SystemMutationGate mutationGate)
+        SystemMutationGate mutationGate,
+        RegistryTweakEngine tweakEngine)
     {
         _safety = safety;
         _timer = timer;
@@ -46,6 +50,7 @@ public sealed class ProfileService : IProfileService
         _backup = backup;
         _plugins = plugins;
         _mutationGate = mutationGate;
+        _tweakEngine = tweakEngine;
     }
 
     public Task<OperationResult> ApplyAsync(OptimizationProfile profile, CancellationToken cancellationToken = default)
@@ -164,6 +169,22 @@ public sealed class ProfileService : IProfileService
                     var prf = _gpu.SetMaxPreRenderedFrames(profile.MaxPreRenderedFrames);
                     if (prf.Success) messages.Add(prf.Message); else errors.Add(prf.Message);
                 }
+
+                // NVIDIA multi-path DPC (Winrift-inspired) — Gaming / Max only
+                if (profile.Kind is ProfileKind.Gaming or ProfileKind.MaxPerformance)
+                {
+                    var dpc = _gpu.SetNvidiaPerCpuCoreDpc(true);
+                    if (dpc.Success) messages.Add(dpc.Message);
+                    else errors.Add(dpc.Message);
+                }
+            }
+
+            // 6b. Aggressive GPU preemption off — Max Performance only (opt-in risk)
+            if (profile.Kind == ProfileKind.MaxPerformance && profile.EnableGpuLowLatency)
+            {
+                var prep = _gpu.SetGpuPreemption(enabled: false);
+                if (prep.Success) messages.Add(prep.Message);
+                else errors.Add(prep.Message);
             }
 
             // 7. Memory cleanup (одноразовая при активации)
@@ -171,6 +192,15 @@ public sealed class ProfileService : IProfileService
             {
                 var mem = _memory.EmptyWorkingSets(profile.MemoryCleanupExclusions);
                 if (mem.Success) messages.Add(mem.Message); else errors.Add(mem.Message);
+            }
+
+            // 7b. Catalog latency tweaks (Winrift-inspired; Safe+Moderate for Gaming/Max/Office subset)
+            var catalogTweaks = TweakCatalog.ForProfile(profile.Kind);
+            if (catalogTweaks.Count > 0)
+            {
+                var tweaks = await _tweakEngine.ApplyAsync(catalogTweaks, sessionId, cancellationToken);
+                if (tweaks.Success) messages.Add(tweaks.Message);
+                else errors.Add(tweaks.Message);
             }
 
             // 8. Extension plugins (network, input, …) — after core, same backup session

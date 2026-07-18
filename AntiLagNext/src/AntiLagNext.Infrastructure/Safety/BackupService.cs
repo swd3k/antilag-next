@@ -54,21 +54,54 @@ public sealed class BackupService : IBackupService
     /// </summary>
     public void SnapshotCurrentRegistryValue(Guid sessionId, RegistryKey root, string keyPath, string valueName)
     {
-        using var key = root.OpenSubKey(keyPath, writable: false);
-        var value = key?.GetValue(valueName);
-        var kind = key?.GetValueKind(valueName) ?? RegistryValueKind.Unknown;
+        object? value = null;
+        var kind = RegistryValueKind.Unknown;
+        bool missing = true;
+
+        try
+        {
+            using var key = root.OpenSubKey(keyPath, writable: false);
+            if (key != null)
+            {
+                // GetValueKind throws if the name does not exist — never call it blindly.
+                value = key.GetValue(valueName, null);
+                if (value != null)
+                {
+                    missing = false;
+                    try { kind = key.GetValueKind(valueName); }
+                    catch { kind = InferKind(value); }
+                }
+            }
+        }
+        catch
+        {
+            // Treat as missing — apply path will create the key/value.
+            value = null;
+            missing = true;
+            kind = RegistryValueKind.Unknown;
+        }
 
         var entry = new RegistryBackupEntry
         {
             Hive = HiveToString(root),
             KeyPath = keyPath,
             ValueName = valueName,
-            ValueKind = (int)(value == null ? RegistryValueKind.Unknown : kind),
+            ValueKind = (int)(missing ? RegistryValueKind.Unknown : kind),
             SerializedValue = SerializeRegistryValue(value, kind),
-            WasMissing = value == null
+            WasMissing = missing
         };
         SnapshotRegistryValue(sessionId, entry);
     }
+
+    private static RegistryValueKind InferKind(object value) => value switch
+    {
+        int => RegistryValueKind.DWord,
+        long => RegistryValueKind.QWord,
+        string => RegistryValueKind.String,
+        string[] => RegistryValueKind.MultiString,
+        byte[] => RegistryValueKind.Binary,
+        _ => RegistryValueKind.Unknown
+    };
 
     private static string HiveToString(RegistryKey root) => root.Name switch
     {

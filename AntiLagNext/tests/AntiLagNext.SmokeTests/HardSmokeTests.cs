@@ -220,21 +220,22 @@ public class HardSmokeTests : IDisposable
         var gameMode = new GameModeManager(backup);
         var memory = new MemoryManager();
         var gpu = new GpuManager(backup);
-        var profiles = new ProfileService(safety, timer, power, parking, gameMode, memory, gpu, backup, plugins, gate);
+        var desired = new AntiLagNext.Infrastructure.Storage.DesiredStateStore();
+        var tweakEngine = new AntiLagNext.Infrastructure.Tweaks.RegistryTweakEngine(backup, desired);
+        var profiles = new ProfileService(safety, timer, power, parking, gameMode, memory, gpu, backup, plugins, gate, tweakEngine);
 
-        // Office profile is mild
-        var office = OptimizationProfile.CreatePreset(Core.Enums.ProfileKind.Office);
-        // Only timer for safer smoke without requiring admin for HKLM
-        office.EnablePowerScheme = false;
-        office.EnableCoreParkingControl = false;
-        office.EnableGameModeTweak = false;
-        office.EnableHags = false;
-        office.EnableGpuLowLatency = false;
-        office.EnableMemoryCleanup = false;
-        office.EnableTimer = true;
-        office.TimerTargetMs = 1.0;
+        // Default kind → empty catalog ForProfile; only timer (no HKLM tweaks without admin)
+        var soft = OptimizationProfile.CreatePreset(Core.Enums.ProfileKind.Default);
+        soft.EnablePowerScheme = false;
+        soft.EnableCoreParkingControl = false;
+        soft.EnableGameModeTweak = false;
+        soft.EnableHags = false;
+        soft.EnableGpuLowLatency = false;
+        soft.EnableMemoryCleanup = false;
+        soft.EnableTimer = true;
+        soft.TimerTargetMs = 1.0;
 
-        var apply = await profiles.ApplyAsync(office);
+        var apply = await profiles.ApplyAsync(soft);
         // May partially fail without admin — must not throw
         apply.Should().NotBeNull();
         apply.Message.Should().NotBeNullOrWhiteSpace();

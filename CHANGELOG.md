@@ -7,6 +7,43 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+---
+
+## [1.1.0] — 2026-07-17
+
+### Added
+- **System health** Photino page (Audit + Drift): scan latency registry settings and desired-state drift.
+- IPC commands: `getDrift`, `getAudit`, `reapplyDrift`, `fixAudit` (safe-only or all CanFix findings).
+- Compact `drift` / `audit` summaries on `getState` for nav badges.
+- i18n keys (`nav.health`, `health.*`, audit titles) for EN and RU.
+- **TweakCatalog** (Winrift-inspired latency registry pack) applied with Gaming / Max / Office profiles.
+- **Phase 3 tweaks:** TCP Nagle hygiene (`TcpAckFrequency`, `TCPNoDelay`), input sticky/toggle keys, mouse accel off.
+- **NVIDIA** multi-path `RmGpsPsEnablePerCpuCoreDpc` on Gaming/Max when GPU low-latency is on.
+- **Max Performance:** optional GPU preemption off (aggressive; reboot may be required).
+- Chart **fixed Y-scale** rungs (200 / 500 / 1000 / 2000 / 5000 µs); click scale to lock.
+- Area-line chart rendering (smoothed display only).
+- QA smoke checklist: `docs/QA_SMOKE.md`
+- i18n parity script: `scripts/check-i18n.ps1`
+- Unit tests: registry snapshot on missing values; Infrastructure.Tests project.
+
+### Fixed
+- **Peak (1 min)** no longer climbs forever to absurd values (rolling 60 s buckets; UI no forever `Math.max`).
+- Registry snapshot no longer throws on **missing** values (`GetValueKind`) — Health Fix / catalog apply.
+- Partial catalog apply reports success with skip details; UI shows last Health result panel.
+- Chart Y-axis no longer continuously re-zooms (discrete rungs + hysteresis).
+
+### Changed
+- Product version **1.1.0** (`Directory.Build.props`, installer, UI label).
+- `ext.registry.tweaks`: NetworkThrottling default **off** (owned by catalog) to avoid dual-writes.
+- Setup package name: `AntiLagNext-Setup-1.1.0-win-x64.exe` (and other arch).
+
+### Docs
+- Architecture notes for TweakCatalog, DesiredState, Drift, Audit, health IPC, peak metric, chart scale.
+
+---
+
 ## [1.0.3] — 2026-07-15
 
 ### Fixed
@@ -116,6 +153,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |
 | **1.0.3** | 2026-07-15 | Version branding, logo/UI polish, Setup name with version |
 | **1.0.2** | 2026-07-10 | Profile i18n, auto-apply after Disable, settings migration |
 | **1.0.1** | 2026-07-10 | Inno Setup installers + CI packaging |

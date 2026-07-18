@@ -307,11 +307,18 @@
     .metric-val { font-family: Consolas, monospace; font-size: 28px; font-weight: 600; margin-top: 10px; }
     .chart-row { display: flex; margin-top: 10px; height: 190px; align-items: stretch; }
     .chart-scale {
-      width: 48px; flex-shrink: 0; position: relative;
+      width: 52px; flex-shrink: 0; position: relative;
       font-family: Consolas, monospace; font-size: 10px; color: var(--muted);
       padding: 4px 6px 12px 0;
+      cursor: pointer;
+      user-select: none;
     }
+    .chart-scale:hover { color: var(--text); }
     .chart-scale .tick { position: absolute; right: 6px; transform: translateY(50%); white-space: nowrap; }
+    .chart-scale-mode {
+      font-size: 9px; color: var(--dim); text-align: right; margin-top: 4px;
+      font-family: Consolas, monospace; letter-spacing: .02em;
+    }
     .chart-wrap { flex: 1; min-width: 0; height: 100%; border-left: 1px solid var(--border); }
     .chart-wrap canvas { width: 100% !important; height: 100% !important; display: block; }
     .legend {
@@ -398,6 +405,86 @@
     }
     .log-toolbar .hdr-ctrl {
       width: auto; min-width: 0; max-width: none; padding: 0 12px; height: 32px; font-size: 12px;
+    }
+    /* System health (audit + drift) */
+    .health-toolbar {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; align-items: center;
+    }
+    .health-toolbar .hdr-ctrl {
+      width: auto; min-width: 0; max-width: none; padding: 0 12px; height: 32px; font-size: 12px;
+    }
+    .health-toolbar .hdr-ctrl.primary {
+      background: color-mix(in srgb, var(--cyan) 16%, transparent);
+      border-color: color-mix(in srgb, var(--cyan) 40%, var(--border));
+      color: var(--cyan);
+    }
+    .health-toolbar .hdr-ctrl.primary:hover {
+      background: color-mix(in srgb, var(--cyan) 24%, transparent);
+      color: var(--cyan);
+    }
+    .health-toolbar .hdr-ctrl:disabled { opacity: .5; cursor: wait; }
+    .health-summary {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;
+    }
+    .health-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 10px; font-size: 12px; font-weight: 600;
+      border: 1px solid var(--border); background: var(--panel);
+    }
+    .health-badge.ok {
+      border-color: color-mix(in srgb, var(--green) 40%, var(--border));
+      color: var(--green);
+      background: color-mix(in srgb, var(--green) 10%, var(--panel));
+    }
+    .health-badge.warn {
+      border-color: color-mix(in srgb, var(--amber) 40%, var(--border));
+      color: var(--amber);
+      background: color-mix(in srgb, var(--amber) 10%, var(--panel));
+    }
+    .health-badge.bad {
+      border-color: color-mix(in srgb, var(--red) 40%, var(--border));
+      color: var(--red);
+      background: color-mix(in srgb, var(--red) 10%, var(--panel));
+    }
+    .health-section-title {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      margin: 0 0 10px; font-size: 13px; font-weight: 650; letter-spacing: .02em;
+      color: var(--text);
+    }
+    .health-section-title .metric-label { margin: 0; }
+    .health-table {
+      width: 100%; border-collapse: collapse; font-size: 12px;
+    }
+    .health-table th {
+      text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .07em;
+      color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--border);
+    }
+    .health-table td {
+      padding: 10px; border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      vertical-align: top; color: var(--dim); word-break: break-word;
+    }
+    .health-table tr:last-child td { border-bottom: 0; }
+    .health-table .col-id { color: var(--text); font-weight: 600; font-family: Consolas, monospace; font-size: 11px; }
+    .health-table .col-path { font-family: Consolas, monospace; font-size: 11px; color: var(--muted); }
+    .sev-pill, .drift-pill {
+      display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700;
+      letter-spacing: .04em; text-transform: uppercase; white-space: nowrap;
+    }
+    .sev-info { background: color-mix(in srgb, var(--cyan) 16%, transparent); color: var(--cyan); }
+    .sev-warn { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+    .sev-critical { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
+    .drift-ok { background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+    .drift-drifted { background: color-mix(in srgb, var(--amber) 18%, transparent); color: var(--amber); }
+    .drift-missing { background: color-mix(in srgb, var(--red) 18%, transparent); color: var(--red); }
+    .nav-badge {
+      margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px;
+      border-radius: 999px; font-size: 10px; font-weight: 700;
+      display: none; align-items: center; justify-content: center;
+      background: color-mix(in srgb, var(--amber) 22%, transparent); color: var(--amber);
+    }
+    .nav-badge.on { display: inline-flex; }
+    .nav-badge.bad {
+      background: color-mix(in srgb, var(--red) 22%, transparent); color: var(--red);
     }
     .onboard-list { margin: 0 0 12px; padding-left: 1.2rem; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .onboard-list li { margin-bottom: 8px; }
@@ -683,12 +770,13 @@
     <symbol id="i-github" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.39.6.11.82-.26.82-.58v-2.23c-3.34.73-4.04-1.42-4.04-1.42-.55-1.39-1.33-1.76-1.33-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.83 2.8 1.3 3.49 1 .11-.78.42-1.3.76-1.6-2.66-.3-5.46-1.33-5.46-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.29-1.55 3.3-1.23 3.3-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.8 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.82.58A12.01 12.01 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="6.34" y2="6.34"/><line x1="17.66" y1="17.66" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="6.34" y2="17.66"/><line x1="17.66" y1="6.34" x2="19.07" y2="4.93"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></symbol>
   </svg>
 
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.0.3</span>
+      <span class="ver" id="appVersion">1.1.0</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -709,6 +797,11 @@
           </button>
           <button data-tab="power" onclick="switchTab('power')">
             <svg class="ico"><use href="#i-zap"/></svg><span data-i18n="nav.power">Питание</span>
+          </button>
+          <button data-tab="health" onclick="switchTab('health'); refreshHealth();">
+            <svg class="ico"><use href="#i-shield"/></svg>
+            <span data-i18n="nav.health">Здоровье</span>
+            <span id="navHealthBadge" class="nav-badge" aria-hidden="true">0</span>
           </button>
           <button data-tab="logs" onclick="switchTab('logs')">
             <svg class="ico"><use href="#i-file"/></svg><span data-i18n="nav.logs">Журнал</span>
@@ -763,17 +856,18 @@
                     </div>
                     <div style="text-align:right;color:var(--muted);font-size:11px;">
                       <span data-i18n="chart.peak">Пик (1м)</span>
-                      <span id="peakCapHint" class="peak-cap-hint" hidden> · ≤5 ms</span><br/>
+                      <span id="peakCapHint" class="peak-cap-hint" hidden> · clamped</span><br/>
                       <span id="latencyPeak" style="color:var(--chart-red);font-family:Consolas;font-size:20px;font-weight:600">—</span>
                     </div>
                   </div>
                   <div class="chart-row">
-                    <div class="chart-scale" id="chartScale"></div>
+                    <div class="chart-scale" id="chartScale" title="Click to lock Y scale" onclick="cycleChartScale()"></div>
                     <div class="chart-wrap"><canvas id="chart" width="800" height="190"></canvas></div>
                   </div>
                   <div class="legend">
-                    <span data-i18n="chart.now">Сейчас</span>
+                    <span class="chart-scale-mode" id="chartScaleMode" data-tip="chart.scale.tip" onclick="cycleChartScale()" style="cursor:pointer" title="Click to lock scale">Y: 500µs</span>
                     <div class="dots">
+                      <span data-i18n="chart.now">Сейчас</span>
                       <span style="color:var(--chart-green)">●</span> &lt;100µs
                       <span style="color:var(--chart-yellow)">●</span> 100–500µs
                       <span style="color:var(--chart-red)">●</span> &gt;500µs
@@ -843,6 +937,53 @@
                 <p data-i18n="power.gaming.desc" data-tip="tip.hags"></p>
                 <span class="tag rec" data-i18n="tag.gaming">Gaming</span>
               </div>
+            </div>
+          </div>
+
+          <div id="health" class="section">
+            <h2 data-i18n="health.title">Системное здоровье</h2>
+            <div class="sub" data-i18n="health.sub">Аудит latency-настроек и дрейф desired-state относительно реестра</div>
+            <div class="note" style="margin:8px 0 12px" data-i18n="health.hint">
+              Safe = низкий риск. Fix all = Safe + Moderate. Нужны права администратора.
+            </div>
+            <div class="health-toolbar">
+              <button type="button" class="hdr-ctrl" id="healthRefreshBtn" onclick="refreshHealth()"
+                      data-tip="health.tip.refresh">
+                <span data-i18n="health.refresh">Обновить</span>
+              </button>
+              <button type="button" class="hdr-ctrl primary" id="healthFixSafeBtn" onclick="fixAudit(true)"
+                      data-tip="health.tip.fixSafe">
+                <span data-i18n="health.fixSafe">Исправить Safe</span>
+              </button>
+              <button type="button" class="hdr-ctrl primary" id="healthFixAllBtn" onclick="fixAudit(false)"
+                      data-tip="health.tip.fixAll">
+                <span data-i18n="health.fix">Исправить всё</span>
+              </button>
+              <button type="button" class="hdr-ctrl primary" id="healthReapplyBtn" onclick="reapplyDrift()"
+                      data-tip="health.tip.reapply">
+                <span data-i18n="health.reapply">Повторить drifted</span>
+              </button>
+            </div>
+            <div class="health-summary" id="healthSummary" aria-live="polite"></div>
+            <div class="card" id="healthLastResultCard" style="display:none;margin-bottom:12px">
+              <div class="metric-label" style="color:var(--cyan);margin-bottom:6px" data-i18n="health.lastResult">Последний результат</div>
+              <div class="note" id="healthLastResult" style="white-space:pre-wrap;word-break:break-word"></div>
+            </div>
+
+            <div class="card">
+              <div class="health-section-title">
+                <span class="metric-label" style="color:var(--cyan)" data-i18n="health.audit">Аудит</span>
+                <span class="note" id="auditCountLabel"></span>
+              </div>
+              <div id="auditList" class="selectable" aria-live="polite"></div>
+            </div>
+
+            <div class="card">
+              <div class="health-section-title">
+                <span class="metric-label" style="color:var(--cyan)" data-i18n="health.drift">Дрейф</span>
+                <span class="note" id="driftCountLabel"></span>
+              </div>
+              <div id="driftList" class="selectable" aria-live="polite"></div>
             </div>
           </div>
 
@@ -985,7 +1126,17 @@
     let latencyHistory = [];
     let peak1m = 0;
     let chartEnabled = true;
-    let chartMaxUs = 200;
+    /**
+     * Fixed Y-scale (µs). No smooth auto-zoom — only discrete rungs so the left axis
+     * does not jump frame-to-frame when latency blips.
+     * Rungs: 200 / 500 / 1000 / 2000 / 5000. Default 500.
+     * chartScaleLock: null = auto (step up fast, step down slowly); number = forced rung.
+     */
+    const CHART_SCALE_RUNGS = [200, 500, 1000, 2000, 5000];
+    let chartScaleUs = 500;
+    let chartScaleLock = null; // null | rung value
+    let chartScaleLastLabel = -1;
+    let chartScaleLowSince = 0; // performance.now when data stayed low enough to downscale
     let pollInFlight = false;
     let lastSampleTs = 0;
     let metricsTimer = 0;
@@ -1150,7 +1301,8 @@
     function sendTimeoutMs(cmd) {
       // getMetrics is 15ms cadence — short fail avoids timer pile-up under host stall
       if (cmd === 'getMetrics') return 2500;
-      if (cmd === 'apply' || cmd === 'revert') return 120000;
+      if (cmd === 'apply' || cmd === 'revert' || cmd === 'reapplyDrift' || cmd === 'fixAudit')
+        return 120000;
       return 30000;
     }
 
@@ -1253,7 +1405,13 @@
       document.getElementById('metricNote').textContent = t(chartEnabled ? 'chart.noteOn' : 'chart.noteOff');
       if (!chartEnabled) {
         stopMetricsLoop();
-        latencyHistory = []; peak1m = 0; chartMaxUs = 200;
+        latencyHistory = []; peak1m = 0;
+        // Keep locked scale; reset auto scale to default 500
+        if (chartScaleLock == null) {
+          chartScaleUs = 500;
+          chartScaleLowSince = 0;
+          chartScaleLastLabel = -1;
+        }
         setLatencyDisplay(null);
         document.getElementById('latencyPeak').textContent = '—';
         updateChartPanels();
@@ -1486,10 +1644,11 @@
       }
       const peak = m.p != null ? m.p : m.peakUs ?? m.m ?? m.maxUs;
       if (peak != null) {
-        // Host already soft-caps; UI also clamps display noise (P2)
+        // Host is source of truth (rolling 60s). Never Math.max-accumulate — that caused
+        // "Peak (1 min)" to climb forever to absurd values.
         const PEAK_CAP = 5000;
         const raw = Number(peak);
-        peak1m = Math.max(peak1m, Math.min(raw, PEAK_CAP));
+        peak1m = Number.isFinite(raw) ? Math.min(Math.max(0, raw), PEAK_CAP) : 0;
         document.getElementById('latencyPeak').textContent = Math.round(peak1m);
         const hint = document.getElementById('peakCapHint');
         if (hint) hint.hidden = !(m.peakClamped || raw >= PEAK_CAP);
@@ -1558,7 +1717,8 @@
 
       if (s.latencyUs != null) setLatencyDisplay(s.latencyUs);
       if (s.peakUs != null) {
-        peak1m = Math.max(peak1m, Number(s.peakUs));
+        const raw = Number(s.peakUs);
+        peak1m = Number.isFinite(raw) ? Math.min(Math.max(0, raw), 5000) : 0;
         document.getElementById('latencyPeak').textContent = Math.round(peak1m);
       }
       // getState no longer carries full history (startup freeze fix) — chart fills via getMetrics
@@ -1591,6 +1751,21 @@
       updateProfileNameDisplay();
       renderPlugins(s.plugins || []);
       renderLogs(s.logs || []);
+      applyHealthSummaryFromState(s);
+      // Re-localize health tables if already loaded
+      if (lastAuditFindings.length || lastDriftEntries.length) {
+        renderAuditFindings(lastAuditFindings);
+        renderDriftEntries(lastDriftEntries);
+        const d = s.drift && s.drift.driftedCount != null ? s.drift.driftedCount
+          : lastDriftEntries.filter(e => {
+              const st = String(e.status || '').toLowerCase();
+              return st === 'drifted' || st === 'missing';
+            }).length;
+        const tot = s.drift && s.drift.total != null ? s.drift.total : lastDriftEntries.length;
+        const a = s.audit && s.audit.issueCount != null ? s.audit.issueCount
+          : lastAuditFindings.filter(f => f.id !== 'audit.active_state').length;
+        renderHealthSummary(d, tot, a);
+      }
       updateChartPanels();
       scheduleChartDraw();
       document.getElementById('engineLabel').textContent = t('engine.ready');
@@ -1705,6 +1880,267 @@
 
     function escapeHtml(s) {
       return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ── System health (audit + drift) ──────────────────────────────────
+    let healthBusy = false;
+    let lastAuditFindings = [];
+    let lastDriftEntries = [];
+
+    function setHealthBusy(on) {
+      healthBusy = !!on;
+      ['healthRefreshBtn', 'healthFixSafeBtn', 'healthFixAllBtn', 'healthReapplyBtn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.disabled = healthBusy;
+      });
+    }
+
+    function updateHealthNavBadge(driftedCount, issueCount) {
+      const badge = document.getElementById('navHealthBadge');
+      if (!badge) return;
+      const n = (Number(driftedCount) || 0) + (Number(issueCount) || 0);
+      if (n <= 0) {
+        badge.className = 'nav-badge';
+        badge.textContent = '0';
+        return;
+      }
+      badge.textContent = n > 99 ? '99+' : String(n);
+      badge.className = 'nav-badge on' + ((Number(driftedCount) || 0) > 0 ? ' bad' : '');
+    }
+
+    function applyHealthSummaryFromState(s) {
+      if (!s) return;
+      const drifted = s.drift && s.drift.driftedCount != null ? s.drift.driftedCount : 0;
+      const issues = s.audit && s.audit.issueCount != null ? s.audit.issueCount : 0;
+      updateHealthNavBadge(drifted, issues);
+    }
+
+    function renderHealthSummary(driftedCount, totalDrift, issueCount) {
+      const box = document.getElementById('healthSummary');
+      if (!box) return;
+      const d = Number(driftedCount) || 0;
+      const t = Number(totalDrift) || 0;
+      const a = Number(issueCount) || 0;
+      const driftCls = d === 0 ? 'ok' : (d > 2 ? 'bad' : 'warn');
+      const auditCls = a === 0 ? 'ok' : (a > 2 ? 'bad' : 'warn');
+      box.innerHTML =
+        `<div class="health-badge ${driftCls}">${escapeHtml(t('health.drift'))}: ${d}/${t}</div>` +
+        `<div class="health-badge ${auditCls}">${escapeHtml(t('health.audit'))}: ${a}</div>`;
+      updateHealthNavBadge(d, a);
+    }
+
+    function driftStatusLabel(status) {
+      const s = String(status || '').toLowerCase();
+      if (s === 'ok') return t('health.ok');
+      if (s === 'missing') return t('health.missing');
+      return t('health.drifted');
+    }
+
+    function driftStatusClass(status) {
+      const s = String(status || '').toLowerCase();
+      if (s === 'ok') return 'drift-ok';
+      if (s === 'missing') return 'drift-missing';
+      return 'drift-drifted';
+    }
+
+    function sevClass(sev) {
+      const s = String(sev || 'info').toLowerCase();
+      if (s === 'critical') return 'sev-critical';
+      if (s === 'warn' || s === 'warning') return 'sev-warn';
+      return 'sev-info';
+    }
+
+    function auditTitle(finding) {
+      if (!finding) return '';
+      const key = finding.titleKey;
+      if (key && i18n[key] != null) return i18n[key];
+      // Fallback: humanize id / titleKey
+      const raw = finding.id || key || '';
+      return String(raw).replace(/^audit\./, '').replace(/\./g, ' ');
+    }
+
+    function renderAuditFindings(findings) {
+      const box = document.getElementById('auditList');
+      const countEl = document.getElementById('auditCountLabel');
+      lastAuditFindings = Array.isArray(findings) ? findings : [];
+      if (countEl) countEl.textContent = lastAuditFindings.length
+        ? String(lastAuditFindings.length)
+        : '';
+      if (!box) return;
+      if (!lastAuditFindings.length) {
+        box.innerHTML = `<div class="empty-state" role="status">
+          <div class="es-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg></div>
+          <p class="es-title">${escapeHtml(t('health.empty'))}</p>
+        </div>`;
+        return;
+      }
+      let rows = lastAuditFindings.map(f => {
+        const sev = String(f.severity || 'info');
+        const fix = f.canFix
+          ? `<span class="note" style="color:var(--cyan)">${escapeHtml(f.suggestedTweakId || '')}</span>`
+          : '—';
+        return `<tr>
+          <td><span class="sev-pill ${sevClass(sev)}">${escapeHtml(sev)}</span></td>
+          <td>
+            <div class="col-id">${escapeHtml(auditTitle(f))}</div>
+            <div class="note selectable" style="margin-top:4px">${escapeHtml(f.detail || '')}</div>
+          </td>
+          <td>${fix}</td>
+        </tr>`;
+      }).join('');
+      box.innerHTML = `<table class="health-table">
+        <thead><tr>
+          <th style="width:88px"></th>
+          <th></th>
+          <th style="width:140px">tweak</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    function renderDriftEntries(entries) {
+      const box = document.getElementById('driftList');
+      const countEl = document.getElementById('driftCountLabel');
+      lastDriftEntries = Array.isArray(entries) ? entries : [];
+      const drifted = lastDriftEntries.filter(e => {
+        const s = String(e.status || '').toLowerCase();
+        return s === 'drifted' || s === 'missing';
+      }).length;
+      if (countEl) countEl.textContent = lastDriftEntries.length
+        ? `${drifted}/${lastDriftEntries.length}`
+        : '';
+      if (!box) return;
+      if (!lastDriftEntries.length) {
+        box.innerHTML = `<div class="empty-state" role="status">
+          <div class="es-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><use href="#i-shield"/></svg></div>
+          <p class="es-title">${escapeHtml(t('health.empty'))}</p>
+        </div>`;
+        return;
+      }
+      // Prefer non-ok first
+      const sorted = [...lastDriftEntries].sort((a, b) => {
+        const rank = s => {
+          const x = String(s || '').toLowerCase();
+          if (x === 'missing') return 0;
+          if (x === 'drifted') return 1;
+          return 2;
+        };
+        return rank(a.status) - rank(b.status);
+      });
+      let rows = sorted.map(e => {
+        const st = String(e.status || 'Ok');
+        return `<tr>
+          <td><span class="drift-pill ${driftStatusClass(st)}">${escapeHtml(driftStatusLabel(st))}</span></td>
+          <td>
+            <div class="col-id">${escapeHtml(e.tweakId || '')}</div>
+            <div class="col-path">${escapeHtml((e.hive || '') + '\\' + (e.path || '') + '\\' + (e.name || ''))}</div>
+          </td>
+          <td class="selectable">${escapeHtml(e.current != null ? String(e.current) : '—')}</td>
+          <td class="selectable">${escapeHtml(e.expected != null ? String(e.expected) : '—')}</td>
+        </tr>`;
+      }).join('');
+      box.innerHTML = `<table class="health-table">
+        <thead><tr>
+          <th style="width:96px"></th>
+          <th>id / path</th>
+          <th style="width:18%">current</th>
+          <th style="width:18%">expected</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    async function refreshHealth() {
+      if (healthBusy) return;
+      setHealthBusy(true);
+      try {
+        const [audit, drift] = await Promise.all([
+          send('getAudit'),
+          send('getDrift')
+        ]);
+        const findings = (audit && audit.findings) || [];
+        const entries = (drift && drift.entries) || [];
+        const driftedCount = drift && drift.driftedCount != null
+          ? drift.driftedCount
+          : entries.filter(e => {
+              const s = String(e.status || '').toLowerCase();
+              return s === 'drifted' || s === 'missing';
+            }).length;
+        // issueCount: exclude active-state heartbeat (host also does this in summary)
+        const issueCount = findings.filter(f => f.id !== 'audit.active_state').length;
+        renderAuditFindings(findings);
+        renderDriftEntries(entries);
+        renderHealthSummary(driftedCount, entries.length || (drift && drift.total) || 0, issueCount);
+        if (state) {
+          state.drift = { driftedCount, total: entries.length || (drift && drift.total) || 0 };
+          state.audit = { issueCount };
+        }
+      } catch (e) {
+        toast(t('toast.error') + ': ' + (e.message || e));
+      } finally {
+        setHealthBusy(false);
+      }
+    }
+
+    async function reapplyDrift() {
+      if (busy || healthBusy) return;
+      setBusy(true);
+      setHealthBusy(true);
+      try {
+        const r = await send('reapplyDrift');
+        if (r && r.state) await applyState(r.state);
+        if (r && r.success === false)
+          toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+        else
+          toast(t('health.reapply') + (r && r.message ? ': ' + r.message : ''));
+        await refreshHealth();
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+      } finally {
+        setBusy(false);
+        setHealthBusy(false);
+      }
+    }
+
+    function setHealthLastResult(text, isError) {
+      const card = document.getElementById('healthLastResultCard');
+      const el = document.getElementById('healthLastResult');
+      if (!card || !el) return;
+      const msg = (text || '').toString().trim();
+      if (!msg) { card.style.display = 'none'; return; }
+      card.style.display = '';
+      el.textContent = msg;
+      el.style.color = isError ? 'var(--red)' : 'var(--muted)';
+    }
+
+    async function fixAudit(safeOnly) {
+      if (busy || healthBusy) return;
+      setBusy(true);
+      setHealthBusy(true);
+      try {
+        const r = await send('fixAudit', { safeOnly: !!safeOnly });
+        if (r && r.state) await applyState(r.state);
+        if (r && r.success === false) {
+          const detail = [r.message, r.detail, r.error].filter(Boolean).join('\n');
+          toast(t('toast.error') + (r.message ? ': ' + r.message : ''));
+          setHealthLastResult(detail || t('toast.error'), true);
+          if (detail) console.warn('fixAudit failed', r);
+        } else {
+          const okMsg = (r && r.message ? r.message : t(safeOnly ? 'health.fixSafe' : 'health.fix'))
+            + (r && r.fixedCount != null ? ` (${r.fixedCount})` : '')
+            + (r && r.detail ? '\n' + r.detail : '');
+          toast(t(safeOnly ? 'health.fixSafe' : 'health.fix')
+            + (r && r.fixedCount != null ? ` (${r.fixedCount})` : ''));
+          setHealthLastResult(okMsg, false);
+        }
+        await refreshHealth();
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+        setHealthLastResult(e.message, true);
+      } finally {
+        setBusy(false);
+        setHealthBusy(false);
+      }
     }
 
     async function refresh() {
@@ -1888,13 +2324,60 @@
       } catch (e) { toast(e.message); }
     }
 
-    function niceScaleMax(raw) {
-      const steps = [100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000];
-      for (const s of steps) if (raw <= s) return s;
-      return Math.ceil(raw / 1000) * 1000;
+    /** Smallest rung that can fit `needUs` (data max with tiny headroom). */
+    function rungForNeed(needUs) {
+      const need = Math.max(1, needUs);
+      for (let i = 0; i < CHART_SCALE_RUNGS.length; i++) {
+        if (need <= CHART_SCALE_RUNGS[i]) return CHART_SCALE_RUNGS[i];
+      }
+      return CHART_SCALE_RUNGS[CHART_SCALE_RUNGS.length - 1];
+    }
+
+    /**
+     * Discrete Y max. Locked: fixed. Auto: snap to rungs only —
+     * step up immediately when clipping, step down after 6s of calm data.
+     */
+    function resolveChartScaleUs(dataMaxUs) {
+      if (chartScaleLock != null) {
+        chartScaleUs = chartScaleLock;
+        return chartScaleUs;
+      }
+
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const dataMax = Math.max(0, Number(dataMaxUs) || 0);
+      // Need a rung that fits the peak of the visible window (+5%, no continuous lerp)
+      const need = dataMax * 1.05;
+      const fit = rungForNeed(need);
+
+      // Step UP immediately if data would clip / sit at the ceiling
+      if (fit > chartScaleUs || dataMax > chartScaleUs * 0.98) {
+        chartScaleUs = Math.max(chartScaleUs, fit);
+        if (dataMax > chartScaleUs) chartScaleUs = rungForNeed(dataMax);
+        chartScaleLowSince = 0;
+        return chartScaleUs;
+      }
+
+      // Step DOWN only after sustained low activity (avoids yo-yo on blips)
+      const lowThreshold = chartScaleUs * 0.32;
+      if (dataMax < lowThreshold && fit < chartScaleUs) {
+        if (!chartScaleLowSince) chartScaleLowSince = now;
+        if (now - chartScaleLowSince >= 6000) {
+          chartScaleUs = fit;
+          chartScaleLowSince = 0;
+        }
+      } else {
+        chartScaleLowSince = 0;
+      }
+
+      // Clamp to known rungs
+      if (CHART_SCALE_RUNGS.indexOf(chartScaleUs) < 0)
+        chartScaleUs = rungForNeed(chartScaleUs);
+      return chartScaleUs;
     }
 
     function updateScaleLabels(max) {
+      if (max === chartScaleLastLabel) return; // avoid DOM thrash / flicker
+      chartScaleLastLabel = max;
       const el = document.getElementById('chartScale');
       if (!el) return;
       let html = '';
@@ -1903,7 +2386,40 @@
         html += `<span class="tick" style="top:${(i / 4) * 100}%">${val}</span>`;
       }
       el.innerHTML = html;
+      const mode = document.getElementById('chartScaleMode');
+      if (mode) {
+        const lock = chartScaleLock != null;
+        mode.textContent = lock
+          ? ('Y: ' + max + 'µs 🔒')
+          : ('Y: ' + max + 'µs');
+      }
     }
+
+    /** Click Y-axis: Auto → 200 → 500 → 1000 → 2000 → 5000 → Auto */
+    function cycleChartScale() {
+      if (chartScaleLock == null) {
+        chartScaleLock = CHART_SCALE_RUNGS[0];
+      } else {
+        const i = CHART_SCALE_RUNGS.indexOf(chartScaleLock);
+        if (i < 0 || i >= CHART_SCALE_RUNGS.length - 1) {
+          chartScaleLock = null;
+          chartScaleUs = 500;
+        } else {
+          chartScaleLock = CHART_SCALE_RUNGS[i + 1];
+        }
+      }
+      if (chartScaleLock != null) chartScaleUs = chartScaleLock;
+      chartScaleLastLabel = -1;
+      chartScaleLowSince = 0;
+      scheduleChartDraw();
+      try {
+        const msg = chartScaleLock == null
+          ? (t('chart.scale.auto') || 'Y scale: auto (fixed steps)')
+          : ((t('chart.scale.locked') || 'Y scale locked') + ': ' + chartScaleLock + 'µs');
+        if (typeof toast === 'function') toast(msg);
+      } catch (e) { /* ignore */ }
+    }
+    window.cycleChartScale = cycleChartScale;
 
     function cssVar(name) {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#00ff66';
@@ -1922,6 +2438,19 @@
         || 'rgba(0,0,0,0.45)';
     }
 
+    /** Light EMA for visual calm (metrics numbers stay raw from host). */
+    function smoothSeries(data, alpha) {
+      if (!data.length) return data;
+      const a = alpha == null ? 0.22 : alpha;
+      const out = new Array(data.length);
+      out[0] = Number(data[0]) || 0;
+      for (let i = 1; i < data.length; i++) {
+        const v = Number(data[i]) || 0;
+        out[i] = out[i - 1] * (1 - a) + v * a;
+      }
+      return out;
+    }
+
     function drawChart() {
       const c = document.getElementById('chart');
       if (!c || !chartEnabled) return;
@@ -1929,7 +2458,6 @@
       if (!wrap) return;
       const dpr = window.devicePixelRatio || 1;
       const rect = wrap.getBoundingClientRect();
-      // Integer CSS pixels — avoids subpixel seams between bars
       const w = Math.max(200, Math.floor(rect.width));
       const h = Math.max(120, Math.floor(rect.height));
       if (c.width !== w * dpr || c.height !== h * dpr) {
@@ -1937,62 +2465,109 @@
         c.style.width = w + 'px'; c.style.height = h + 'px';
       }
       const ctx = c.getContext('2d');
-      // Disable smoothing so adjacent 1–2px bars don't show hairline gaps
-      ctx.imageSmoothingEnabled = false;
+      ctx.imageSmoothingEnabled = true;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
-      // Soft-cap outliers so one probe spike doesn't crush the scale (P2)
+      // Soft-cap outliers so one probe spike doesn't crush the scale
       const PEAK_CAP = 5000;
-      const data = (latencyHistory.length ? latencyHistory : [0]).map(v => Math.min(Number(v) || 0, PEAK_CAP));
-      const rawMax = Math.max(80, ...data) * 1.12;
-      const targetMax = niceScaleMax(rawMax);
-      chartMaxUs += (targetMax - chartMaxUs) * 0.1;
-      if (Math.abs(targetMax - chartMaxUs) < 2) chartMaxUs = targetMax;
-      const max = Math.max(100, chartMaxUs);
+      const raw = (latencyHistory.length ? latencyHistory : [0]).map(v => Math.min(Number(v) || 0, PEAK_CAP));
+      // Downsample to ~120 points for a calm line, then EMA-smooth
+      const maxPts = Math.min(120, Math.max(32, Math.floor(w / 4)));
+      let series = raw;
+      if (raw.length > maxPts) {
+        const step = raw.length / maxPts;
+        series = [];
+        for (let i = 0; i < maxPts; i++) {
+          const a = Math.floor(i * step);
+          const b = Math.floor((i + 1) * step);
+          let sum = 0, n = 0;
+          for (let j = a; j < b && j < raw.length; j++) { sum += raw[j]; n++; }
+          series.push(n ? sum / n : 0);
+        }
+      }
+      const data = smoothSeries(series, 0.28);
+
+      // Fixed discrete Y scale — no continuous auto-zoom
+      const dataMax = data.length ? Math.max(...data) : 0;
+      const max = resolveChartScaleUs(dataMax);
       updateScaleLabels(max);
 
-      const padT = 6, padB = 8, padL = 2, padR = 2;
+      const padT = 10, padB = 10, padL = 4, padR = 6;
       const plotH = h - padT - padB;
       const plotW = Math.max(1, w - padL - padR);
-      const border = cssVar('--border') || '#1f222b';
+      const border = cssVar('--border') || 'rgba(127,127,127,0.18)';
+      const muted = cssVar('--muted') || 'rgba(127,127,127,0.55)';
 
-      // grid
+      // Soft grid
       ctx.strokeStyle = border;
       ctx.lineWidth = 1;
+      ctx.setLineDash([3, 5]);
       for (let i = 0; i <= 4; i++) {
         const y = Math.round(padT + plotH * (i / 4)) + 0.5;
         ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + plotW, y); ctx.stroke();
       }
+      ctx.setLineDash([]);
 
-      // Gapless bars for any window width:
-      // - target ~2 CSS px/bar for density on large screens
-      // - always fill the full plot width with integer pixel widths (no gaps, no right strip)
-      const targetPx = 2;
-      const maxBars = Math.max(1, Math.min(HISTORY_CAP, Math.floor(plotW / targetPx)));
-      const view = data.length > maxBars ? data.slice(data.length - maxBars) : data;
-      const n = Math.max(1, view.length);
+      const n = Math.max(1, data.length);
+      const xAt = i => padL + (n === 1 ? plotW / 2 : (i / (n - 1)) * plotW);
+      const yAt = v => padT + plotH - (Math.min(Math.max(0, v), max) / max) * plotH;
 
-      // base width + distribute remainder so sum(bar widths) === plotW exactly
-      const baseW = Math.floor(plotW / n);
-      const rem = plotW - baseW * n; // first `rem` bars get +1 px
-      let x = padL;
-      for (let i = 0; i < n; i++) {
-        const bw = baseW + (i < rem ? 1 : 0);
-        const v = Number(view[i]) || 0;
-        const bh = Math.max(v > 0 ? 1 : 0, Math.round((Math.min(v, max) / max) * plotH));
-        const y = padT + plotH - bh;
-        ctx.fillStyle = barColor(v);
-        // Integer rects, no gaps between adjacent fills
-        ctx.fillRect(x, y, bw, bh);
-        // Thin outline (soft in light theme so bars stay bright)
-        if (bw >= 1 && bh >= 1) {
-          ctx.strokeStyle = barStroke();
-          ctx.lineWidth = 1;
-          ctx.strokeRect(x + 0.5, y + 0.5, Math.max(0, bw - 1), Math.max(0, bh - 1));
-        }
-        x += bw;
+      // Build smooth path (quadratic midpoints)
+      ctx.beginPath();
+      ctx.moveTo(xAt(0), yAt(data[0]));
+      for (let i = 1; i < n; i++) {
+        const x0 = xAt(i - 1), y0 = yAt(data[i - 1]);
+        const x1 = xAt(i), y1 = yAt(data[i]);
+        const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+        ctx.quadraticCurveTo(x0, y0, mx, my);
       }
+      if (n > 1) ctx.lineTo(xAt(n - 1), yAt(data[n - 1]));
+
+      // Area fill under curve
+      const last = Number(data[n - 1]) || 0;
+      const strokeCol = barColor(last);
+      const g = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+      // strokeCol is hex-ish from CSS — use alpha via globalAlpha instead
+      g.addColorStop(0, strokeCol);
+      g.addColorStop(1, 'transparent');
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.lineTo(xAt(n - 1), padT + plotH);
+      ctx.lineTo(xAt(0), padT + plotH);
+      ctx.closePath();
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.restore();
+
+      // Re-trace stroke on top (clean line)
+      ctx.beginPath();
+      ctx.moveTo(xAt(0), yAt(data[0]));
+      for (let i = 1; i < n; i++) {
+        const x0 = xAt(i - 1), y0 = yAt(data[i - 1]);
+        const x1 = xAt(i), y1 = yAt(data[i]);
+        const mx = (x0 + x1) / 2, my = (y0 + y1) / 2;
+        ctx.quadraticCurveTo(x0, y0, mx, my);
+      }
+      if (n > 1) ctx.lineTo(xAt(n - 1), yAt(data[n - 1]));
+      ctx.strokeStyle = strokeCol;
+      ctx.lineWidth = 2.25;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.shadowColor = strokeCol;
+      ctx.shadowBlur = 8;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Live head dot
+      const hx = xAt(n - 1), hy = yAt(data[n - 1]);
+      ctx.beginPath();
+      ctx.arc(hx, hy, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = strokeCol;
+      ctx.fill();
+      ctx.strokeStyle = cssVar('--card') || '#0b0c10';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     }
 
     window.addEventListener('resize', () => scheduleChartDraw());

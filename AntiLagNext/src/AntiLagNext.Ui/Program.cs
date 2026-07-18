@@ -5,7 +5,9 @@ using AntiLagNext.Core.Models;
 using AntiLagNext.Core.Settings;
 using AntiLagNext.Infrastructure.Host;
 using AntiLagNext.Infrastructure.Storage;
+using AntiLagNext.Infrastructure.Tweaks;
 using AntiLagNext.Ui.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Photino.NET;
 
 namespace AntiLagNext.Ui;
@@ -52,7 +54,6 @@ internal static class Program
     private static double _lastMedianUs;
     private static double _lastMaxUs;
     private static double _peak1mUs;
-    private static DateTime _peak1mAt = DateTime.MinValue;
     private static float _cpuPercent;
     // Enough samples for dense charts; wire snapshot is capped separately
     private const int HistoryCap = 480;
@@ -62,6 +63,16 @@ internal static class Program
     private const int ProbeIntervalMs = 15;
     /// <summary>UI poll interval advertised to the WebView.</summary>
     private const int UiPollIntervalMs = 50;
+
+    /// <summary>
+    /// True rolling 1-minute peak: max of per-second buckets (not a growing forever max).
+    /// Previous logic reset the window on every new high, so peak only climbed over hours.
+    /// </summary>
+    private const int PeakWindowSeconds = 60;
+    private static readonly double[] PeakSecMax = new double[PeakWindowSeconds];
+    private static readonly long[] PeakSecUnix = new long[PeakWindowSeconds];
+    /// <summary>Probe glitches above this (µs) are clamped for peak/max display (10 ms).</summary>
+    private const double ProbeGlitchCapUs = 10_000;
 
     private static string CrashLogPath =>
         Path.Combine(
@@ -475,21 +486,14 @@ internal static class Program
         {
             lock (MetricsLock)
             {
-                _lastMedianUs = sample.SchedulingLatencyUs;
-                _lastMaxUs = sample.SchedulingLatencyMaxUs;
+                double median = SanitizeProbeUs(sample.SchedulingLatencyUs);
+                double max = SanitizeProbeUs(sample.SchedulingLatencyMaxUs);
+                _lastMedianUs = median;
+                _lastMaxUs = max;
                 _cpuPercent = sample.CpuUsagePercent;
+                _peak1mUs = UpdateRollingPeak1m(max);
 
-                var now = DateTime.UtcNow;
-                if (sample.SchedulingLatencyMaxUs >= _peak1mUs || now - _peak1mAt > TimeSpan.FromMinutes(1))
-                {
-                    if (now - _peak1mAt > TimeSpan.FromMinutes(1))
-                        _peak1mUs = sample.SchedulingLatencyMaxUs;
-                    else
-                        _peak1mUs = Math.Max(_peak1mUs, sample.SchedulingLatencyMaxUs);
-                    _peak1mAt = now;
-                }
-
-                LatencyRing[_ringWrite] = sample.SchedulingLatencyUs;
+                LatencyRing[_ringWrite] = median;
                 _ringWrite = (_ringWrite + 1) % HistoryCap;
                 if (_ringCount < HistoryCap) _ringCount++;
             }
@@ -498,6 +502,45 @@ internal static class Program
         {
             /* never kill probe thread */
         }
+    }
+
+    /// <summary>Drop NaN/Inf and clamp absurd waitable-timer glitches.</summary>
+    private static double SanitizeProbeUs(double us)
+    {
+        if (double.IsNaN(us) || double.IsInfinity(us) || us < 0)
+            return 0;
+        if (us > ProbeGlitchCapUs)
+            return ProbeGlitchCapUs;
+        return us;
+    }
+
+    /// <summary>
+    /// Max of samples in the last 60 whole seconds (bucketed). Values older than the window fall out.
+    /// </summary>
+    private static double UpdateRollingPeak1m(double sampleMaxUs)
+    {
+        long sec = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        int idx = (int)(sec % PeakWindowSeconds);
+        if (PeakSecUnix[idx] != sec)
+        {
+            PeakSecUnix[idx] = sec;
+            PeakSecMax[idx] = sampleMaxUs;
+        }
+        else if (sampleMaxUs > PeakSecMax[idx])
+        {
+            PeakSecMax[idx] = sampleMaxUs;
+        }
+
+        long oldest = sec - PeakWindowSeconds + 1;
+        double peak = 0;
+        for (int i = 0; i < PeakWindowSeconds; i++)
+        {
+            long t = PeakSecUnix[i];
+            if (t >= oldest && t <= sec && PeakSecMax[i] > peak)
+                peak = PeakSecMax[i];
+        }
+
+        return peak;
     }
 
     /// <summary>Copy last n samples (oldest→newest). Caller should not hold other locks long.</summary>
@@ -551,8 +594,9 @@ internal static class Program
         _lastMedianUs = 0;
         _lastMaxUs = 0;
         _peak1mUs = 0;
-        _peak1mAt = DateTime.MinValue;
         _cpuPercent = 0;
+        Array.Clear(PeakSecMax);
+        Array.Clear(PeakSecUnix);
     }
 
     private static int RunSilentCli(string[] args)
@@ -633,11 +677,26 @@ internal static class Program
                 QueueHeavyOp(id, isApply: false, profile: null);
                 return;
             }
+            if (cmd == "reapplyDrift")
+            {
+                QueueReapplyDrift(id);
+                return;
+            }
+            if (cmd == "fixAudit")
+            {
+                bool safeOnly = root.TryGetProperty("safeOnly", out var so)
+                                && so.ValueKind is JsonValueKind.True or JsonValueKind.False
+                                && so.GetBoolean();
+                QueueFixAudit(id, safeOnly);
+                return;
+            }
 
             // Allowlist commands only (fast path on message thread)
             object payload = cmd switch
             {
                 "getState" => BuildUiState(),
+                "getDrift" => HandleGetDrift(),
+                "getAudit" => HandleGetAudit(),
                 "setProfile" => HandleSetProfile(root),
                 "setPlugin" => HandleSetPlugin(root),
                 "setChart" => HandleSetChart(root),
@@ -910,17 +969,8 @@ internal static class Program
     /// </summary>
     private static void QueueHeavyOp(string? id, bool isApply, string? profile)
     {
-        if (Interlocked.CompareExchange(ref _heavyOpInFlight, 1, 0) != 0)
-        {
-            Reply(id, new
-            {
-                success = false,
-                busy = true,
-                message = L("Операция уже выполняется", "Operation already in progress"),
-                error = "busy"
-            });
+        if (!TryBeginHeavyOp(id))
             return;
-        }
 
         if (isApply)
         {
@@ -1005,6 +1055,284 @@ internal static class Program
                 Interlocked.Exchange(ref _heavyOpInFlight, 0);
             }
         });
+    }
+
+    /// <summary>Single-flight gate for apply/revert/drift/audit mutations.</summary>
+    private static bool TryBeginHeavyOp(string? id)
+    {
+        if (Interlocked.CompareExchange(ref _heavyOpInFlight, 1, 0) != 0)
+        {
+            Reply(id, new
+            {
+                success = false,
+                busy = true,
+                message = L("Операция уже выполняется", "Operation already in progress"),
+                error = "busy"
+            });
+            return false;
+        }
+        return true;
+    }
+
+    private static object HandleGetDrift()
+    {
+        if (_engine == null)
+            return new { ok = false, entries = Array.Empty<object>(), driftedCount = 0, error = "no engine" };
+
+        try
+        {
+            lock (EngineOpLock)
+            {
+                var entries = _engine.Drift.Scan();
+                int drifted = entries.Count(e => e.Status is DriftStatus.Drifted or DriftStatus.Missing);
+                return new
+                {
+                    ok = true,
+                    driftedCount = drifted,
+                    total = entries.Count,
+                    entries = entries.Select(MapDriftEntry).ToList()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteCrash("HandleGetDrift", ex);
+            return new { ok = false, entries = Array.Empty<object>(), driftedCount = 0, error = ex.Message };
+        }
+    }
+
+    private static object HandleGetAudit()
+    {
+        if (_engine == null)
+            return new { findings = Array.Empty<object>(), count = 0, error = "no engine" };
+
+        try
+        {
+            lock (EngineOpLock)
+            {
+                var findings = _engine.Audit.Scan();
+                return new
+                {
+                    count = findings.Count,
+                    findings = findings.Select(MapAuditFinding).ToList()
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteCrash("HandleGetAudit", ex);
+            return new { findings = Array.Empty<object>(), count = 0, error = ex.Message };
+        }
+    }
+
+    private static object MapDriftEntry(DriftEntry e) => new
+    {
+        tweakId = e.TweakId,
+        status = e.Status.ToString(),
+        current = e.Current,
+        expected = e.Expected,
+        path = e.Path,
+        name = e.Name,
+        hive = e.Hive
+    };
+
+    private static object MapAuditFinding(AuditFinding f) => new
+    {
+        id = f.Id,
+        severity = f.Severity,
+        titleKey = f.TitleKey,
+        detail = f.Detail,
+        suggestedTweakId = f.SuggestedTweakId,
+        canFix = f.CanFix
+    };
+
+    /// <summary>Re-apply drifted catalog desired-state under a safety backup session.</summary>
+    private static void QueueReapplyDrift(string? id)
+    {
+        if (!TryBeginHeavyOp(id))
+            return;
+
+        AddLog(L("Повторное применение drifted-твиков…", "Reapplying drifted tweaks…"), "ok");
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                object payload;
+                lock (EngineOpLock)
+                {
+                    if (_engine == null)
+                    {
+                        payload = new { success = false, message = "engine unavailable", error = "no engine" };
+                    }
+                    else
+                    {
+                        var before = _engine.Safety
+                            .BeforeChangesAsync("Reapply drifted catalog tweaks")
+                            .GetAwaiter().GetResult();
+                        if (!before.Success || before.Value == Guid.Empty)
+                        {
+                            payload = new
+                            {
+                                success = false,
+                                message = before.Message ?? "Could not prepare safety backup.",
+                                detail = before.Detail,
+                                state = BuildUiStateCore()
+                            };
+                        }
+                        else
+                        {
+                            Guid sessionId = before.Value;
+                            var result = _engine.Drift
+                                .ReapplyDriftedAsync(sessionId)
+                                .GetAwaiter().GetResult();
+                            var commit = _engine.Safety.CommitChanges(sessionId);
+                            bool ok = result.Success && commit.Success;
+                            string msg = result.Message
+                                         + (commit.Success ? "" : " · " + commit.Message);
+                            AddLog(ok
+                                    ? L("Drift reapply: ", "Drift reapply: ") + LocalizeEngineMessage(msg)
+                                    : L("Drift reapply не удался: ", "Drift reapply failed: ")
+                                      + LocalizeEngineMessage(msg),
+                                ok ? "ok" : "err");
+                            payload = new
+                            {
+                                success = ok,
+                                message = msg,
+                                detail = result.Detail ?? commit.Detail,
+                                state = BuildUiStateCore()
+                            };
+                        }
+                    }
+                }
+                ReplyOnUiThread(id, payload);
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("ReapplyDrift", ex);
+                ReplyOnUiThread(id, new { success = false, error = "handler error", detail = ex.Message });
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Apply catalog tweaks for audit findings with <see cref="AuditFinding.CanFix"/>.
+    /// When <paramref name="safeOnly"/> is true, only <see cref="TweakRisk.Safe"/> tweaks are applied.
+    /// </summary>
+    private static void QueueFixAudit(string? id, bool safeOnly)
+    {
+        if (!TryBeginHeavyOp(id))
+            return;
+
+        AddLog(safeOnly
+                ? L("Аудит: исправление безопасных…", "Audit: fixing safe findings…")
+                : L("Аудит: исправление всех…", "Audit: fixing all findings…"), "ok");
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                object payload;
+                lock (EngineOpLock)
+                {
+                    if (_engine == null)
+                    {
+                        payload = new { success = false, message = "engine unavailable", error = "no engine" };
+                    }
+                    else
+                    {
+                        payload = RunFixAuditCore(safeOnly);
+                    }
+                }
+                ReplyOnUiThread(id, payload);
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("FixAudit", ex);
+                ReplyOnUiThread(id, new { success = false, error = "handler error", detail = ex.Message });
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+            }
+        });
+    }
+
+    /// <summary>Caller must hold EngineOpLock.</summary>
+    private static object RunFixAuditCore(bool safeOnly)
+    {
+        var findings = _engine!.Audit.Scan()
+            .Where(f => f.CanFix && !string.IsNullOrWhiteSpace(f.SuggestedTweakId))
+            .ToList();
+
+        var defs = new List<TweakDefinition>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var f in findings)
+        {
+            string tid = f.SuggestedTweakId!;
+            if (!seen.Add(tid)) continue;
+            var def = TweakCatalog.GetById(tid);
+            if (def is null) continue;
+            if (safeOnly && def.Risk != TweakRisk.Safe) continue;
+            defs.Add(def);
+        }
+
+        if (defs.Count == 0)
+        {
+            string emptyMsg = L(
+                "Аудит: нечего исправлять (или нет Safe-твиков).",
+                "Audit: nothing to fix (or no Safe tweaks).");
+            AddLog(emptyMsg, "ok");
+            return new
+            {
+                success = true,
+                message = emptyMsg,
+                fixedCount = 0,
+                state = BuildUiStateCore()
+            };
+        }
+
+        var before = _engine.Safety
+            .BeforeChangesAsync(safeOnly ? "Audit fix (safe)" : "Audit fix (all)")
+            .GetAwaiter().GetResult();
+        if (!before.Success || before.Value == Guid.Empty)
+        {
+            return new
+            {
+                success = false,
+                message = before.Message ?? "Could not prepare safety backup.",
+                detail = before.Detail,
+                state = BuildUiStateCore()
+            };
+        }
+
+        Guid sessionId = before.Value;
+        var engine = _engine.Services.GetRequiredService<RegistryTweakEngine>();
+        var result = engine.ApplyAsync(defs, sessionId).GetAwaiter().GetResult();
+        var commit = _engine.Safety.CommitChanges(sessionId);
+        bool ok = result.Success && commit.Success;
+        string msg = result.Message + (commit.Success ? "" : " · " + commit.Message);
+        // Surface write-level detail in logs (path/type/access) — was truncated to Message only
+        if (!string.IsNullOrWhiteSpace(result.Detail))
+            msg += " · " + result.Detail;
+        AddLog(ok
+                ? L($"Аудит: исправлено {defs.Count}", $"Audit: fixed {defs.Count}")
+                  + (string.IsNullOrWhiteSpace(msg) ? "" : ": " + LocalizeEngineMessage(msg))
+                : L("Аудит: ошибка: ", "Audit fix failed: ") + LocalizeEngineMessage(msg),
+            ok ? "ok" : "err");
+
+        return new
+        {
+            success = ok,
+            message = msg,
+            detail = result.Detail ?? commit.Detail,
+            fixedCount = defs.Count,
+            state = BuildUiStateCore()
+        };
     }
 
     /// <summary>Marshal Reply onto Photino UI thread (required for SendWebMessage).</summary>
@@ -1180,7 +1508,7 @@ internal static class Program
     /// </summary>
     private static int _metricsPollCount;
 
-    /// <summary>Soft cap for chart peak display (spike noise / probe glitches).</summary>
+    /// <summary>UI soft-cap label (same order of magnitude as probe glitch clamp).</summary>
     private const double PeakDisplayCapUs = 5000;
 
     private static object BuildMetricsOnly()
@@ -1189,14 +1517,15 @@ internal static class Program
         var snap = ReadMetricsSnapshot();
         // Ship a compact history every poll (UI is 50ms) — cheap ring copy
         bool withHistory = (n & 1) == 0;
-        double peakRaw = snap.Peak1mUs;
-        double peakShow = Math.Min(peakRaw, PeakDisplayCapUs);
+        // Peak is already rolling 60s + glitch-clamped; display cap is secondary soft limit
+        double peakShow = Math.Min(snap.Peak1mUs, PeakDisplayCapUs);
+        double maxShow = Math.Min(snap.MaxUs, PeakDisplayCapUs);
         return new
         {
             v = Math.Round(snap.MedianUs, 1),
-            m = Math.Round(Math.Min(snap.MaxUs, PeakDisplayCapUs), 1),
+            m = Math.Round(maxShow, 1),
             p = Math.Round(peakShow, 1),
-            peakClamped = peakRaw > PeakDisplayCapUs,
+            peakClamped = snap.Peak1mUs > PeakDisplayCapUs,
             t = Math.Round(_engine?.Timer.CurrentState.ActualMs ?? 0, 3),
             c = Math.Round(snap.CpuPercent, 1),
             history = withHistory ? SnapshotHistory(MetricsWireCap) : null
@@ -1220,7 +1549,8 @@ internal static class Program
         double latency = metrics.MedianUs > 0
             ? metrics.MedianUs
             : (timer.MeasuredJitterUs > 0 ? timer.MeasuredJitterUs : 0);
-        double peak = metrics.Peak1mUs > 0 ? metrics.Peak1mUs : metrics.MaxUs;
+        double peakRaw = metrics.Peak1mUs > 0 ? metrics.Peak1mUs : metrics.MaxUs;
+        double peak = Math.Min(peakRaw, PeakDisplayCapUs);
 
         bool chartOn = _engine.Settings.MonitoringEnabled;
 
@@ -1315,8 +1645,42 @@ internal static class Program
                     message = st.Message
                 };
             }).ToList(),
-            logs = SnapshotLogs()
+            logs = SnapshotLogs(),
+            // Compact health summary for dashboard badges (no full entry lists)
+            drift = BuildDriftSummary(),
+            audit = BuildAuditSummary()
         };
+    }
+
+    private static object BuildDriftSummary()
+    {
+        try
+        {
+            if (_engine == null) return new { driftedCount = 0, total = 0 };
+            var entries = _engine.Drift.Scan();
+            int drifted = entries.Count(e => e.Status is DriftStatus.Drifted or DriftStatus.Missing);
+            return new { driftedCount = drifted, total = entries.Count };
+        }
+        catch
+        {
+            return new { driftedCount = 0, total = 0 };
+        }
+    }
+
+    private static object BuildAuditSummary()
+    {
+        try
+        {
+            if (_engine == null) return new { issueCount = 0 };
+            // Exclude always-present active-state heartbeat so badge reflects real issues
+            int issues = _engine.Audit.Scan()
+                .Count(f => !string.Equals(f.Id, "audit.active_state", StringComparison.OrdinalIgnoreCase));
+            return new { issueCount = issues };
+        }
+        catch
+        {
+            return new { issueCount = 0 };
+        }
     }
 
     private static string MapKindToUiId(AntiLagNext.Core.Enums.ProfileKind kind) =>

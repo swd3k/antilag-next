@@ -470,12 +470,13 @@ public sealed class RegistryTweaksPlugin : BuiltInPluginBase
 
     public override IReadOnlyList<PluginUiDescriptor> GetUiDescriptors() => new[]
     {
+        // NetworkThrottling is owned by TweakCatalog (network.throttling_index) — do not dual-write.
         new PluginUiDescriptor
         {
             Key = "networkThrottling",
             LabelKey = "plugin.reg.throttle",
             Kind = PluginSettingKind.Toggle,
-            DefaultValue = true
+            DefaultValue = false // catalog applies this for Gaming/Max/Office
         },
         new PluginUiDescriptor
         {
@@ -491,13 +492,13 @@ public sealed class RegistryTweaksPlugin : BuiltInPluginBase
         try
         {
             var parts = new List<string>();
-            if (GetSetting("networkThrottling", true))
+            // Optional legacy path only if user re-enables the toggle (catalog is primary).
+            if (GetSetting("networkThrottling", false))
             {
                 Snapshot(context.BackupSessionId, MultimediaKey, "NetworkThrottlingIndex");
                 using var key = Registry.LocalMachine.CreateSubKey(MultimediaKey, true);
-                // 0xFFFFFFFF = disabled throttling (classic gaming tweak)
                 key?.SetValue("NetworkThrottlingIndex", unchecked((int)0xFFFFFFFFu), RegistryValueKind.DWord);
-                parts.Add("NetworkThrottlingIndex=max");
+                parts.Add("NetworkThrottlingIndex=max (plugin)");
             }
 
             if (GetSetting("disableGameDvrPolicy", true))
@@ -508,7 +509,9 @@ public sealed class RegistryTweaksPlugin : BuiltInPluginBase
                 parts.Add("GameDVR policy off");
             }
 
-            string msg = parts.Count == 0 ? "Registry: nothing enabled" : "Registry: " + string.Join(", ", parts);
+            string msg = parts.Count == 0
+                ? "Registry plugin: skipped (catalog owns throttling)"
+                : "Registry: " + string.Join(", ", parts);
             SetStatus(PluginRuntimeState.Applied, msg);
             return Task.FromResult(OperationResult.Ok(msg));
         }

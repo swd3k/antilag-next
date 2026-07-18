@@ -25,6 +25,8 @@ public sealed class EngineBootstrap : IDisposable
     public ITimerManager Timer { get; }
     public IMonitoringService Monitoring { get; }
     public ISettingsService SettingsService { get; }
+    public IDriftService Drift { get; }
+    public IAuditService Audit { get; }
 
     private EngineBootstrap(ServiceProvider provider)
     {
@@ -36,6 +38,8 @@ public sealed class EngineBootstrap : IDisposable
         Timer = provider.GetRequiredService<ITimerManager>();
         Monitoring = provider.GetRequiredService<IMonitoringService>();
         SettingsService = provider.GetRequiredService<ISettingsService>();
+        Drift = provider.GetRequiredService<IDriftService>();
+        Audit = provider.GetRequiredService<IAuditService>();
     }
 
     public static async Task<EngineBootstrap> CreateAsync(CancellationToken cancellationToken = default)
