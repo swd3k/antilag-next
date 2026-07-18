@@ -126,7 +126,7 @@ public sealed class GameModeManager : IGameModeManager
         }
 
         using var writeKey = root.CreateSubKey(keyPath, writable: true)
-            ?? throw new InvalidOperationException($"Не удалось открыть ключ {keyPath}");
+            ?? throw new InvalidOperationException($"Could not open registry key {keyPath}");
         writeKey.SetValue(valueName, value, RegistryValueKind.DWord);
     }
 }

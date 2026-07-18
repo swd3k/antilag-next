@@ -18,7 +18,7 @@ internal static class Win32Result
         int err = Marshal.GetLastWin32Error();
         if (err != 0)
         {
-            throw new Win32Exception(err, $"Win32 ошибка в {member}: код {err}");
+            throw new Win32Exception(err, $"Win32 error in {member}: code {err}");
         }
     }
 
@@ -33,7 +33,7 @@ internal static class Win32Result
         }
         catch
         {
-            return $"Win32 код ошибки {errorCode}";
+            return $"Win32 error code {errorCode}";
         }
     }
 }

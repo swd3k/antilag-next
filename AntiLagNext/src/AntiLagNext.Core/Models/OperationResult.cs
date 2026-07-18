@@ -13,13 +13,13 @@ public sealed class OperationResult
     /// <summary>Optional machine-readable code (e.g. "partial_apply", "access_denied").</summary>
     public string? Code { get; init; }
 
-    public static OperationResult Ok(string message = "Операция выполнена успешно.", string? code = null)
+    public static OperationResult Ok(string message = "OK.", string? code = null)
         => new() { Success = true, Message = message, Code = code };
 
     public static OperationResult Fail(string message, string? detail = null, Exception? ex = null, string? code = null)
         => new() { Success = false, Message = message, Detail = detail, Exception = ex, Code = code };
 
-    public override string ToString() => Success ? Message : $"ОШИБКА: {Message}";
+    public override string ToString() => Success ? Message : $"ERROR: {Message}";
 }
 
 /// <summary>
@@ -43,5 +43,5 @@ public sealed class OperationResult<T>
     public static OperationResult<T> Fail(string message, string? detail = null, Exception? ex = null, string? code = null)
         => new() { Success = false, Message = message, Detail = detail, Exception = ex, Code = code };
 
-    public override string ToString() => Success ? Message : $"ОШИБКА: {Message}";
+    public override string ToString() => Success ? Message : $"ERROR: {Message}";
 }

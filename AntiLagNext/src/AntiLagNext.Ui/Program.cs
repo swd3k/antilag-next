@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
 using AntiLagNext.Core.Settings;
@@ -1147,6 +1148,16 @@ internal static class Program
         return new { success = true, firstRunCompleted = true, state = BuildUiState() };
     }
 
+    /// <summary>Typed result for audit fix / health ops (avoids reflection on anonymous types).</summary>
+    private sealed class FixOpResult
+    {
+        public bool Success { get; init; }
+        public string Message { get; init; } = "";
+        public string? Detail { get; init; }
+        public int FixedCount { get; init; }
+        public object? State { get; init; }
+    }
+
     /// <summary>Health: fix safe audit findings then reapply drifted desired-state.</summary>
     private static void QueueFixRecommended(string? id)
     {
@@ -1169,42 +1180,52 @@ internal static class Program
                     else
                     {
                         // 1) Safe audit fix (own backup session)
-                        var auditPayload = RunFixAuditCore(safeOnly: true);
-                        bool auditOk = true;
-                        string auditMsg = "";
+                        var audit = RunFixAuditCore(safeOnly: true);
+
+                        // 2) Reapply only owned desired-state (no catalog mass-write).
+                        // Skip opening a safety session when there is nothing owned to restore.
+                        bool hasDesired = false;
                         try
                         {
-                            var at = auditPayload.GetType();
-                            auditOk = (bool?)at.GetProperty("success")?.GetValue(auditPayload) ?? false;
-                            auditMsg = at.GetProperty("message")?.GetValue(auditPayload)?.ToString() ?? "";
+                            hasDesired = _engine.Services.GetRequiredService<IDesiredStateStore>()
+                                .GetEntries().Count > 0;
                         }
-                        catch { auditOk = false; }
+                        catch { /* treat as empty */ }
 
-                        // 2) Reapply only owned desired-state (no catalog mass-write)
-                        var before = _engine.Safety
-                            .BeforeChangesAsync("Health fix recommended (drift)")
-                            .GetAwaiter().GetResult();
                         bool driftOk;
                         string driftMsg;
-                        if (!before.Success || before.Value == Guid.Empty)
+                        if (!hasDesired)
                         {
-                            driftOk = false;
-                            driftMsg = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
-                                ? bm
-                                : L("Не удалось подготовить защиту (drift).", "Could not prepare safety backup (drift).");
+                            driftOk = true;
+                            driftMsg = L(
+                                "Дрейф: нет desired-state — пропуск.",
+                                "Drift: no desired-state — skipped.");
                         }
                         else
                         {
-                            Guid sessionId = before.Value;
-                            var drift = _engine.Drift.ReapplyDriftedAsync(sessionId).GetAwaiter().GetResult();
-                            var commit = _engine.Safety.CommitChanges(sessionId);
-                            driftOk = drift.Success && commit.Success;
-                            driftMsg = LocalizeEngineMessage(drift.Message)
-                                       + (commit.Success ? "" : " · " + LocalizeEngineMessage(commit.Message));
+                            var before = _engine.Safety
+                                .BeforeChangesAsync("Health fix recommended (drift)")
+                                .GetAwaiter().GetResult();
+                            if (!before.Success || before.Value == Guid.Empty)
+                            {
+                                driftOk = false;
+                                driftMsg = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
+                                    ? bm
+                                    : L("Не удалось подготовить защиту (drift).", "Could not prepare safety backup (drift).");
+                            }
+                            else
+                            {
+                                Guid sessionId = before.Value;
+                                var drift = _engine.Drift.ReapplyDriftedAsync(sessionId).GetAwaiter().GetResult();
+                                var commit = _engine.Safety.CommitChanges(sessionId);
+                                driftOk = drift.Success && commit.Success;
+                                driftMsg = LocalizeEngineMessage(drift.Message)
+                                           + (commit.Success ? "" : " · " + LocalizeEngineMessage(commit.Message));
+                            }
                         }
 
-                        bool ok = auditOk && driftOk;
-                        string msg = (string.IsNullOrWhiteSpace(auditMsg) ? "" : auditMsg + " · ") + driftMsg;
+                        bool ok = audit.Success && driftOk;
+                        string msg = (string.IsNullOrWhiteSpace(audit.Message) ? "" : audit.Message + " · ") + driftMsg;
                         AddLog(ok
                                 ? L("Рекомендовано: ", "Recommended: ") + msg
                                 : L("Рекомендованное исправление: ", "Recommended fix: ") + msg,
@@ -1214,6 +1235,8 @@ internal static class Program
                         {
                             success = ok,
                             message = msg,
+                            detail = audit.Detail,
+                            fixedCount = audit.FixedCount,
                             state = BuildUiStateCore()
                         };
                     }
@@ -1266,23 +1289,33 @@ internal static class Program
                 var result = _engine.Diagnostics.ExportZip(logsText);
                 if (result.Success && !string.IsNullOrEmpty(result.Value))
                 {
-                    string path = result.Value!;
+                    string path = Path.GetFullPath(result.Value!);
+                    // Only open Explorer for files we just wrote under diagnostics dir
+                    string diagRoot = Path.GetFullPath(AppPaths.DiagnosticsDirectory)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        + Path.DirectorySeparatorChar;
+                    bool pathSafe = path.StartsWith(diagRoot, StringComparison.OrdinalIgnoreCase)
+                                    && File.Exists(path)
+                                    && path.IndexOfAny(new[] { '"', '\r', '\n', '\0' }) < 0;
+
                     AddLog(L("Диагностика: ", "Diagnostics: ") + path, "ok");
-                    // Open containing folder for UX
-                    try
+                    if (pathSafe)
                     {
-                        string explorer = Path.Combine(
-                            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-                            "explorer.exe");
-                        if (!File.Exists(explorer)) explorer = "explorer.exe";
-                        Process.Start(new ProcessStartInfo
+                        try
                         {
-                            FileName = explorer,
-                            Arguments = $"/select,\"{path}\"",
-                            UseShellExecute = true
-                        });
+                            string explorer = Path.Combine(
+                                Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                                "explorer.exe");
+                            if (!File.Exists(explorer)) explorer = "explorer.exe";
+                            Process.Start(new ProcessStartInfo
+                            {
+                                FileName = explorer,
+                                Arguments = $"/select,\"{path}\"",
+                                UseShellExecute = true
+                            });
+                        }
+                        catch { /* ignore */ }
                     }
-                    catch { /* ignore */ }
 
                     ReplyOnUiThread(id, new
                     {
@@ -1506,7 +1539,15 @@ internal static class Program
                     }
                     else
                     {
-                        payload = RunFixAuditCore(safeOnly);
+                        var fix = RunFixAuditCore(safeOnly);
+                        payload = new
+                        {
+                            success = fix.Success,
+                            message = fix.Message,
+                            detail = fix.Detail,
+                            fixedCount = fix.FixedCount,
+                            state = fix.State ?? BuildUiStateCore()
+                        };
                     }
                 }
                 ReplyOnUiThread(id, payload);
@@ -1524,7 +1565,7 @@ internal static class Program
     }
 
     /// <summary>Caller must hold EngineOpLock.</summary>
-    private static object RunFixAuditCore(bool safeOnly)
+    private static FixOpResult RunFixAuditCore(bool safeOnly)
     {
         var findings = _engine!.Audit.Scan()
             .Where(f => f.CanFix && !string.IsNullOrWhiteSpace(f.SuggestedTweakId))
@@ -1548,12 +1589,12 @@ internal static class Program
                 "Аудит: нечего исправлять (или нет Safe-твиков).",
                 "Audit: nothing to fix (or no Safe tweaks).");
             AddLog(emptyMsg, "ok");
-            return new
+            return new FixOpResult
             {
-                success = true,
-                message = emptyMsg,
-                fixedCount = 0,
-                state = BuildUiStateCore()
+                Success = true,
+                Message = emptyMsg,
+                FixedCount = 0,
+                State = BuildUiStateCore()
             };
         }
 
@@ -1562,14 +1603,14 @@ internal static class Program
             .GetAwaiter().GetResult();
         if (!before.Success || before.Value == Guid.Empty)
         {
-            return new
+            return new FixOpResult
             {
-                success = false,
-                message = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
+                Success = false,
+                Message = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
                     ? bm
                     : L("Не удалось подготовить защиту.", "Could not prepare safety backup."),
-                detail = before.Detail,
-                state = BuildUiStateCore()
+                Detail = before.Detail,
+                State = BuildUiStateCore()
             };
         }
 
@@ -1589,13 +1630,13 @@ internal static class Program
                 : L("Аудит: ошибка: ", "Audit fix failed: ") + LocalizeEngineMessage(msg),
             ok ? "ok" : "err");
 
-        return new
+        return new FixOpResult
         {
-            success = ok,
-            message = msg,
-            detail = result.Detail ?? commit.Detail,
-            fixedCount = defs.Count,
-            state = BuildUiStateCore()
+            Success = ok,
+            Message = msg,
+            Detail = result.Detail ?? commit.Detail,
+            FixedCount = defs.Count,
+            State = BuildUiStateCore()
         };
     }
 

@@ -100,7 +100,7 @@ public sealed class BenchmarkService : IBenchmarkService
         }
         catch (Exception ex)
         {
-            return OperationResult<BenchmarkResult>.Fail("Ошибка бенчмарка.", detail: ex.Message, ex: ex);
+            return OperationResult<BenchmarkResult>.Fail("Benchmark failed.", detail: ex.Message, ex: ex);
         }
     }
 

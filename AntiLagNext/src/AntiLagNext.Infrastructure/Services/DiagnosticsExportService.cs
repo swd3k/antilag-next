@@ -74,6 +74,7 @@ public sealed class DiagnosticsExportService
             if (!File.Exists(zipPath))
                 return OperationResult<string>.Fail("Diagnostics export failed: zip was not created.");
 
+            PruneOldDiagnostics(dir, keep: 15);
             return OperationResult<string>.Ok(zipPath, "Diagnostics zip created.");
         }
         catch (Exception ex)
@@ -83,6 +84,25 @@ public sealed class DiagnosticsExportService
                 detail: ex.Message,
                 ex: ex);
         }
+    }
+
+    /// <summary>Keep newest N diagnostics zips; delete older ones (disk hygiene).</summary>
+    private static void PruneOldDiagnostics(string dir, int keep)
+    {
+        try
+        {
+            if (keep < 1) keep = 1;
+            var files = Directory.GetFiles(dir, "antilag-diagnostics-*.zip")
+                .Select(f => new FileInfo(f))
+                .OrderByDescending(f => f.CreationTimeUtc)
+                .Skip(keep)
+                .ToList();
+            foreach (var f in files)
+            {
+                try { f.Delete(); } catch { /* best-effort */ }
+            }
+        }
+        catch { /* best-effort */ }
     }
 
     private static string BuildMetaJson()

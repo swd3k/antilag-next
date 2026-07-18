@@ -209,7 +209,7 @@ public sealed class BackupService : IBackupService
         }
         catch (Exception ex)
         {
-            return OperationResult<BackupRecord>.Fail("Ошибка чтения бэкапа.", detail: ex.Message, ex: ex);
+            return OperationResult<BackupRecord>.Fail("Could not read backup.", detail: ex.Message, ex: ex);
         }
     }
 
