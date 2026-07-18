@@ -8,7 +8,7 @@
   "nav.logs": "Logs",
   "nav.settings": "Settings",
   "health.title": "System health",
-  "health.sub": "Latency setting audit and desired-state drift vs live registry",
+  "health.sub": "Latency setting checks and drift from saved desired state",
   "health.drift": "Drift",
   "health.audit": "System audit",
   "health.refresh": "Refresh",
@@ -111,7 +111,7 @@
   "metric.backup": "JSON backup and reset",
   "cta.enable": "Enable AntiLag Next",
   "cta.disable": "Disable and reset",
-  "hint.idle": "Quick Boost · profile “{profile}”",
+  "hint.idle": "Quick boost · profile “{profile}”",
   "hint.active": "Click to restore the previous system state",
   "tweaks.title": "Plugins",
   "tweaks.sub": "Optimization modules. Experimental options remain off by default and are not included in Quick Boost.",
@@ -244,7 +244,7 @@
   "area.game": "Game",
   "area.other": "Other",
   "area.service": "Service",
-  "ba.samples": "n={n} samples",
+  "ba.samples": "{n} sample(s)",
   "ba.needSamples": "Need ≥12 chart samples before enable",
   "ba.collecting": "Collecting post-enable samples…",
   "engine.busy": "Working…",
@@ -272,5 +272,6 @@
   "audit.active_state.detail": "Optimization is active (persisted state).",
   "sev.info": "info",
   "sev.warn": "warn",
-  "sev.critical": "critical"
+  "sev.critical": "critical",
+  "aria.chartScale": "Y scale — click to lock"
 }

@@ -870,11 +870,11 @@
             <span id="statusPill" class="status-pill off">● …</span>
           </div>
           <div class="header-right">
-            <div class="seg" role="group" title="Language" aria-label="Language">
+            <div class="seg" role="group" id="langSeg" data-tip="aria.lang" title="Язык" aria-label="Язык">
               <button type="button" class="hdr-ctrl active" id="langRu" onclick="setLang('ru')" aria-pressed="true">RU</button>
               <button type="button" class="hdr-ctrl" id="langEn" onclick="setLang('en')" aria-pressed="false">EN</button>
             </div>
-            <button type="button" class="hdr-ctrl icon-only" id="themeToggle" onclick="toggleTheme()" title="Theme" aria-label="Theme">
+            <button type="button" class="hdr-ctrl icon-only" id="themeToggle" onclick="toggleTheme()" data-tip="aria.theme" title="Тема" aria-label="Тема">
               <svg id="themeIcon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <use id="themeIconUse" href="#i-sun"/>
               </svg>
@@ -888,11 +888,11 @@
         <div class="content">
           <div id="dashboard" class="section active">
             <h2 data-i18n="dash.title">Системный обзор</h2>
-            <div class="sub selectable" data-i18n="dash.sub">Прокси scheduling latency (не DPC / не network) и статус оптимизаций</div>
+            <div class="sub selectable" data-i18n="dash.sub">Оценка задержки планировщика (не DPC ядра и не сетевой пинг) и статус оптимизаций</div>
             <!-- Primary: latency monitor + 3 status cards (top) -->
             <div class="card" id="chartCard">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-                <div class="metric-label" style="color:var(--cyan)" data-i18n="chart.title">Монитор latency</div>
+                <div class="metric-label" style="color:var(--cyan)" data-i18n="chart.title">Монитор задержки</div>
                 <div style="display:flex;align-items:center;gap:10px;">
                   <span id="chartToggleLabel" style="font-size:12px;color:var(--dim)" data-i18n="chart.on">График вкл.</span>
                   <label class="switch">
@@ -910,16 +910,16 @@
                     </div>
                     <div style="text-align:right;color:var(--muted);font-size:11px;">
                       <span data-i18n="chart.peak">Пик (1м)</span>
-                      <span id="peakCapHint" class="peak-cap-hint" hidden data-i18n="chart.clamped"> · clamped</span><br/>
+                      <span id="peakCapHint" class="peak-cap-hint" hidden data-i18n="chart.clamped"> · ограничено</span><br/>
                       <span id="latencyPeak" style="color:var(--chart-red);font-family:Consolas;font-size:20px;font-weight:600">—</span>
                     </div>
                   </div>
                   <div class="chart-row">
-                    <div class="chart-scale" id="chartScale" title="Click to lock Y scale" onclick="cycleChartScale()"></div>
+                    <div class="chart-scale" id="chartScale" data-tip="aria.chartScale" title="Шкала Y" onclick="cycleChartScale()"></div>
                     <div class="chart-wrap"><canvas id="chart" width="800" height="190"></canvas></div>
                   </div>
                   <div class="legend">
-                    <span class="chart-scale-mode" id="chartScaleMode" data-tip="chart.scale.tip" onclick="cycleChartScale()" style="cursor:pointer" title="Click to lock scale">Y: 500µs</span>
+                    <span class="chart-scale-mode" id="chartScaleMode" data-tip="chart.scale.tip" onclick="cycleChartScale()" style="cursor:pointer" title="Шкала Y">Y: 500µs</span>
                     <div class="dots">
                       <span data-i18n="chart.now">Сейчас</span>
                       <span style="color:var(--chart-green)">●</span> &lt;100µs
@@ -931,7 +931,7 @@
                 <div id="chartSkeleton" class="chart-skel" hidden aria-hidden="true"></div>
               </div>
               <div id="chartOffHint" class="note" style="display:none;padding:18px 0 8px;text-align:center;" data-i18n="chart.offHint"></div>
-              <div class="note" id="metricNote" data-i18n="chart.noteOn" data-tip="tip.dpc"></div>
+              <div class="note" id="metricNote" data-i18n="chart.noteOn" data-tip="tip.dpc">Оценка задержки планировщика (мкс)</div>
             </div>
             <div class="grid3" id="metricGrid">
               <div class="card">
@@ -952,12 +952,12 @@
               <div class="card">
                 <div class="metric-label" data-i18n="metric.opt">Состояние</div>
                 <div class="metric-val" style="font-size:20px;font-family:inherit" id="optFlag">—</div>
-                <div class="note" data-i18n="metric.backup">JSON backup + Reset</div>
+                <div class="note" data-i18n="metric.backup">Резервная копия JSON и сброс</div>
               </div>
             </div>
             <button id="cta" class="cta" onclick="toggleOpt()">
               <svg viewBox="0 0 24 24"><use href="#i-zap"/></svg>
-              <span id="ctaText" data-i18n="cta.enable">ВКЛЮЧИТЬ ANTILAG NEXT</span>
+              <span id="ctaText" data-i18n="cta.enable">Включить AntiLag Next</span>
             </button>
             <div class="hint" id="hint"></div>
             <!-- Secondary: comparison / changelog / updates -->
@@ -997,7 +997,7 @@
                     <span data-i18n="settings.updates.install">Установить</span>
                   </button>
                   <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
-                    <span data-i18n="settings.updates.manual">Releases</span>
+                    <span data-i18n="settings.updates.manual">Открыть Releases</span>
                   </button>
                 </div>
               </div>
@@ -1018,34 +1018,34 @@
                 <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-battery"/></svg>
                 <h3 data-i18n="power.office">Офисный</h3>
                 <p data-i18n="power.office.desc"></p>
-                <span class="tag" data-i18n="tag.office">Office</span>
+                <span class="tag" data-i18n="tag.office">Офис</span>
               </div>
               <div class="power-card" data-profile="max" onclick="selectProfile('max', this)">
                 <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-zap"/></svg>
                 <h3 data-i18n="power.max">Максимальная</h3>
                 <p data-i18n="power.max.desc"></p>
-                <span class="tag" data-i18n="tag.max">Max perf</span>
+                <span class="tag" data-i18n="tag.max">Макс.</span>
               </div>
               <div class="power-card active" data-profile="gaming" onclick="selectProfile('gaming', this)">
                 <span class="rec-badge" data-i18n="power.rec">Рекомендуется</span>
                 <svg class="pc-icon" viewBox="0 0 24 24"><use href="#i-game"/></svg>
                 <h3 data-i18n="power.gaming">Игровой</h3>
                 <p data-i18n="power.gaming.desc" data-tip="tip.hags"></p>
-                <span class="tag rec" data-i18n="tag.gaming">Gaming</span>
+                <span class="tag rec" data-i18n="tag.gaming">Игры</span>
               </div>
             </div>
           </div>
 
           <div id="health" class="section">
             <h2 data-i18n="health.title">«Здоровье» системы</h2>
-            <div class="sub" data-i18n="health.sub">Проверка latency-настроек и отклонений от сохранённого состояния</div>
+            <div class="sub" data-i18n="health.sub">Проверка настроек задержки и отклонений от сохранённого состояния</div>
             <div class="note" style="margin:8px 0 12px" data-i18n="health.hint">
               «Безопасные» = низкий риск. «Исправить всё» = безопасные + умеренные. Нужны права администратора.
             </div>
             <div class="health-toolbar">
               <button type="button" class="hdr-ctrl primary" id="healthFixRecBtn" onclick="fixRecommended()"
                       data-tip="health.tip.fixRec">
-                <span data-i18n="health.fixRec">Fix recommended</span>
+                <span data-i18n="health.fixRec">Исправить рекомендуемое</span>
               </button>
               <button type="button" class="hdr-ctrl" id="healthRefreshBtn" onclick="refreshHealth()"
                       data-tip="health.tip.refresh">
@@ -1053,7 +1053,7 @@
               </button>
               <button type="button" class="hdr-ctrl" id="healthFixSafeBtn" onclick="fixAudit(true)"
                       data-tip="health.tip.fixSafe">
-                <span data-i18n="health.fixSafe">Исправить Safe</span>
+                <span data-i18n="health.fixSafe">Исправить безопасные</span>
               </button>
               <button type="button" class="hdr-ctrl" id="healthFixAllBtn" onclick="fixAudit(false)"
                       data-tip="health.tip.fixAll">
@@ -1061,7 +1061,7 @@
               </button>
               <button type="button" class="hdr-ctrl" id="healthReapplyBtn" onclick="reapplyDrift()"
                       data-tip="health.tip.reapply">
-                <span data-i18n="health.reapply">Повторить drifted</span>
+                <span data-i18n="health.reapply">Повторить отклонения</span>
               </button>
             </div>
             <div class="health-summary" id="healthSummary" aria-live="polite"></div>
@@ -1080,7 +1080,7 @@
 
             <div class="card">
               <div class="health-section-title">
-                <span class="metric-label health-section-one-line" style="color:var(--cyan)" data-i18n="health.drift">Отклонения (drift)</span>
+                <span class="metric-label health-section-one-line" style="color:var(--cyan)" data-i18n="health.drift">Отклонения</span>
                 <span class="note" id="driftCountLabel"></span>
               </div>
               <div id="driftList" class="selectable" aria-live="polite"></div>
@@ -1093,7 +1093,7 @@
             <div class="log-toolbar">
               <button type="button" class="hdr-ctrl" onclick="copyLogs()" data-i18n="logs.copy">Копировать</button>
               <button type="button" class="hdr-ctrl" onclick="exportLogs()" data-i18n="logs.export">Экспорт .txt</button>
-              <button type="button" class="hdr-ctrl primary" onclick="exportDiagnostics()" data-i18n="diag.export">Export diagnostics</button>
+              <button type="button" class="hdr-ctrl primary" onclick="exportDiagnostics()" data-i18n="diag.export">Экспорт диагностики</button>
             </div>
             <div class="log-table selectable">
               <div class="log-head" id="logHead">
@@ -1108,7 +1108,7 @@
 
           <div id="settings" class="section">
             <h2 data-i18n="settings.title">Настройки</h2>
-            <div class="sub" data-i18n="settings.sub">Трей, автозапуск и поведение при старте Windows</div>
+            <div class="sub" data-i18n="settings.sub">Трей, автозапуск, обновления и старт Windows</div>
             <div class="toggles">
               <div class="toggle-row">
                 <div>
@@ -1158,7 +1158,7 @@
                   <span data-i18n="settings.updates.install">Установить</span>
                 </button>
                 <button type="button" class="hdr-ctrl" style="width:auto;padding:0 14px;height:36px" onclick="send('openReleases').catch(()=>{})">
-                  <span data-i18n="settings.updates.manual">Releases</span>
+                  <span data-i18n="settings.updates.manual">Открыть Releases</span>
                 </button>
               </div>
             </div>
@@ -1170,12 +1170,12 @@
               </button>
             </div>
             <div class="card" style="margin-top:14px">
-              <div class="metric-label" data-i18n="diag.title">Diagnostics</div>
+              <div class="metric-label" data-i18n="diag.title">Диагностика</div>
               <p class="note" style="margin:10px 0 14px" data-i18n="diag.desc">
-                Local zip with redacted settings, audit, drift, and logs — no cloud upload.
+                Локальный zip: настройки (без секретов), аудит, отклонения, логи — без отправки в облако.
               </p>
               <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="exportDiagnostics()">
-                <span data-i18n="diag.export">Export diagnostics</span>
+                <span data-i18n="diag.export">Экспорт диагностики</span>
               </button>
             </div>
           </div>
@@ -1224,40 +1224,40 @@
 
   <div id="onboardModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="onboardTitle" hidden>
     <div class="modal" style="max-width:480px">
-      <h3 id="onboardTitle" data-i18n="wizard.title">Welcome to AntiLag Next</h3>
+      <h3 id="onboardTitle" data-i18n="wizard.title">Добро пожаловать в AntiLag Next</h3>
       <div class="wizard-steps" aria-hidden="true">
         <span id="wizStep1" class="on">1</span>
         <span id="wizStep2">2</span>
         <span id="wizStep3">3</span>
       </div>
       <div class="wizard-pane" id="wizPane0">
-        <p data-i18n="wizard.s1.body">AntiLag Next tunes timer resolution, power plan, and a curated set of latency registry keys to improve scheduling responsiveness.</p>
+        <p data-i18n="wizard.s1.body">AntiLag Next настраивает разрешение таймера, схему питания и набор ключей реестра для меньшей задержки планировщика.</p>
         <ol class="onboard-list">
-          <li data-i18n="wizard.s1.li1">Requires Administrator (UAC) by design.</li>
-          <li data-i18n="wizard.s1.li2">Every change is backed up to local JSON — Reset all restores it.</li>
-          <li data-i18n="wizard.s1.li3">Open-source · no inject into games · no telemetry.</li>
+          <li data-i18n="wizard.s1.li1">Нужны права администратора (UAC).</li>
+          <li data-i18n="wizard.s1.li2">Каждое изменение сохраняется в локальный JSON — «Сбросить всё» откатывает.</li>
+          <li data-i18n="wizard.s1.li3">Открытый исходный код · без внедрения в игры · без телеметрии.</li>
         </ol>
       </div>
       <div class="wizard-pane" id="wizPane1" hidden>
-        <p data-i18n="wizard.s2.body">What it does <strong>not</strong> do:</p>
+        <p data-i18n="wizard.s2.body">Чего приложение не делает:</p>
         <ol class="onboard-list">
-          <li data-i18n="wizard.s2.li1">Not a network ping booster or FPS magic multiplier.</li>
-          <li data-i18n="wizard.s2.li2">Not NVIDIA Reflex / anti-cheat bypass / game inject.</li>
-          <li data-i18n="wizard.s2.li3">µs chart = scheduling latency proxy — not kernel DPC truth.</li>
+          <li data-i18n="wizard.s2.li1">Не «разгоняет» сетевой пинг и не обещает магический FPS.</li>
+          <li data-i18n="wizard.s2.li2">Не NVIDIA Reflex, не обход anti-cheat и не внедрение в игры.</li>
+          <li data-i18n="wizard.s2.li3">График µs — оценка задержки планировщика, а не «истина» DPC ядра.</li>
         </ol>
       </div>
       <div class="wizard-pane" id="wizPane2" hidden>
-        <p data-i18n="wizard.s3.body">Ready when you are. Pick Gaming (recommended), then press Enable on the dashboard.</p>
+        <p data-i18n="wizard.s3.body">Когда будете готовы: профиль «Игровой» (рекомендуется) и кнопка «Включить» на обзоре.</p>
         <ol class="onboard-list">
-          <li data-i18n="wizard.s3.li1">Health page: scan drift after Windows updates.</li>
-          <li data-i18n="wizard.s3.li2">Export diagnostics from Logs/Settings if you need support data.</li>
-          <li data-i18n="wizard.s3.li3">Something feels wrong? Reset all anytime.</li>
+          <li data-i18n="wizard.s3.li1">Страница «Здоровье»: проверка отклонений после обновлений Windows.</li>
+          <li data-i18n="wizard.s3.li2">Экспорт диагностики — в Журнале / Настройках.</li>
+          <li data-i18n="wizard.s3.li3">Что-то не так? В любой момент «Сбросить всё».</li>
         </ol>
       </div>
       <div class="actions">
-        <button type="button" class="secondary" id="wizBack" onclick="wizardNav(-1)" hidden data-i18n="wizard.back">Back</button>
-        <button type="button" class="primary" id="wizNext" onclick="wizardNav(1)" data-i18n="wizard.next">Next</button>
-        <button type="button" class="primary" id="wizDone" onclick="dismissOnboard()" hidden data-i18n="wizard.done">Get started</button>
+        <button type="button" class="secondary" id="wizBack" onclick="wizardNav(-1)" hidden data-i18n="wizard.back">Назад</button>
+        <button type="button" class="primary" id="wizNext" onclick="wizardNav(1)" data-i18n="wizard.next">Далее</button>
+        <button type="button" class="primary" id="wizDone" onclick="dismissOnboard()" hidden data-i18n="wizard.done">Начать</button>
       </div>
     </div>
   </div>
@@ -1344,7 +1344,7 @@
         enBtn.setAttribute('aria-pressed', lang === 'en' ? 'true' : 'false');
       }
       // Aria / control titles (set after lang load; keys from i18n)
-      const langSeg = ruBtn?.closest('.seg');
+      const langSeg = document.getElementById('langSeg') || ruBtn?.closest('.seg');
       if (langSeg && i18n['aria.lang'] != null) {
         langSeg.title = i18n['aria.lang'];
         langSeg.setAttribute('aria-label', i18n['aria.lang']);
@@ -1356,6 +1356,13 @@
         if (i18n[nextKey] != null) themeBtn.title = i18n[nextKey];
         else if (i18n['aria.theme'] != null) themeBtn.title = i18n['aria.theme'];
         if (i18n['aria.theme'] != null) themeBtn.setAttribute('aria-label', i18n['aria.theme']);
+      }
+      const scaleEl = document.getElementById('chartScale');
+      const scaleMode = document.getElementById('chartScaleMode');
+      const scaleTip = i18n['chart.scale.tip'] || i18n['aria.chartScale'];
+      if (scaleTip) {
+        if (scaleEl) scaleEl.title = scaleTip;
+        if (scaleMode) scaleMode.title = scaleTip;
       }
       if (state) applyDynamicTexts();
     }
