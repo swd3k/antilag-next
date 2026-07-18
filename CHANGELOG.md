@@ -11,6 +11,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.2.2] — 2026-07-18
+
+### Fixed
+- Update check **prefers github.com Atom** first (avoids long hang / failure when `api.github.com` DNS is poisoned).
+- Removed always-on custom socket `ConnectCallback` that could break TLS under elevated runs.
+- API path can retry via **known-good GitHub IPs** + SNI when system DNS points `api.github.com` at a black-hole.
+- Check reply no longer fails the whole update flow if `BuildUiState` throws after a successful check.
+- Generic “Update check failed” mapped to the clear network message (EN/RU).
+
+### Changed
+- Product version **1.2.2**.
+
+---
+
 ## [1.2.1] — 2026-07-18
 
 ### Fixed
@@ -188,6 +202,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.2.2** | 2026-07-18 | Atom-first update check, DNS poison resilience for api.github.com |
 | **1.2.1** | 2026-07-18 | Update check fallback (Atom), EN error i18n, chart during check |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
 | **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |

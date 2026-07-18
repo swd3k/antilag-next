@@ -13,7 +13,7 @@ namespace AntiLagNext.Infrastructure.Services;
 
 /// <summary>
 /// GitHub Releases updater: check latest SemVer, download Setup, silent Inno install.
-/// Primary: api.github.com. Fallback: github.com Atom + /releases/latest (many networks block the API).
+/// Prefers github.com (Atom / latest redirect) because many networks poison or block api.github.com.
 /// </summary>
 public sealed class UpdateService : IUpdateService
 {
@@ -34,9 +34,19 @@ public sealed class UpdateService : IUpdateService
         public const string Unknown = "unknown";
     }
 
-    private static readonly HttpClient Http = CreateClient();
+    // Shared handler without custom ConnectCallback (custom sockets broke TLS on some elevated runs).
+    private static readonly SocketsHttpHandler SharedHandler = CreateHandler(allowAutoRedirect: true);
+    private static readonly HttpClient Http = CreateClient(SharedHandler);
 
-    // First /releases/tag/vX.Y.Z or /releases/download/vX.Y.Z or atom id …/vX.Y.Z
+    // Known-good api.github.com fronts (used only if system DNS returns a black-hole IP).
+    private static readonly IPAddress[] ApiGithubFallbackIps =
+    {
+        IPAddress.Parse("140.82.121.6"),
+        IPAddress.Parse("140.82.121.5"),
+        IPAddress.Parse("140.82.112.6"),
+        IPAddress.Parse("140.82.113.6"),
+    };
+
     private static readonly Regex TagInUrl = new(
         @"/releases/(?:tag|download)/(v?\d+\.\d+\.\d+(?:[.-][A-Za-z0-9.]+)?)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
@@ -50,66 +60,55 @@ public sealed class UpdateService : IUpdateService
     public async Task<UpdateCheckResult> CheckAsync(CancellationToken cancellationToken = default)
     {
         string local = LocalVersion;
+        var failures = new List<string>(3);
         Exception? lastFail = null;
 
-        // 1) GitHub REST API (rich: assets list) — short budget; often blocked on some ISPs
+        // 1) Atom on github.com FIRST — works when api.github.com DNS/IP is poisoned
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(10));
-            var api = await TryCheckViaApiAsync(local, cts.Token).ConfigureAwait(false);
-            if (api is not null)
-                return api;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || cancellationToken.IsCancellationRequested)
-        {
-            lastFail = ex;
-            if (cancellationToken.IsCancellationRequested)
-                throw;
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            lastFail = new TimeoutException("GitHub API timed out");
-        }
-
-        // 2) Atom feed on github.com (works when api.github.com is unreachable)
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(15));
+            cts.CancelAfter(TimeSpan.FromSeconds(12));
             var atom = await TryCheckViaAtomAsync(local, cts.Token).ConfigureAwait(false);
             if (atom is not null)
                 return atom;
+            failures.Add("atom:empty");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
         {
             lastFail = ex;
-            if (cancellationToken.IsCancellationRequested)
-                throw;
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            lastFail = new TimeoutException("GitHub Atom timed out");
+            failures.Add("atom:" + ex.GetType().Name);
         }
 
-        // 3) Follow /releases/latest redirect → tag URL
+        // 2) /releases/latest redirect → tag
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(15));
+            cts.CancelAfter(TimeSpan.FromSeconds(12));
             var redir = await TryCheckViaLatestRedirectAsync(local, cts.Token).ConfigureAwait(false);
             if (redir is not null)
                 return redir;
+            failures.Add("redirect:empty");
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
         {
             lastFail = ex;
-            if (cancellationToken.IsCancellationRequested)
-                throw;
+            failures.Add("redirect:" + ex.GetType().Name);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+
+        // 3) REST API (optional enrichment) — short budget + DNS fallback IPs
+        try
         {
-            lastFail = new TimeoutException("GitHub latest redirect timed out");
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            var api = await TryCheckViaApiAsync(local, cts.Token).ConfigureAwait(false);
+            if (api is not null)
+                return api;
+            failures.Add("api:empty");
+        }
+        catch (Exception ex) when (!IsCallerCancel(ex, cancellationToken))
+        {
+            lastFail = ex;
+            failures.Add("api:" + ex.GetType().Name);
         }
 
         var (code, msg) = ClassifyError(lastFail);
@@ -119,7 +118,9 @@ public sealed class UpdateService : IUpdateService
             Error = msg,
             ErrorCode = code,
             ReleaseUrl = ReleasesPage,
-            IsPortable = IsPortableInstall()
+            IsPortable = IsPortableInstall(),
+            // Debug breadcrumb for logs (not shown as primary UI string)
+            ReleaseNotes = failures.Count > 0 ? string.Join(",", failures) : null
         };
     }
 
@@ -207,9 +208,6 @@ public sealed class UpdateService : IUpdateService
         return "win-x64";
     }
 
-    /// <summary>
-    /// True if portable zip (not Inno install under Program Files / uninstall registry).
-    /// </summary>
     public static bool IsPortableInstall()
     {
         try
@@ -239,7 +237,6 @@ public sealed class UpdateService : IUpdateService
         }
     }
 
-    /// <summary>Build canonical Setup download URL for a release tag/version.</summary>
     public static string BuildSetupDownloadUrl(string version, string rid)
     {
         string ver = version.Trim().TrimStart('v', 'V');
@@ -252,17 +249,14 @@ public sealed class UpdateService : IUpdateService
         return $"AntiLagNext-Setup-{ver}-{rid}.exe";
     }
 
-    /// <summary>Extract tag/version from Atom XML or redirect Location (unit-testable).</summary>
     public static bool TryParseLatestTagFromAtom(string atomXml, out string tag)
     {
         tag = "";
         if (string.IsNullOrWhiteSpace(atomXml)) return false;
 
-        // Prefer first <entry>…</entry> block
         int entryStart = atomXml.IndexOf("<entry", StringComparison.OrdinalIgnoreCase);
         string slice = entryStart >= 0 ? atomXml[entryStart..] : atomXml;
 
-        // <link rel="alternate" ... href=".../releases/tag/v1.2.0"/>
         var linkMatch = Regex.Match(
             slice,
             @"href\s*=\s*""([^""]*/releases/tag/[^""]+)""",
@@ -270,7 +264,6 @@ public sealed class UpdateService : IUpdateService
         if (linkMatch.Success && TryExtractTag(linkMatch.Groups[1].Value, out tag))
             return true;
 
-        // <id>tag:github.com,2008:Repository/…/v1.2.0</id>
         var idMatch = Regex.Match(
             slice,
             @"<id>\s*([^<]+)\s*</id>",
@@ -278,7 +271,6 @@ public sealed class UpdateService : IUpdateService
         if (idMatch.Success && TryExtractTag(idMatch.Groups[1].Value.Trim(), out tag))
             return true;
 
-        // title: AntiLag Next v1.2.0
         var titleMatch = Regex.Match(
             slice,
             @"<title>\s*([^<]*v?\d+\.\d+\.\d+[^<]*)\s*</title>",
@@ -308,7 +300,6 @@ public sealed class UpdateService : IUpdateService
             return true;
         }
 
-        // bare id ending with /v1.2.0
         m = TagInAtomId.Match(text.Trim());
         if (m.Success)
         {
@@ -316,7 +307,6 @@ public sealed class UpdateService : IUpdateService
             return true;
         }
 
-        // plain v1.2.0 or 1.2.0
         if (SemVer.TryParse(text, out _))
         {
             tag = text.Trim();
@@ -334,32 +324,116 @@ public sealed class UpdateService : IUpdateService
         if (ex is null)
             return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
 
-        // Unwrap
         Exception root = ex;
         while (root.InnerException is not null
-               && root is HttpRequestException or TaskCanceledException or AggregateException)
+               && (root is HttpRequestException or TaskCanceledException or AggregateException
+                   or IOException))
             root = root.InnerException;
 
         if (ex is TaskCanceledException or OperationCanceledException or TimeoutException
-            || root is TimeoutException or TaskCanceledException)
+            || root is TimeoutException or TaskCanceledException or OperationCanceledException)
             return (ErrorCodes.Timeout, "Update check timed out. Try again or open Releases.");
 
-        if (root is SocketException or IOException
+        if (root is SocketException
+            || root is IOException
             || ex is HttpRequestException
-            || root is HttpRequestException)
+            || root is HttpRequestException
+            || root.GetType().Name.Contains("Authentication", StringComparison.Ordinal)
+            || root.GetType().Name.Contains("Security", StringComparison.Ordinal))
             return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
 
-        return (ErrorCodes.Unknown, "Update check failed. Open Releases for the latest Setup.");
+        // Still treat as network for UI — users cannot act on NRE/IO details
+        return (ErrorCodes.Network, "Could not reach GitHub. Check network or open Releases manually.");
+    }
+
+    private static bool IsCallerCancel(Exception ex, CancellationToken caller)
+    {
+        if (caller.IsCancellationRequested
+            && ex is OperationCanceledException)
+            return true;
+        return false;
     }
 
     private async Task<UpdateCheckResult?> TryCheckViaApiAsync(string local, CancellationToken ct)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesApi);
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        using var resp = await Http.SendAsync(req, ct).ConfigureAwait(false);
-        if (!resp.IsSuccessStatusCode)
-            return null; // try fallbacks
+        // Prefer plain client; if DNS is poisoned, retry with fixed GitHub IPs via Host header
+        try
+        {
+            using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesApi);
+            req.Headers.Accept.ParseAdd("application/vnd.github+json");
+            using var resp = await Http.SendAsync(req, ct).ConfigureAwait(false);
+            if (resp.IsSuccessStatusCode)
+                return await ParseApiResponseAsync(local, resp, ct).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested)
+        {
+            if (ct.IsCancellationRequested) throw;
+            // fall through to IP override
+        }
 
+        return await TryCheckViaApiWithFallbackIpsAsync(local, ct).ConfigureAwait(false);
+    }
+
+    private static async Task<UpdateCheckResult?> TryCheckViaApiWithFallbackIpsAsync(
+        string local, CancellationToken ct)
+    {
+        foreach (var ip in ApiGithubFallbackIps)
+        {
+            ct.ThrowIfCancellationRequested();
+            try
+            {
+                using var handler = new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = true,
+                    AutomaticDecompression = DecompressionMethods.All,
+                    ConnectTimeout = TimeSpan.FromSeconds(5),
+                    ConnectCallback = async (ctx, token) =>
+                    {
+                        // Force connect to known-good IP while keeping SNI/Host as api.github.com
+                        var socket = new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
+                        {
+                            NoDelay = true
+                        };
+                        try
+                        {
+                            using var reg = token.Register(() =>
+                            {
+                                try { socket.Dispose(); } catch { /* ignore */ }
+                            });
+                            await socket.ConnectAsync(new IPEndPoint(ip, 443), token)
+                                .ConfigureAwait(false);
+                            return new NetworkStream(socket, ownsSocket: true);
+                        }
+                        catch
+                        {
+                            try { socket.Dispose(); } catch { /* ignore */ }
+                            throw;
+                        }
+                    }
+                };
+                using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+                client.DefaultRequestHeaders.Host = "api.github.com";
+                client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+
+                using var resp = await client.GetAsync(ReleasesApi, ct).ConfigureAwait(false);
+                if (!resp.IsSuccessStatusCode)
+                    continue;
+                return await ParseApiResponseAsync(local, resp, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || ct.IsCancellationRequested)
+            {
+                if (ct.IsCancellationRequested) throw;
+                // try next IP
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<UpdateCheckResult?> ParseApiResponseAsync(
+        string local, HttpResponseMessage resp, CancellationToken ct)
+    {
         await using var stream = await resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: ct).ConfigureAwait(false);
         var root = doc.RootElement;
@@ -395,9 +469,7 @@ public sealed class UpdateService : IUpdateService
         if (hasUpdate && root.TryGetProperty("assets", out var assets)
             && assets.ValueKind == JsonValueKind.Array)
         {
-            string ver = latest.ToString();
-            string prefer = BuildSetupAssetName(ver, rid);
-
+            string prefer = BuildSetupAssetName(latest.ToString(), rid);
             foreach (var a in assets.EnumerateArray())
             {
                 string? name = a.TryGetProperty("name", out var n) ? n.GetString() : null;
@@ -407,8 +479,7 @@ public sealed class UpdateService : IUpdateService
                 if (!name.Contains("Setup", StringComparison.OrdinalIgnoreCase)) continue;
 
                 if (name.Equals(prefer, StringComparison.OrdinalIgnoreCase)
-                    || (name.Contains(rid, StringComparison.OrdinalIgnoreCase)
-                        && name.Contains("Setup", StringComparison.OrdinalIgnoreCase)))
+                    || name.Contains(rid, StringComparison.OrdinalIgnoreCase))
                 {
                     downloadUrl = url;
                     assetName = name;
@@ -418,7 +489,6 @@ public sealed class UpdateService : IUpdateService
             }
         }
 
-        // If API listed no matching asset, still offer constructed URL
         if (hasUpdate && downloadUrl is null)
         {
             downloadUrl = BuildSetupDownloadUrl(latest.ToString(), rid);
@@ -443,14 +513,23 @@ public sealed class UpdateService : IUpdateService
     private async Task<UpdateCheckResult?> TryCheckViaAtomAsync(string local, CancellationToken ct)
     {
         using var req = new HttpRequestMessage(HttpMethod.Get, ReleasesAtom);
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/atom+xml"));
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/xml"));
-        req.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/xml"));
+        req.Headers.Accept.ParseAdd("application/atom+xml");
+        req.Headers.Accept.ParseAdd("application/xml");
+        req.Headers.Accept.ParseAdd("text/xml");
+        req.Headers.Accept.ParseAdd("*/*");
         using var resp = await Http.SendAsync(req, ct).ConfigureAwait(false);
         if (!resp.IsSuccessStatusCode)
             return null;
 
         string xml = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(xml))
+            return null;
+
+        // GitHub sometimes returns HTML interstitial; reject non-feed
+        if (xml.Contains("<html", StringComparison.OrdinalIgnoreCase)
+            && !xml.Contains("<feed", StringComparison.OrdinalIgnoreCase))
+            return null;
+
         if (!TryParseLatestTagFromAtom(xml, out string tag))
             return null;
 
@@ -460,43 +539,36 @@ public sealed class UpdateService : IUpdateService
 
     private async Task<UpdateCheckResult?> TryCheckViaLatestRedirectAsync(string local, CancellationToken ct)
     {
-        // Do not follow redirects — we need the Location header with the tag
         using var handler = CreateHandler(allowAutoRedirect: false);
-        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(20) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
+        using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+        client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
+        client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
-        using var req = new HttpRequestMessage(HttpMethod.Head, ReleasesLatestRedirect);
-        using var resp = await client.SendAsync(req, ct).ConfigureAwait(false);
+        string? location = null;
 
-        string? location = resp.Headers.Location?.ToString();
-        if (string.IsNullOrEmpty(location)
-            && resp.StatusCode is HttpStatusCode.Redirect or HttpStatusCode.MovedPermanently
-                or HttpStatusCode.Found or HttpStatusCode.SeeOther
-                or HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect)
+        // GET is more reliable than HEAD behind some proxies
+        using (var getReq = new HttpRequestMessage(HttpMethod.Get, ReleasesLatestRedirect))
+        using (var getResp = await client.SendAsync(
+                   getReq, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false))
         {
-            if (resp.Headers.TryGetValues("Location", out var vals))
-                location = vals.FirstOrDefault();
-        }
-
-        // Some stacks follow even with AllowAutoRedirect=false for same-host; also try GET body URL
-        if (string.IsNullOrEmpty(location) && resp.RequestMessage?.RequestUri is { } finalUri)
-        {
-            string u = finalUri.ToString();
-            if (u.Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase))
-                location = u;
-        }
-
-        if (string.IsNullOrEmpty(location))
-        {
-            // GET fallback (HEAD sometimes blocked)
-            using var getReq = new HttpRequestMessage(HttpMethod.Get, ReleasesLatestRedirect);
-            using var getResp = await client.SendAsync(
-                    getReq, HttpCompletionOption.ResponseHeadersRead, ct)
-                .ConfigureAwait(false);
             location = getResp.Headers.Location?.ToString();
+            if (string.IsNullOrEmpty(location)
+                && getResp.Headers.TryGetValues("Location", out var vals))
+                location = vals.FirstOrDefault();
+
             if (string.IsNullOrEmpty(location) && getResp.RequestMessage?.RequestUri is { } gu
-                && gu.ToString().Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase))
-                location = gu.ToString();
+                && gu.AbsoluteUri.Contains("/releases/tag/", StringComparison.OrdinalIgnoreCase))
+                location = gu.AbsoluteUri;
+
+            // 200 with final URL after manual non-redirect: parse HTML link as last resort
+            if (string.IsNullOrEmpty(location) && getResp.IsSuccessStatusCode)
+            {
+                string html = await getResp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                var m = Regex.Match(html, @"/releases/tag/(v?\d+\.\d+\.\d+)", RegexOptions.IgnoreCase);
+                if (m.Success)
+                    location = $"https://github.com/{Owner}/{Repo}/releases/tag/{m.Groups[1].Value}";
+            }
         }
 
         if (string.IsNullOrEmpty(location) || !TryExtractTag(location, out string tag))
@@ -529,7 +601,6 @@ public sealed class UpdateService : IUpdateService
         string? assetName = hasUpdate ? BuildSetupAssetName(latest.ToString(), rid) : null;
         bool portable = IsPortableInstall();
 
-        // Normalize release URL
         string html = releaseUrl;
         if (!html.Contains("/releases/", StringComparison.OrdinalIgnoreCase))
             html = $"https://github.com/{Owner}/{Repo}/releases/tag/v{latest}";
@@ -550,6 +621,7 @@ public sealed class UpdateService : IUpdateService
     private static UpdateCheckResult UpToDate(string local, string releaseUrl) => new()
     {
         LocalVersion = local,
+        LatestVersion = local,
         HasUpdate = false,
         ReleaseUrl = releaseUrl,
         IsPortable = IsPortableInstall()
@@ -623,18 +695,15 @@ public sealed class UpdateService : IUpdateService
         return "0.0.0";
     }
 
-    private static HttpClient CreateClient()
+    private static HttpClient CreateClient(SocketsHttpHandler handler)
     {
-        var handler = CreateHandler(allowAutoRedirect: true);
-        var c = new HttpClient(handler)
+        var c = new HttpClient(handler, disposeHandler: false)
         {
-            // Overall request budget; per-check uses linked CTS for tighter limits
-            Timeout = TimeSpan.FromMinutes(5)
+            Timeout = TimeSpan.FromSeconds(60)
         };
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
-        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/atom+xml"));
-        c.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+        // Minimal defaults — per-request Accept avoids fighting Atom vs JSON
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+        c.DefaultRequestHeaders.Accept.ParseAdd("*/*");
         return c;
     }
 
@@ -644,45 +713,10 @@ public sealed class UpdateService : IUpdateService
         {
             AllowAutoRedirect = allowAutoRedirect,
             AutomaticDecompression = DecompressionMethods.All,
-            ConnectTimeout = TimeSpan.FromSeconds(10),
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            // Prefer IPv4 when IPv6 routes black-hole (common on some ISPs)
-            ConnectCallback = async (context, ct) =>
-            {
-                var addresses = await Dns.GetHostAddressesAsync(context.DnsEndPoint.Host, ct)
-                    .ConfigureAwait(false);
-                var ordered = addresses
-                    .OrderBy(a => a.AddressFamily == AddressFamily.InterNetwork ? 0 : 1)
-                    .ToArray();
-                if (ordered.Length == 0)
-                    throw new SocketException((int)SocketError.HostNotFound);
-
-                Exception? last = null;
-                foreach (var addr in ordered)
-                {
-                    var socket = new Socket(addr.AddressFamily, SocketType.Stream, ProtocolType.Tcp)
-                    {
-                        NoDelay = true
-                    };
-                    try
-                    {
-                        using var reg = ct.Register(() =>
-                        {
-                            try { socket.Dispose(); } catch { /* ignore */ }
-                        });
-                        await socket.ConnectAsync(new IPEndPoint(addr, context.DnsEndPoint.Port), ct)
-                            .ConfigureAwait(false);
-                        return new NetworkStream(socket, ownsSocket: true);
-                    }
-                    catch (Exception ex)
-                    {
-                        last = ex;
-                        try { socket.Dispose(); } catch { /* ignore */ }
-                    }
-                }
-
-                throw last ?? new SocketException((int)SocketError.ConnectionRefused);
-            }
+            ConnectTimeout = TimeSpan.FromSeconds(8),
+            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            // Happy Eyeballs-ish: let OS dual-stack work; do not inject custom sockets for github.com
+            ConnectCallback = null
         };
     }
 }

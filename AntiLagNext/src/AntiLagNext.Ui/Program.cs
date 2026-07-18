@@ -1700,14 +1700,14 @@ internal static class Program
             "parse" => L(
                 "Не удалось разобрать версию релиза.",
                 "Could not parse release version."),
+            "unknown" => L(
+                "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.",
+                "Could not reach GitHub. Check network or open Releases manually."),
             _ when !string.IsNullOrEmpty(r.Error) =>
-                // Prefer English catalog text already in Error; re-map known EN to RU if needed
-                L(
-                    MapUpdateErrorToRu(r.Error),
-                    r.Error!),
+                L(MapUpdateErrorToRu(r.Error), r.Error!),
             _ => L(
-                "Проверка обновлений не удалась. Откройте Releases.",
-                "Update check failed. Open Releases for the latest Setup.")
+                "Не удалось связаться с GitHub. Проверьте сеть или откройте Releases вручную.",
+                "Could not reach GitHub. Check network or open Releases manually.")
         };
     }
 
@@ -1782,6 +1782,19 @@ internal static class Program
                 }
 
                 string? errMsg = string.IsNullOrEmpty(result.Error) ? null : LocalizeUpdateError(result);
+                // Breadcrumb from UpdateService (atom/api stage tags) — logs only
+                if (!string.IsNullOrEmpty(result.ReleaseNotes)
+                    && result.ReleaseNotes.Length < 120
+                    && result.ReleaseNotes.Contains(':', StringComparison.Ordinal))
+                    AddLog("Update stages: " + result.ReleaseNotes, string.IsNullOrEmpty(result.Error) ? "ok" : "err");
+
+                // Never let BuildUiState crash turn a good check into a fake failure
+                object? state = null;
+                try { state = BuildUiState(); }
+                catch (Exception stEx)
+                {
+                    WriteCrash("CheckUpdate.BuildUiState", stEx);
+                }
 
                 if (!string.IsNullOrEmpty(result.Error) && !result.HasUpdate)
                 {
@@ -1792,8 +1805,9 @@ internal static class Program
                         error = errMsg,
                         errorCode = result.ErrorCode,
                         local = result.LocalVersion,
+                        latest = result.LatestVersion,
                         releaseUrl = result.ReleaseUrl,
-                        state = BuildUiState()
+                        state
                     });
                     return;
                 }
@@ -1812,7 +1826,7 @@ internal static class Program
                     portable = result.IsPortable,
                     releaseUrl = result.ReleaseUrl,
                     downloadUrl = result.DownloadUrl,
-                    state = BuildUiState()
+                    state
                 });
             }
             catch (Exception ex)
@@ -1829,7 +1843,8 @@ internal static class Program
                 {
                     success = false,
                     error = LocalizeUpdateError(fake),
-                    errorCode = code
+                    errorCode = code,
+                    local = fake.LocalVersion
                 });
             }
         });

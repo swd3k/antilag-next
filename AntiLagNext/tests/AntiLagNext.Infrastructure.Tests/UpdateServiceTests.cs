@@ -62,6 +62,11 @@ public class UpdateServiceTests
         var (c2, m2) = UpdateService.ClassifyError(new TimeoutException());
         c2.Should().Be(UpdateService.ErrorCodes.Timeout);
         m2.Should().Contain("timed out");
+
+        // Unknown CLR exceptions still surface as actionable network copy (not "Update check failed")
+        var (c3, m3) = UpdateService.ClassifyError(new InvalidOperationException("boom"));
+        c3.Should().Be(UpdateService.ErrorCodes.Network);
+        m3.Should().Contain("GitHub");
     }
 
     [Fact]
