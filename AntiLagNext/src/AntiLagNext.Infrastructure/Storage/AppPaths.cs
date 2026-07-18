@@ -34,6 +34,9 @@ public static class AppPaths
     /// </summary>
     public static string IncompleteApplyFile { get; } = Path.Combine(AppDataRoot, "incomplete-apply.json");
 
+    /// <summary>Exported diagnostics zip packages (local troubleshooting only).</summary>
+    public static string DiagnosticsDirectory { get; } = Path.Combine(AppDataRoot, "diagnostics");
+
     /// <summary>External plugins: {exe}/plugins/*.dll</summary>
     public static string PluginsDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "plugins");
 
@@ -47,6 +50,7 @@ public static class AppPaths
         Directory.CreateDirectory(SettingsDirectory);
         Directory.CreateDirectory(BackupDirectory);
         Directory.CreateDirectory(LogsDirectory);
+        Directory.CreateDirectory(DiagnosticsDirectory);
         Directory.CreateDirectory(PluginsDirectory);
         Directory.CreateDirectory(I18nDirectory);
     }

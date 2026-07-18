@@ -28,6 +28,13 @@ public sealed class EngineBootstrap : IDisposable
     public IDriftService Drift { get; }
     public IAuditService Audit { get; }
     public IUpdateService Update { get; }
+    public DiagnosticsExportService Diagnostics { get; }
+
+    /// <summary>
+    /// Last profile-apply "What changed" summary (null after Revert or before first Apply).
+    /// </summary>
+    public ApplyChangeSummary? LastApplySummary =>
+        Profiles is Optimization.ProfileService ps ? ps.LastApplySummary : null;
 
     private EngineBootstrap(ServiceProvider provider)
     {
@@ -42,6 +49,7 @@ public sealed class EngineBootstrap : IDisposable
         Drift = provider.GetRequiredService<IDriftService>();
         Audit = provider.GetRequiredService<IAuditService>();
         Update = provider.GetRequiredService<IUpdateService>();
+        Diagnostics = provider.GetRequiredService<DiagnosticsExportService>();
     }
 
     public static async Task<EngineBootstrap> CreateAsync(CancellationToken cancellationToken = default)
@@ -105,8 +113,12 @@ public sealed class EngineBootstrap : IDisposable
         return await Profiles.ApplyAsync(profile, ct).ConfigureAwait(false);
     }
 
-    public Task<OperationResult> RevertAsync(CancellationToken ct = default) =>
-        Safety.ResetAllAsync(ct);
+    public async Task<OperationResult> RevertAsync(CancellationToken ct = default)
+    {
+        // Route through ProfileService so LastApplySummary is cleared.
+        var result = await Profiles.RevertAsync(ct).ConfigureAwait(false);
+        return result;
+    }
 
     public object BuildStatusSnapshot()
     {

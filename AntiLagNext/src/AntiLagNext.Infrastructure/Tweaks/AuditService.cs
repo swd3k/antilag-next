@@ -155,7 +155,8 @@ public sealed class AuditService : IAuditService
                 TitleKey = "audit.active_state.title",
                 Detail = "AntiLag Next optimizations are not marked active (ActiveStateStore).",
                 SuggestedTweakId = null,
-                CanFix = false
+                CanFix = false,
+                Area = MapArea("audit.active_state")
             });
         }
         else
@@ -167,11 +168,42 @@ public sealed class AuditService : IAuditService
                 TitleKey = "audit.active_state.title",
                 Detail = $"Optimizations active (profile={active.ProfileName ?? "?"}, since {active.AppliedUtc:u}).",
                 SuggestedTweakId = null,
-                CanFix = false
+                CanFix = false,
+                Area = MapArea("audit.active_state")
             });
         }
 
         return findings;
+    }
+
+    /// <summary>
+    /// Map finding id (and optional suggested tweak / path) → Health area.
+    /// Areas: Gpu|Network|Timer|Power|Input|System|Other
+    /// </summary>
+    public static string MapArea(string id, string? suggestedTweakId = null, string? path = null)
+    {
+        string key = (id ?? string.Empty).ToLowerInvariant();
+        string tweak = (suggestedTweakId ?? string.Empty).ToLowerInvariant();
+        string p = (path ?? string.Empty).ToLowerInvariant();
+
+        if (key.Contains("hags") || key.Contains("gpu") || p.Contains("graphicsdrivers"))
+            return "Gpu";
+        if (key.Contains("network") || key.Contains("tcp") || tweak.StartsWith("network.")
+            || p.Contains("tcpip") || p.Contains("multimedia\\systemprofile"))
+            return "Network";
+        if (key.Contains("timer") || key.Contains("serialize_timer") || key.Contains("interrupt_steering")
+            || tweak.StartsWith("latency.") || p.Contains("session manager\\kernel"))
+            return "Timer";
+        if (key.Contains("power") || tweak.StartsWith("power.") || p.Contains("control\\power"))
+            return "Power";
+        if (key.Contains("mouse") || key.Contains("keyboard") || key.Contains("input")
+            || tweak.StartsWith("input.") || p.Contains("mouclass") || p.Contains("kbdclass"))
+            return "Input";
+        if (key.Contains("win32_priority") || key.Contains("active_state") || key.Contains("cpu")
+            || tweak.StartsWith("cpu.") || p.Contains("prioritycontrol"))
+            return "System";
+
+        return "Other";
     }
 
     private static void CheckDword(
@@ -200,7 +232,8 @@ public sealed class AuditService : IAuditService
                 ? badDetail + " (value missing)"
                 : $"{badDetail} Current={current}, expected={preferred}.",
             SuggestedTweakId = suggestedTweakId,
-            CanFix = canFix && suggestedTweakId != null
+            CanFix = canFix && suggestedTweakId != null,
+            Area = MapArea(id, suggestedTweakId, path)
         });
     }
 
@@ -229,7 +262,8 @@ public sealed class AuditService : IAuditService
             TitleKey = titleKey,
             Detail = $"{badDetail} Current={current}, expected={preferred}.",
             SuggestedTweakId = suggestedTweakId,
-            CanFix = suggestedTweakId != null
+            CanFix = suggestedTweakId != null,
+            Area = MapArea(id, suggestedTweakId, path)
         });
     }
 

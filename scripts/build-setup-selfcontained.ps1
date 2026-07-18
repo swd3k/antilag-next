@@ -14,7 +14,7 @@
   Target RIDs (default win-x64 only — most users).
 #>
 param(
-  [string]$Version = "1.2.2",
+  [string]$Version = "1.3.0",
   [string[]]$Rid = @("win-x64")
 )
 

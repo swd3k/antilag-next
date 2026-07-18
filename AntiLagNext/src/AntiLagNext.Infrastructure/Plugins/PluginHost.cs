@@ -168,7 +168,9 @@ public sealed class PluginCatalog : IPluginCatalog, IDisposable
     public IAntiLagPlugin? GetById(string id) =>
         _plugins.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
 
-    public async Task<OperationResult> ApplyEnabledExtensionsAsync(PluginApplyContext context)
+    public async Task<OperationResult> ApplyEnabledExtensionsAsync(
+        PluginApplyContext context,
+        ICollection<string>? appliedPluginIds = null)
     {
         var messages = new List<string>();
         var errors = new List<string>();
@@ -188,7 +190,11 @@ public sealed class PluginCatalog : IPluginCatalog, IDisposable
                 }
 
                 var r = await p.ApplyAsync(context).ConfigureAwait(false);
-                if (r.Success) messages.Add($"{p.Id}: {r.Message}");
+                if (r.Success)
+                {
+                    messages.Add($"{p.Id}: {r.Message}");
+                    appliedPluginIds?.Add(p.Id);
+                }
                 else errors.Add($"{p.Id}: {r.Message}");
             }
             catch (Exception ex)

@@ -134,7 +134,10 @@ public interface IPluginCatalog
 
     Task LoadAsync(CancellationToken cancellationToken = default);
 
-    Task<OperationResult> ApplyEnabledExtensionsAsync(PluginApplyContext context);
+    /// <param name="appliedPluginIds">When non-null, successfully applied extension plugin ids are appended.</param>
+    Task<OperationResult> ApplyEnabledExtensionsAsync(
+        PluginApplyContext context,
+        ICollection<string>? appliedPluginIds = null);
 
     Task<OperationResult> RevertAllExtensionsAsync(CancellationToken cancellationToken = default);
 

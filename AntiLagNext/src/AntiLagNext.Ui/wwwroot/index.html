@@ -489,6 +489,52 @@
     .onboard-list { margin: 0 0 12px; padding-left: 1.2rem; color: var(--muted); font-size: 13px; line-height: 1.5; }
     .onboard-list li { margin-bottom: 8px; }
     .onboard-list strong { color: var(--text); font-weight: 600; }
+    .wizard-steps { display: flex; gap: 8px; margin: 0 0 14px; }
+    .wizard-steps span {
+      flex: 1; text-align: center; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+      padding: 6px 4px; border-radius: 8px; border: 1px solid var(--border);
+      color: var(--dim); background: var(--panel);
+    }
+    .wizard-steps span.on {
+      color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 45%, var(--border));
+      background: color-mix(in srgb, var(--cyan) 10%, var(--panel));
+    }
+    .wizard-pane { min-height: 120px; }
+    .wizard-pane[hidden] { display: none !important; }
+    .ba-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;
+    }
+    .ba-cell {
+      border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+      background: color-mix(in srgb, var(--panel) 88%, transparent);
+    }
+    .ba-cell .lbl { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; }
+    .ba-cell .val { font-family: Consolas, monospace; font-size: 22px; font-weight: 650; margin-top: 4px; }
+    .ba-cell .val.good { color: var(--chart-green); }
+    .ba-cell .val.warn { color: var(--chart-yellow); }
+    .ba-cell .val.bad { color: var(--chart-red); }
+    .changed-list { margin: 0; padding: 0; list-style: none; }
+    .changed-list li {
+      display: flex; gap: 10px; align-items: flex-start; padding: 8px 0;
+      border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+      font-size: 13px;
+    }
+    .changed-list li:last-child { border-bottom: 0; }
+    .changed-area {
+      min-width: 64px; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--cyan); padding-top: 2px;
+    }
+    .changed-body { flex: 1; min-width: 0; }
+    .changed-title { color: var(--text); font-weight: 600; }
+    .changed-meta { color: var(--dim); font-size: 11px; margin-top: 2px; }
+    .risk-pill {
+      display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .03em;
+      padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim);
+    }
+    .risk-pill.safe { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, var(--border)); }
+    .risk-pill.moderate { color: var(--chart-yellow); border-color: color-mix(in srgb, var(--chart-yellow) 40%, var(--border)); }
+    .risk-pill.aggressive { color: var(--red); border-color: color-mix(in srgb, var(--red) 40%, var(--border)); }
+    .area-group { margin: 12px 0 6px; font-size: 12px; font-weight: 700; color: var(--cyan); letter-spacing: .04em; text-transform: uppercase; }
     .peak-cap-hint { font-size: 10px; color: var(--muted); font-weight: 500; }
     .switch { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
@@ -776,7 +822,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.2.2</span>
+      <span class="ver" id="appVersion">1.3.0</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -836,6 +882,29 @@
           <div id="dashboard" class="section active">
             <h2 data-i18n="dash.title">Системный обзор</h2>
             <div class="sub selectable" data-i18n="dash.sub">Прокси scheduling latency (не DPC / не network) и статус оптимизаций</div>
+            <div class="card" id="beforeAfterCard" hidden style="margin-bottom:14px">
+              <div class="metric-label" style="color:var(--cyan);margin-bottom:4px" data-i18n="ba.title">Before / After</div>
+              <div class="note" data-i18n="ba.sub">Median scheduling latency (µs) captured around Enable</div>
+              <div class="ba-row">
+                <div class="ba-cell">
+                  <div class="lbl" data-i18n="ba.before">Before</div>
+                  <div class="val" id="baBefore">—</div>
+                </div>
+                <div class="ba-cell">
+                  <div class="lbl" data-i18n="ba.after">After</div>
+                  <div class="val" id="baAfter">—</div>
+                </div>
+              </div>
+              <div class="note" id="baDelta" style="margin-top:8px"></div>
+            </div>
+            <div class="card" id="changedCard" hidden style="margin-bottom:14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+                <div class="metric-label" style="color:var(--cyan)" data-i18n="changed.title">What changed</div>
+                <button type="button" class="hdr-ctrl" style="width:auto;padding:0 10px;height:28px;font-size:11px" onclick="hideChangedCard()" data-i18n="changed.hide">Hide</button>
+              </div>
+              <div class="note" id="changedSub" data-i18n="changed.sub">Applied with JSON backup — Reset all restores prior state.</div>
+              <ul class="changed-list" id="changedList" aria-live="polite"></ul>
+            </div>
             <div class="card" id="updateBanner" hidden style="margin-bottom:14px;border-color:color-mix(in srgb,var(--cyan) 40%,var(--border))">
               <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
                 <div>
@@ -963,19 +1032,23 @@
               Safe = низкий риск. Fix all = Safe + Moderate. Нужны права администратора.
             </div>
             <div class="health-toolbar">
+              <button type="button" class="hdr-ctrl primary" id="healthFixRecBtn" onclick="fixRecommended()"
+                      data-tip="health.tip.fixRec">
+                <span data-i18n="health.fixRec">Fix recommended</span>
+              </button>
               <button type="button" class="hdr-ctrl" id="healthRefreshBtn" onclick="refreshHealth()"
                       data-tip="health.tip.refresh">
                 <span data-i18n="health.refresh">Обновить</span>
               </button>
-              <button type="button" class="hdr-ctrl primary" id="healthFixSafeBtn" onclick="fixAudit(true)"
+              <button type="button" class="hdr-ctrl" id="healthFixSafeBtn" onclick="fixAudit(true)"
                       data-tip="health.tip.fixSafe">
                 <span data-i18n="health.fixSafe">Исправить Safe</span>
               </button>
-              <button type="button" class="hdr-ctrl primary" id="healthFixAllBtn" onclick="fixAudit(false)"
+              <button type="button" class="hdr-ctrl" id="healthFixAllBtn" onclick="fixAudit(false)"
                       data-tip="health.tip.fixAll">
                 <span data-i18n="health.fix">Исправить всё</span>
               </button>
-              <button type="button" class="hdr-ctrl primary" id="healthReapplyBtn" onclick="reapplyDrift()"
+              <button type="button" class="hdr-ctrl" id="healthReapplyBtn" onclick="reapplyDrift()"
                       data-tip="health.tip.reapply">
                 <span data-i18n="health.reapply">Повторить drifted</span>
               </button>
@@ -1009,6 +1082,7 @@
             <div class="log-toolbar">
               <button type="button" class="hdr-ctrl" onclick="copyLogs()" data-i18n="logs.copy">Копировать</button>
               <button type="button" class="hdr-ctrl" onclick="exportLogs()" data-i18n="logs.export">Экспорт .txt</button>
+              <button type="button" class="hdr-ctrl primary" onclick="exportDiagnostics()" data-i18n="diag.export">Export diagnostics</button>
             </div>
             <div class="log-table selectable">
               <div class="log-head" id="logHead">
@@ -1084,6 +1158,15 @@
                 <span data-i18n="settings.tray.hide">Свернуть в трей</span>
               </button>
             </div>
+            <div class="card" style="margin-top:14px">
+              <div class="metric-label" data-i18n="diag.title">Diagnostics</div>
+              <p class="note" style="margin:10px 0 14px" data-i18n="diag.desc">
+                Local zip with redacted settings, audit, drift, and logs — no cloud upload.
+              </p>
+              <button type="button" class="hdr-ctrl primary" style="width:auto;padding:0 14px;height:36px" onclick="exportDiagnostics()">
+                <span data-i18n="diag.export">Export diagnostics</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1129,15 +1212,41 @@
   </div>
 
   <div id="onboardModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="onboardTitle" hidden>
-    <div class="modal">
-      <h3 id="onboardTitle" data-i18n="onboard.title">Перед включением</h3>
-      <ol class="onboard-list">
-        <li data-i18n="onboard.1"><strong>Что изменится:</strong> timer resolution, схема питания, часть реестра GPU/Game Mode — с JSON-бэкапом.</li>
-        <li data-i18n="onboard.2"><strong>Откат:</strong> кнопка «Сбросить всё» / «Отключить» восстанавливает сохранённое состояние.</li>
-        <li data-i18n="onboard.3"><strong>График µs:</strong> proxy scheduling latency, не kernel DPC и не network ping.</li>
-      </ol>
+    <div class="modal" style="max-width:480px">
+      <h3 id="onboardTitle" data-i18n="wizard.title">Welcome to AntiLag Next</h3>
+      <div class="wizard-steps" aria-hidden="true">
+        <span id="wizStep1" class="on">1</span>
+        <span id="wizStep2">2</span>
+        <span id="wizStep3">3</span>
+      </div>
+      <div class="wizard-pane" id="wizPane0">
+        <p data-i18n="wizard.s1.body">AntiLag Next tunes timer resolution, power plan, and a curated set of latency registry keys to improve scheduling responsiveness.</p>
+        <ol class="onboard-list">
+          <li data-i18n="wizard.s1.li1">Requires Administrator (UAC) by design.</li>
+          <li data-i18n="wizard.s1.li2">Every change is backed up to local JSON — Reset all restores it.</li>
+          <li data-i18n="wizard.s1.li3">Open-source · no inject into games · no telemetry.</li>
+        </ol>
+      </div>
+      <div class="wizard-pane" id="wizPane1" hidden>
+        <p data-i18n="wizard.s2.body">What it does <strong>not</strong> do:</p>
+        <ol class="onboard-list">
+          <li data-i18n="wizard.s2.li1">Not a network ping booster or FPS magic multiplier.</li>
+          <li data-i18n="wizard.s2.li2">Not NVIDIA Reflex / anti-cheat bypass / game inject.</li>
+          <li data-i18n="wizard.s2.li3">µs chart = scheduling latency proxy — not kernel DPC truth.</li>
+        </ol>
+      </div>
+      <div class="wizard-pane" id="wizPane2" hidden>
+        <p data-i18n="wizard.s3.body">Ready when you are. Pick Gaming (recommended), then press Enable on the dashboard.</p>
+        <ol class="onboard-list">
+          <li data-i18n="wizard.s3.li1">Health page: scan drift after Windows updates.</li>
+          <li data-i18n="wizard.s3.li2">Export diagnostics from Logs/Settings if you need support data.</li>
+          <li data-i18n="wizard.s3.li3">Something feels wrong? Reset all anytime.</li>
+        </ol>
+      </div>
       <div class="actions">
-        <button type="button" class="primary" onclick="dismissOnboard()" data-i18n="onboard.ok">Понятно</button>
+        <button type="button" class="secondary" id="wizBack" onclick="wizardNav(-1)" hidden data-i18n="wizard.back">Back</button>
+        <button type="button" class="primary" id="wizNext" onclick="wizardNav(1)" data-i18n="wizard.next">Next</button>
+        <button type="button" class="primary" id="wizDone" onclick="dismissOnboard()" hidden data-i18n="wizard.done">Get started</button>
       </div>
     </div>
   </div>
@@ -1178,6 +1287,12 @@
     let domExtrasTick = 0;
     /** true until first successful getState */
     let uiBooting = true;
+    /** First-run wizard step 0..2 */
+    let wizardStep = 0;
+    /** Before/After latency capture (µs median) */
+    let baBeforeUs = null;
+    let baAfterUs = null;
+    let lastChangeSummary = null;
 
     function t(key, vars) {
       let s = i18n[key] ?? key;
@@ -1802,6 +1917,8 @@
       renderPlugins(s.plugins || []);
       renderLogs(s.logs || []);
       applyHealthSummaryFromState(s);
+      if (s.changeSummary) renderChangeSummary(s.changeSummary);
+      renderBeforeAfter();
       // Re-localize health tables if already loaded
       if (lastAuditFindings.length || lastDriftEntries.length) {
         renderAuditFindings(lastAuditFindings);
@@ -2009,6 +2126,12 @@
       return String(raw).replace(/^audit\./, '').replace(/\./g, ' ');
     }
 
+    function areaLabel(area) {
+      const a = String(area || 'Other');
+      const key = 'area.' + a.toLowerCase();
+      return i18n[key] != null ? i18n[key] : a;
+    }
+
     function renderAuditFindings(findings) {
       const box = document.getElementById('auditList');
       const countEl = document.getElementById('auditCountLabel');
@@ -2024,28 +2147,36 @@
         </div>`;
         return;
       }
-      let rows = lastAuditFindings.map(f => {
-        const sev = String(f.severity || 'info');
-        const fix = f.canFix
-          ? `<span class="note" style="color:var(--cyan)">${escapeHtml(f.suggestedTweakId || '')}</span>`
-          : '—';
-        return `<tr>
-          <td><span class="sev-pill ${sevClass(sev)}">${escapeHtml(sev)}</span></td>
-          <td>
-            <div class="col-id">${escapeHtml(auditTitle(f))}</div>
-            <div class="note selectable" style="margin-top:4px">${escapeHtml(f.detail || '')}</div>
-          </td>
-          <td>${fix}</td>
-        </tr>`;
-      }).join('');
-      box.innerHTML = `<table class="health-table">
-        <thead><tr>
-          <th style="width:88px"></th>
-          <th></th>
-          <th style="width:140px">tweak</th>
-        </tr></thead>
-        <tbody>${rows}</tbody>
-      </table>`;
+      // Group by area for scannability
+      const groups = {};
+      const order = ['Timer', 'Power', 'Gpu', 'Network', 'Input', 'System', 'Other'];
+      lastAuditFindings.forEach(f => {
+        const a = f.area || 'Other';
+        if (!groups[a]) groups[a] = [];
+        groups[a].push(f);
+      });
+      let html = '';
+      const keys = [...order.filter(k => groups[k]), ...Object.keys(groups).filter(k => !order.includes(k))];
+      keys.forEach(area => {
+        html += `<div class="area-group">${escapeHtml(areaLabel(area))}</div>`;
+        html += `<table class="health-table"><tbody>`;
+        groups[area].forEach(f => {
+          const sev = String(f.severity || 'info');
+          const fix = f.canFix
+            ? `<span class="note" style="color:var(--cyan)">${escapeHtml(f.suggestedTweakId || '')}</span>`
+            : '—';
+          html += `<tr>
+            <td style="width:88px"><span class="sev-pill ${sevClass(sev)}">${escapeHtml(sev)}</span></td>
+            <td>
+              <div class="col-id">${escapeHtml(auditTitle(f))}</div>
+              <div class="note selectable" style="margin-top:4px">${escapeHtml(f.detail || '')}</div>
+            </td>
+            <td style="width:140px">${fix}</td>
+          </tr>`;
+        });
+        html += `</tbody></table>`;
+      });
+      box.innerHTML = html;
     }
 
     function renderDriftEntries(entries) {
@@ -2193,6 +2324,162 @@
       }
     }
 
+    async function fixRecommended() {
+      if (busy || healthBusy) return;
+      setBusy(true);
+      setHealthBusy(true);
+      try {
+        const r = await send('fixRecommended');
+        if (r && r.state) await applyState(r.state);
+        if (r && r.success === false) {
+          toast(t('toast.error') + (r.message ? ': ' + r.message : ''));
+          setHealthLastResult([r.message, r.detail, r.error].filter(Boolean).join('\n'), true);
+        } else {
+          toast(t('health.fixRec') + (r && r.message ? ': ' + r.message : ''));
+          setHealthLastResult(r && r.message ? r.message : t('health.fixRec'), false);
+        }
+        await refreshHealth();
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+        setHealthLastResult(e.message, true);
+      } finally {
+        setBusy(false);
+        setHealthBusy(false);
+      }
+    }
+
+    async function exportDiagnostics() {
+      if (busy) return;
+      setBusy(true, { keepChart: true });
+      try {
+        const r = await send('exportDiagnostics');
+        if (r && r.success) {
+          toast(t('diag.ok') + (r.path ? ': ' + r.path : ''));
+        } else {
+          toast(t('toast.error') + (r && r.error ? ': ' + r.error : ''));
+        }
+      } catch (e) {
+        toast(t('toast.error') + ': ' + e.message);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function medianOf(arr) {
+      const a = (arr || []).map(Number).filter(n => Number.isFinite(n) && n > 0).sort((x, y) => x - y);
+      if (!a.length) return null;
+      const m = Math.floor(a.length / 2);
+      return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+    }
+
+    function captureBeforeLatency() {
+      const m = medianOf(latencyHistory);
+      if (m != null) baBeforeUs = Math.round(m * 10) / 10;
+      else if (state && state.latencyUs != null) baBeforeUs = Number(state.latencyUs);
+      try { localStorage.setItem('al_ba_before', baBeforeUs != null ? String(baBeforeUs) : ''); } catch (e) {}
+    }
+
+    function captureAfterLatency() {
+      const m = medianOf(latencyHistory);
+      if (m != null) baAfterUs = Math.round(m * 10) / 10;
+      else if (state && state.latencyUs != null) baAfterUs = Number(state.latencyUs);
+      try {
+        localStorage.setItem('al_ba_after', baAfterUs != null ? String(baAfterUs) : '');
+      } catch (e) {}
+      renderBeforeAfter();
+    }
+
+    function latencyTone(us) {
+      if (us == null || !Number.isFinite(us)) return '';
+      if (us < 100) return 'good';
+      if (us <= 500) return 'warn';
+      return 'bad';
+    }
+
+    function renderBeforeAfter() {
+      const card = document.getElementById('beforeAfterCard');
+      const bEl = document.getElementById('baBefore');
+      const aEl = document.getElementById('baAfter');
+      const dEl = document.getElementById('baDelta');
+      if (!card) return;
+      // Restore from storage if needed
+      if (baBeforeUs == null) {
+        try {
+          const s = localStorage.getItem('al_ba_before');
+          if (s) baBeforeUs = Number(s);
+        } catch (e) {}
+      }
+      if (baAfterUs == null) {
+        try {
+          const s = localStorage.getItem('al_ba_after');
+          if (s) baAfterUs = Number(s);
+        } catch (e) {}
+      }
+      if (baBeforeUs == null && baAfterUs == null) {
+        card.hidden = true;
+        return;
+      }
+      card.hidden = false;
+      if (bEl) {
+        bEl.textContent = baBeforeUs != null ? baBeforeUs + ' µs' : '—';
+        bEl.className = 'val ' + latencyTone(baBeforeUs);
+      }
+      if (aEl) {
+        aEl.textContent = baAfterUs != null ? baAfterUs + ' µs' : '—';
+        aEl.className = 'val ' + latencyTone(baAfterUs);
+      }
+      if (dEl) {
+        if (baBeforeUs != null && baAfterUs != null && baBeforeUs > 0) {
+          const delta = baAfterUs - baBeforeUs;
+          const pct = Math.round((delta / baBeforeUs) * 100);
+          const better = delta < 0;
+          dEl.textContent = better
+            ? t('ba.improved', { us: Math.abs(Math.round(delta * 10) / 10), pct: Math.abs(pct) })
+            : t('ba.delta', { us: Math.round(delta * 10) / 10, pct });
+          dEl.style.color = better ? 'var(--green)' : 'var(--muted)';
+        } else {
+          dEl.textContent = t('ba.hint');
+          dEl.style.color = 'var(--muted)';
+        }
+      }
+    }
+
+    function hideChangedCard() {
+      const card = document.getElementById('changedCard');
+      if (card) card.hidden = true;
+    }
+
+    function renderChangeSummary(summary) {
+      lastChangeSummary = summary || null;
+      const card = document.getElementById('changedCard');
+      const list = document.getElementById('changedList');
+      if (!card || !list) return;
+      if (!summary || !Array.isArray(summary.items) || !summary.items.length) {
+        card.hidden = true;
+        list.innerHTML = '';
+        return;
+      }
+      card.hidden = false;
+      list.innerHTML = summary.items.map(it => {
+        const title = (it.titleKey && i18n[it.titleKey] != null) ? i18n[it.titleKey]
+          : (it.detail || it.id || '');
+        const risk = String(it.risk || 'safe').toLowerCase();
+        const reboot = it.requiresReboot
+          ? ` · <span style="color:var(--chart-yellow)">${escapeHtml(t('changed.reboot'))}</span>`
+          : '';
+        return `<li>
+          <span class="changed-area">${escapeHtml(areaLabel(it.area))}</span>
+          <div class="changed-body">
+            <div class="changed-title">${escapeHtml(title)}</div>
+            <div class="changed-meta">
+              <span class="risk-pill ${escapeHtml(risk)}">${escapeHtml(risk)}</span>${reboot}
+              ${it.detail ? ' · ' + escapeHtml(it.detail) : ''}
+            </div>
+          </div>
+        </li>`;
+      }).join('');
+    }
+
     function localizeUpdateError(u) {
       if (!u) return '';
       if (u.error) return u.error; // host already localized via UiCulture
@@ -2313,13 +2600,20 @@
           if (r && r.state) await applyState(r.state);
           else if (r && (r.success === false || r.busy || r.error))
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+          hideChangedCard();
+          lastChangeSummary = null;
         } else {
-          // First enable is always user-driven (no auto-apply on first install)
+          // Capture baseline latency before enable
+          captureBeforeLatency();
           const r = await send('apply', { profile: selectedProfile });
           if (r && r.state) await applyState(r.state);
           else if (r && (r.success === false || r.busy || r.error))
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
+          if (r && r.changeSummary) renderChangeSummary(r.changeSummary);
+          else if (r && r.state && r.state.changeSummary) renderChangeSummary(r.state.changeSummary);
           if (r && r.success) {
+            // Sample after a short settle so chart has post-apply samples
+            setTimeout(() => captureAfterLatency(), 1200);
             pendingAutostartAfterRestart = !!r.offerAutostart;
             if (r.offerRestart) showRestartModal();
             else if (r.offerAutostart) showAutostartModal();
@@ -2394,19 +2688,40 @@
       }
     }
 
+    function syncWizardUi() {
+      for (let i = 0; i < 3; i++) {
+        const pane = document.getElementById('wizPane' + i);
+        const step = document.getElementById('wizStep' + (i + 1));
+        if (pane) pane.hidden = i !== wizardStep;
+        if (step) step.classList.toggle('on', i === wizardStep);
+      }
+      const back = document.getElementById('wizBack');
+      const next = document.getElementById('wizNext');
+      const done = document.getElementById('wizDone');
+      if (back) back.hidden = wizardStep === 0;
+      if (next) next.hidden = wizardStep >= 2;
+      if (done) done.hidden = wizardStep < 2;
+      applyI18n();
+    }
+    function wizardNav(delta) {
+      wizardStep = Math.max(0, Math.min(2, wizardStep + delta));
+      syncWizardUi();
+    }
     function dismissOnboard() {
-      try { localStorage.setItem('al_onboard_v1', '1'); } catch (e) {}
+      try { localStorage.setItem('al_onboard_v2', '1'); } catch (e) {}
       hideModal('onboardModal');
+      send('completeFirstRun').catch(() => {});
     }
     function maybeShowOnboard() {
       try {
-        if (localStorage.getItem('al_onboard_v1') === '1') return;
+        if (localStorage.getItem('al_onboard_v2') === '1' || localStorage.getItem('al_onboard_v1') === '1') return;
       } catch (e) {}
-      // Only before first successful optimize
-      if (state && state.userEnabledOptimization) {
-        try { localStorage.setItem('al_onboard_v1', '1'); } catch (e) {}
+      if (state && (state.userEnabledOptimization || state.firstRunCompleted)) {
+        try { localStorage.setItem('al_onboard_v2', '1'); } catch (e) {}
         return;
       }
+      wizardStep = 0;
+      syncWizardUi();
       showModal('onboardModal');
     }
 

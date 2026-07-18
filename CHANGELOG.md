@@ -11,6 +11,27 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0] — 2026-07-18
+
+### Added
+- **First-run wizard** (3 steps): what the app does, what it does not, how to start safely.
+- **What changed** panel after Enable — plain-language list from apply summary (area, risk, reboot hint).
+- **Before / After** latency snapshot on the dashboard (median µs around Enable).
+- **Health → Fix recommended** — Safe catalog fixes + reapply drifted desired-state in one action.
+- **Audit findings grouped by area** (Timer / Power / GPU / Network / …).
+- **Export diagnostics** zip (redacted settings, audit, drift, logs) — Logs + Settings; opens Explorer to the file.
+- `ApplyChangeSummary` / builder; `AuditFinding.Area`; optional `OperationResult.Code`.
+- IPC: `fixRecommended`, `exportDiagnostics`, `completeFirstRun`; apply payload includes `changeSummary`.
+
+### Changed
+- Product version **1.3.0**.
+- Onboarding localStorage key `al_onboard_v2` (wizard).
+
+### Security / trust
+- Diagnostics export is local-only (no cloud); settings redacted; no full backup dump.
+
+---
+
 ## [1.2.2] — 2026-07-18
 
 ### Security
@@ -210,6 +231,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.3.0** | 2026-07-18 | Trust & Clarity: wizard, what-changed, before/after, health fix recommended, diagnostics export |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |

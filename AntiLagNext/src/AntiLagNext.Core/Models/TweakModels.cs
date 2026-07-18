@@ -91,6 +91,8 @@ public sealed class AuditFinding
     public required string Detail { get; init; }
     public string? SuggestedTweakId { get; init; }
     public bool CanFix { get; init; }
+    /// <summary>Gpu|Network|Timer|Power|Input|System|Other — for Health UI grouping.</summary>
+    public string Area { get; init; } = "Other";
 }
 
 /// <summary>Helpers for serializing tweak desired values without Win32 types.</summary>

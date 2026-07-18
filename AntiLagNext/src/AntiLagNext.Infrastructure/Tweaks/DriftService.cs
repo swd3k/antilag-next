@@ -51,9 +51,19 @@ public sealed class DriftService : IDriftService
         Guid sessionId,
         CancellationToken cancellationToken = default)
     {
-        var drifted = Scan()
-            .Where(d => d.Status is DriftStatus.Drifted or DriftStatus.Missing)
-            .ToList();
+        // Only reapply values we previously owned (desired_state). Never fall back to the
+        // full catalog here — that would mass-write Moderate keys on a fresh install.
+        var desired = _desiredState.GetEntries();
+        if (desired.Count == 0)
+            return OperationResult.Ok("Drift: no desired-state yet — nothing to reapply.");
+
+        var drifted = new List<DriftEntry>();
+        foreach (var e in desired)
+        {
+            var row = ReadLive(e.TweakId, e.Hive, e.Path, e.Name, e.Type, e.Expected);
+            if (row.Status is DriftStatus.Drifted or DriftStatus.Missing)
+                drifted.Add(row);
+        }
 
         if (drifted.Count == 0)
             return OperationResult.Ok("Drift: nothing to reapply.");

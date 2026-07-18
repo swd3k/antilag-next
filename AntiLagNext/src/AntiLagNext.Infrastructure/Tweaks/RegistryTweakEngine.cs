@@ -22,10 +22,12 @@ public sealed class RegistryTweakEngine
     /// <summary>
     /// Apply a batch of tweak definitions under an open backup session.
     /// </summary>
+    /// <param name="appliedOut">When non-null, successfully applied definitions are appended.</param>
     public Task<OperationResult> ApplyAsync(
         IReadOnlyList<TweakDefinition> definitions,
         Guid sessionId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        ICollection<TweakDefinition>? appliedOut = null)
     {
         if (definitions == null || definitions.Count == 0)
             return Task.FromResult(OperationResult.Ok("Latency tweaks: nothing to apply."));
@@ -44,6 +46,7 @@ public sealed class RegistryTweakEngine
                 {
                     applied++;
                     messages.Add(one.Message);
+                    appliedOut?.Add(def);
                 }
                 else
                 {

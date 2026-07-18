@@ -69,6 +69,7 @@ public static class DependencyInjection
         services.AddSingleton<IMonitoringService, MonitoringService>();
         services.AddSingleton<IBenchmarkService, BenchmarkService>();
         services.AddSingleton<IUpdateService, UpdateService>();
+        services.AddSingleton<DiagnosticsExportService>();
 
         return services;
     }

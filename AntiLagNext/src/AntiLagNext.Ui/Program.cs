@@ -702,6 +702,17 @@ internal static class Program
                 QueueStartUpdate(id);
                 return;
             }
+            if (cmd == "fixRecommended")
+            {
+                // Health one-click: Fix safe findings + reapply drifted (heavy)
+                QueueFixRecommended(id);
+                return;
+            }
+            if (cmd == "exportDiagnostics")
+            {
+                QueueExportDiagnostics(id);
+                return;
+            }
 
             // Allowlist commands only (fast path on message thread)
             object payload = cmd switch
@@ -723,6 +734,7 @@ internal static class Program
                 "hideToTray" => HandleHideToTray(),
                 "restartPc" => HandleRestartPc(root),
                 "openReleases" => HandleOpenReleases(),
+                "completeFirstRun" => HandleCompleteFirstRun(),
                 _ => new { error = "unknown cmd" }
             };
 
@@ -1075,9 +1087,11 @@ internal static class Program
                             success = result.Success,
                             message = engineMsg,
                             detail = result.Detail,
+                            code = result.Code,
                             offerRestart,
                             offerAutostart,
                             policiesApplied,
+                            changeSummary = MapChangeSummary(_engine?.LastApplySummary),
                             state = BuildUiStateCore()
                         };
                     }
@@ -1088,6 +1102,206 @@ internal static class Program
             catch (Exception ex)
             {
                 WriteCrash(isApply ? "ApplyAsync" : "RevertAsync", ex);
+                ReplyOnUiThread(id, new { success = false, error = "handler error", detail = ex.Message });
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+            }
+        });
+    }
+
+    private static object? MapChangeSummary(ApplyChangeSummary? s)
+    {
+        if (s is null) return null;
+        return new
+        {
+            profileKey = s.ProfileKey,
+            profileKind = s.ProfileKind,
+            appliedUtc = s.AppliedUtc,
+            items = s.Items.Select(i => new
+            {
+                id = i.Id,
+                area = i.Area,
+                titleKey = i.TitleKey,
+                detail = i.Detail,
+                risk = i.Risk,
+                requiresReboot = i.RequiresReboot
+            }).ToList()
+        };
+    }
+
+    private static object HandleCompleteFirstRun()
+    {
+        if (_engine == null)
+            return new { success = false, error = "no engine" };
+        if (!_engine.Settings.FirstRunCompleted)
+        {
+            _engine.Settings.FirstRunCompleted = true;
+            _engine.SettingsService.Save();
+        }
+        return new { success = true, firstRunCompleted = true, state = BuildUiState() };
+    }
+
+    /// <summary>Health: fix safe audit findings then reapply drifted desired-state.</summary>
+    private static void QueueFixRecommended(string? id)
+    {
+        if (!TryBeginHeavyOp(id))
+            return;
+
+        AddLog(L("Здоровье: исправление рекомендуемого…", "Health: applying recommended fixes…"), "ok");
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                object payload;
+                lock (EngineOpLock)
+                {
+                    if (_engine == null)
+                    {
+                        payload = new { success = false, message = "engine unavailable", error = "no engine" };
+                    }
+                    else
+                    {
+                        // 1) Safe audit fix (own backup session)
+                        var auditPayload = RunFixAuditCore(safeOnly: true);
+                        bool auditOk = true;
+                        string auditMsg = "";
+                        try
+                        {
+                            var at = auditPayload.GetType();
+                            auditOk = (bool?)at.GetProperty("success")?.GetValue(auditPayload) ?? false;
+                            auditMsg = at.GetProperty("message")?.GetValue(auditPayload)?.ToString() ?? "";
+                        }
+                        catch { auditOk = false; }
+
+                        // 2) Reapply only owned desired-state (no catalog mass-write)
+                        var before = _engine.Safety
+                            .BeforeChangesAsync("Health fix recommended (drift)")
+                            .GetAwaiter().GetResult();
+                        bool driftOk;
+                        string driftMsg;
+                        if (!before.Success || before.Value == Guid.Empty)
+                        {
+                            driftOk = false;
+                            driftMsg = LocalizeEngineMessage(before.Message) is { Length: > 0 } bm
+                                ? bm
+                                : L("Не удалось подготовить защиту (drift).", "Could not prepare safety backup (drift).");
+                        }
+                        else
+                        {
+                            Guid sessionId = before.Value;
+                            var drift = _engine.Drift.ReapplyDriftedAsync(sessionId).GetAwaiter().GetResult();
+                            var commit = _engine.Safety.CommitChanges(sessionId);
+                            driftOk = drift.Success && commit.Success;
+                            driftMsg = LocalizeEngineMessage(drift.Message)
+                                       + (commit.Success ? "" : " · " + LocalizeEngineMessage(commit.Message));
+                        }
+
+                        bool ok = auditOk && driftOk;
+                        string msg = (string.IsNullOrWhiteSpace(auditMsg) ? "" : auditMsg + " · ") + driftMsg;
+                        AddLog(ok
+                                ? L("Рекомендовано: ", "Recommended: ") + msg
+                                : L("Рекомендованное исправление: ", "Recommended fix: ") + msg,
+                            ok ? "ok" : "err");
+
+                        payload = new
+                        {
+                            success = ok,
+                            message = msg,
+                            state = BuildUiStateCore()
+                        };
+                    }
+                }
+                ReplyOnUiThread(id, payload);
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("FixRecommended", ex);
+                ReplyOnUiThread(id, new { success = false, error = "handler error", detail = ex.Message });
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+            }
+        });
+    }
+
+    private static void QueueExportDiagnostics(string? id)
+    {
+        // Diagnostics is read-only filesystem — do not block other heavy ops hard,
+        // but still avoid pile-up if already busy with apply.
+        if (!TryBeginHeavyOp(id))
+            return;
+
+        _ = Task.Run(() =>
+        {
+            try
+            {
+                if (_engine == null)
+                {
+                    ReplyOnUiThread(id, new { success = false, error = "no engine" });
+                    return;
+                }
+
+                string logsText;
+                lock (LogLock)
+                {
+                    try
+                    {
+                        logsText = JsonSerializer.Serialize(LogBuffer, JsonOpts);
+                    }
+                    catch
+                    {
+                        logsText = string.Join(Environment.NewLine,
+                            LogBuffer.Select(e => e?.ToString() ?? ""));
+                    }
+                }
+
+                var result = _engine.Diagnostics.ExportZip(logsText);
+                if (result.Success && !string.IsNullOrEmpty(result.Value))
+                {
+                    string path = result.Value!;
+                    AddLog(L("Диагностика: ", "Diagnostics: ") + path, "ok");
+                    // Open containing folder for UX
+                    try
+                    {
+                        string explorer = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                            "explorer.exe");
+                        if (!File.Exists(explorer)) explorer = "explorer.exe";
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = explorer,
+                            Arguments = $"/select,\"{path}\"",
+                            UseShellExecute = true
+                        });
+                    }
+                    catch { /* ignore */ }
+
+                    ReplyOnUiThread(id, new
+                    {
+                        success = true,
+                        path,
+                        message = L("Архив диагностики создан", "Diagnostics archive created"),
+                        state = BuildUiState()
+                    });
+                }
+                else
+                {
+                    AddLog(L("Диагностика не удалась: ", "Diagnostics failed: ") + result.Message, "err");
+                    ReplyOnUiThread(id, new
+                    {
+                        success = false,
+                        error = result.Message,
+                        detail = result.Detail
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                WriteCrash("ExportDiagnostics", ex);
                 ReplyOnUiThread(id, new { success = false, error = "handler error", detail = ex.Message });
             }
             finally
@@ -1183,7 +1397,8 @@ internal static class Program
         titleKey = f.TitleKey,
         detail = f.Detail,
         suggestedTweakId = f.SuggestedTweakId,
-        canFix = f.CanFix
+        canFix = f.CanFix,
+        area = f.Area
     };
 
     /// <summary>Re-apply drifted catalog desired-state under a safety backup session.</summary>
@@ -1694,6 +1909,8 @@ internal static class Program
             // Compact health summary for dashboard badges (no full entry lists)
             drift = BuildDriftSummary(),
             audit = BuildAuditSummary(),
+            firstRunCompleted = _engine.Settings.FirstRunCompleted,
+            changeSummary = MapChangeSummary(_engine.LastApplySummary),
             appVersion = _engine.Update.LocalVersion,
             update = _lastUpdateCheck is null ? null : new
             {

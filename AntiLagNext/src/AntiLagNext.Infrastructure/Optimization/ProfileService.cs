@@ -27,6 +27,12 @@ public sealed class ProfileService : IProfileService
     private readonly SystemMutationGate _mutationGate;
     private readonly RegistryTweakEngine _tweakEngine;
 
+    /// <summary>
+    /// Last successful/partial apply "What changed" snapshot. Cleared on <see cref="RevertAsync"/>.
+    /// UI reads via <c>engine.Profiles</c> cast to <see cref="ProfileService"/> or <c>EngineBootstrap.LastApplySummary</c>.
+    /// </summary>
+    public ApplyChangeSummary? LastApplySummary { get; private set; }
+
     public ProfileService(
         ISafetyService safety,
         ITimerManager timer,
@@ -56,8 +62,14 @@ public sealed class ProfileService : IProfileService
     public Task<OperationResult> ApplyAsync(OptimizationProfile profile, CancellationToken cancellationToken = default)
         => _mutationGate.RunAsync(() => ApplyCoreAsync(profile, cancellationToken), cancellationToken);
 
-    public Task<OperationResult> RevertAsync(CancellationToken cancellationToken = default)
-        => _mutationGate.RunAsync(() => _safety.ResetAllAsync(cancellationToken), cancellationToken);
+    public async Task<OperationResult> RevertAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await _mutationGate.RunAsync(() => _safety.ResetAllAsync(cancellationToken), cancellationToken)
+            .ConfigureAwait(false);
+        // Clear "What changed" whether full reset succeeded or not — user asked to leave optimized state.
+        LastApplySummary = null;
+        return result;
+    }
 
     private async Task<OperationResult> ApplyCoreAsync(OptimizationProfile profile, CancellationToken cancellationToken)
     {
@@ -66,6 +78,17 @@ public sealed class ProfileService : IProfileService
 
         var messages = new List<string>();
         var errors = new List<string>();
+
+        // Track only successfully applied pieces for ApplyChangeSummary
+        bool okTimer = false;
+        bool okPower = false;
+        bool okParking = false;
+        bool okGameMode = false;
+        bool okHags = false;
+        bool okGpu = false;
+        bool okMemory = false;
+        var appliedTweaks = new List<TweakDefinition>();
+        var appliedPluginIds = new List<string>();
 
         // 1. Safety backup
         var before = await _safety.BeforeChangesAsync($"Activate profile '{profile.Name}'", cancellationToken);
@@ -108,7 +131,12 @@ public sealed class ProfileService : IProfileService
                     set = _power.SetActiveScheme(PowerGuids.SchemeHighPerformance);
                     messages.Add("Ultimate Performance unavailable — using High Performance.");
                 }
-                if (set.Success) messages.Add(set.Message); else errors.Add(set.Message);
+                if (set.Success)
+                {
+                    messages.Add(set.Message);
+                    okPower = true;
+                }
+                else errors.Add(set.Message);
 
                 // Min/Max processor state 100% + ASPM Off на целевой (активной) схеме
                 var active = _power.GetActiveScheme();
@@ -136,7 +164,12 @@ public sealed class ProfileService : IProfileService
                     SnapshotPower(sessionId, scheme.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorCoreParkingMinCores, true);
                     SnapshotPower(sessionId, scheme.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorCoreParkingMinCores, false);
                     var park = _parking.ApplyMode(scheme.Value, profile.CoreParkingMode);
-                    if (park.Success) messages.Add(park.Message); else errors.Add(park.Message);
+                    if (park.Success)
+                    {
+                        messages.Add(park.Message);
+                        okParking = true;
+                    }
+                    else errors.Add(park.Message);
                 }
             }
 
@@ -148,26 +181,46 @@ public sealed class ProfileService : IProfileService
                     timerMs = 0.5;
                 timerMs = Math.Clamp(timerMs, 0.5, 15.6);
                 var tune = await _timer.TuneAsync(timerMs, cancellationToken);
-                if (tune.Success) messages.Add(tune.Message); else errors.Add(tune.Message);
+                if (tune.Success)
+                {
+                    messages.Add(tune.Message);
+                    okTimer = true;
+                }
+                else errors.Add(tune.Message);
             }
 
             // 5. Game Mode / HAGS
             if (profile.EnableGameModeTweak)
             {
                 var gameModeResult = _gameMode.SetGameMode(enabled: true, disableGameDvr: true);
-                if (gameModeResult.Success) messages.Add(gameModeResult.Message); else errors.Add(gameModeResult.Message);
+                if (gameModeResult.Success)
+                {
+                    messages.Add(gameModeResult.Message);
+                    okGameMode = true;
+                }
+                else errors.Add(gameModeResult.Message);
             }
             if (profile.EnableHags)
             {
                 var hags = _gameMode.SetHags(true);
-                if (hags.Success) messages.Add(hags.Message); else errors.Add(hags.Message);
+                if (hags.Success)
+                {
+                    messages.Add(hags.Message);
+                    okHags = true;
+                }
+                else errors.Add(hags.Message);
             }
 
             // 6. GPU
             if (profile.EnableGpuLowLatency)
             {
                 var gpu = _gpu.SetLowLatencyMode(true);
-                if (gpu.Success) messages.Add(gpu.Message); else errors.Add(gpu.Message);
+                if (gpu.Success)
+                {
+                    messages.Add(gpu.Message);
+                    okGpu = true;
+                }
+                else errors.Add(gpu.Message);
                 if (profile.MaxPreRenderedFrames > 0)
                 {
                     var prf = _gpu.SetMaxPreRenderedFrames(profile.MaxPreRenderedFrames);
@@ -195,14 +248,20 @@ public sealed class ProfileService : IProfileService
             if (profile.EnableMemoryCleanup)
             {
                 var mem = _memory.EmptyWorkingSets(profile.MemoryCleanupExclusions);
-                if (mem.Success) messages.Add(mem.Message); else errors.Add(mem.Message);
+                if (mem.Success)
+                {
+                    messages.Add(mem.Message);
+                    okMemory = true;
+                }
+                else errors.Add(mem.Message);
             }
 
             // 7b. Catalog latency tweaks (Winrift-inspired; Safe+Moderate for Gaming/Max/Office subset)
             var catalogTweaks = TweakCatalog.ForProfile(profile.Kind);
             if (catalogTweaks.Count > 0)
             {
-                var tweaks = await _tweakEngine.ApplyAsync(catalogTweaks, sessionId, cancellationToken);
+                var tweaks = await _tweakEngine.ApplyAsync(
+                    catalogTweaks, sessionId, cancellationToken, appliedTweaks);
                 if (tweaks.Success) messages.Add(tweaks.Message);
                 else errors.Add(tweaks.Message);
             }
@@ -215,13 +274,35 @@ public sealed class ProfileService : IProfileService
                 CancellationToken = cancellationToken,
                 IsReCalibrate = false
             };
-            var plugins = await _plugins.ApplyEnabledExtensionsAsync(pluginCtx);
+            var plugins = await _plugins.ApplyEnabledExtensionsAsync(pluginCtx, appliedPluginIds);
             if (plugins.Success) messages.Add(plugins.Message);
             else errors.Add(plugins.Message);
 
             // 9. Commit backup
             var commit = _safety.CommitChanges(sessionId);
             if (!commit.Success) errors.Add(commit.Message);
+
+            // 9b. What-changed summary (only pieces that actually succeeded)
+            var appliedFlags = new OptimizationProfile
+            {
+                Id = profile.Id,
+                Name = profile.Name,
+                Kind = profile.Kind,
+                Description = profile.Description,
+                EnableTimer = okTimer,
+                TimerTargetMs = profile.TimerTargetMs,
+                EnablePowerScheme = okPower,
+                UseUltimatePerformance = profile.UseUltimatePerformance,
+                EnableCoreParkingControl = okParking,
+                CoreParkingMode = profile.CoreParkingMode,
+                EnableGameModeTweak = okGameMode,
+                EnableHags = okHags,
+                EnableMemoryCleanup = okMemory,
+                EnableGpuLowLatency = okGpu,
+                MaxPreRenderedFrames = profile.MaxPreRenderedFrames,
+            };
+            LastApplySummary = ApplyChangeSummaryBuilder.FromProfile(
+                appliedFlags, appliedTweaks, appliedPluginIds);
 
             // 10. ActiveState only on full success — partial apply must not claim "active"
             if (errors.Count == 0)
@@ -238,13 +319,15 @@ public sealed class ProfileService : IProfileService
             ActiveStateStore.MarkInactive();
             return OperationResult.Fail(
                 $"Profile '{profile.Name}' applied partially.",
-                detail: string.Join("; ", errors) + " | " + string.Join(" ", messages));
+                detail: string.Join("; ", errors) + " | " + string.Join(" ", messages),
+                code: "partial_apply");
         }
         catch (Exception ex)
         {
             try { _safety.CommitChanges(sessionId); } catch { /* best-effort */ }
             // Leave incomplete marker so next start can recover
-            return OperationResult.Fail("Profile apply failed.", detail: ex.Message, ex: ex);
+            LastApplySummary = null;
+            return OperationResult.Fail("Profile apply failed.", detail: ex.Message, ex: ex, code: "apply_failed");
         }
     }
 

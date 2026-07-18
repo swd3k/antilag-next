@@ -10,12 +10,14 @@ public sealed class OperationResult
     public string Message { get; init; } = string.Empty;
     public string? Detail { get; init; }
     public Exception? Exception { get; init; }
+    /// <summary>Optional machine-readable code (e.g. "partial_apply", "access_denied").</summary>
+    public string? Code { get; init; }
 
-    public static OperationResult Ok(string message = "Операция выполнена успешно.")
-        => new() { Success = true, Message = message };
+    public static OperationResult Ok(string message = "Операция выполнена успешно.", string? code = null)
+        => new() { Success = true, Message = message, Code = code };
 
-    public static OperationResult Fail(string message, string? detail = null, Exception? ex = null)
-        => new() { Success = false, Message = message, Detail = detail, Exception = ex };
+    public static OperationResult Fail(string message, string? detail = null, Exception? ex = null, string? code = null)
+        => new() { Success = false, Message = message, Detail = detail, Exception = ex, Code = code };
 
     public override string ToString() => Success ? Message : $"ОШИБКА: {Message}";
 }
@@ -32,12 +34,14 @@ public sealed class OperationResult<T>
     public string Message { get; init; } = string.Empty;
     public string? Detail { get; init; }
     public Exception? Exception { get; init; }
+    /// <summary>Optional machine-readable code (e.g. "partial_apply", "access_denied").</summary>
+    public string? Code { get; init; }
 
-    public static OperationResult<T> Ok(T value, string message = "")
-        => new() { Success = true, Value = value, Message = message };
+    public static OperationResult<T> Ok(T value, string message = "", string? code = null)
+        => new() { Success = true, Value = value, Message = message, Code = code };
 
-    public static OperationResult<T> Fail(string message, string? detail = null, Exception? ex = null)
-        => new() { Success = false, Message = message, Detail = detail, Exception = ex };
+    public static OperationResult<T> Fail(string message, string? detail = null, Exception? ex = null, string? code = null)
+        => new() { Success = false, Message = message, Detail = detail, Exception = ex, Code = code };
 
     public override string ToString() => Success ? Message : $"ОШИБКА: {Message}";
 }
