@@ -5,45 +5,79 @@ All notable changes to **AntiLag Next** are documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).  
 Versioning follows [Semantic Versioning](https://semver.org/).
 
+### How this file is maintained
+
+This changelog is the **full product history** — not a marketing blurb. Anyone should see **what shipped and why** without reading git log.
+
+| Rule | Detail |
+|------|--------|
+| **Write as you go** | Every user-visible or security-relevant change lands under `[Unreleased]` in the **same commit** (or PR) as the code. |
+| **Be concrete** | Prefer “what broke / what the user sees / what we did” over ticket IDs or vague “improvements”. |
+| **Sections** | Use `Added` / `Fixed` / `Changed` / `Security` / `Docs` / `Notes` as needed. Empty sections may be omitted for a version; `[Unreleased]` keeps placeholders. |
+| **Ship ritual** | On release: move `[Unreleased]` → `## [x.y.z] — YYYY-MM-DD`, bump `Directory.Build.props` + installer, update version map + README download links. |
+| **Language** | Changelog body is **English** (stable for GitHub Releases). UI copy lives in `wwwroot/i18n`. |
+
 ---
 
 ## [Unreleased]
+
+Work in progress after the last tagged/versioned section. Move bullets here first; clear this block when cutting a release.
+
+### Added
+- *(none yet)*
+
+### Fixed
+- *(none yet)*
+
+### Changed
+- *(none yet)*
+
+### Security
+- *(none yet)*
 
 ---
 
 ## [1.3.0] — 2026-07-18
 
+**Theme: Trust & Clarity** — understand Enable, measure effect, fix Health safely, export diagnostics, polish RU/EN.
+
 ### Added
-- **First-run wizard** (3 steps): what the app does, what it does not, how to start safely.
-- **What changed** panel after Enable — plain-language list from apply summary (area, risk, reboot hint).
-- **Before / After** latency comparison on the dashboard: true **median over a sample window** (≥12 points / ~3 s before enable; 1.5 s settle + ~3 s collect after).
-- **Health → Fix recommended** — Safe catalog fixes + reapply drifted **desired-state only** in one action.
-- **Audit findings grouped by area** (Timer / Power / GPU / Network / …); single “System” subgroup not duplicated under “System audit”.
-- **Export diagnostics** zip (redacted settings, audit, drift, logs) — Logs + Settings; opens Explorer to the file; keeps last 15 archives.
-- `ApplyChangeSummary` / builder; `AuditFinding.Area`; optional `OperationResult.Code`.
-- IPC: `fixRecommended`, `exportDiagnostics`, `completeFirstRun`; apply payload includes `changeSummary`.
+- **First-run wizard** (3 steps): what the app does, what it does not, how to start safely (`al_onboard_v2`).
+- **What changed** panel after Enable — localized titles, area, risk pills, reboot hint (`ApplyChangeSummary` + builder).
+- **Before / After** latency comparison: true **median over a sample window** (≥12 chart points / ~3 s before enable; 1.5 s settle + ~3 s collect after; shows sample counts).
+- **Health → Fix recommended** — Safe catalog fixes + reapply drifted **desired-state only** (one CTA).
+- **Audit findings grouped by area**; “Аудит системы” / “System audit” as one section title; hide redundant single System subgroup.
+- **Export diagnostics** zip (redacted settings, audit, drift, logs) from Logs + Settings; opens folder in Explorer; keeps last **15** archives.
+- Models: `ApplyChangeSummary` / `ApplyChangeItem`; `AuditFinding.Area`; optional `OperationResult.Code`.
+- IPC: `fixRecommended`, `exportDiagnostics`, `completeFirstRun`; apply reply includes `changeSummary`.
+- Tests: ApplyChangeSummary builder, audit areas, diagnostics export, empty desired-state reapply safety.
 
 ### Fixed
-- Before/After no longer uses a single last sample as a fake “median”.
-- Chart **Y scale** extended to fixed rungs **200 / 500 / 1000 / 2000 / 5000 / 10000 / 15000 µs** (was capped at 5000).
-- Peak / wire display ceiling raised to **15 ms**; probe glitch clamp to **20 ms** so spikes above 10 ms remain visible.
-- Bottom status no longer flashes “app not responding” during long Enable/Health ops (“Working…”).
-- Chart stays live during apply/revert/health (`keepChart`) so BA sampling and UI stay responsive.
-- **RU localization** polish: natural copy (no “Enable” / “scheduling latency” calques), Health/wizard/diagnostics/tags, HTML first-paint fallbacks.
-- Health: Fix recommended success = audit **and** drift; empty desired-state skips unnecessary drift backup session.
-- Drift reapply never mass-applies full catalog when desired-state is empty.
-- Diagnostics export: Explorer open only for paths under the diagnostics directory; unsafe path characters rejected.
-- Engine/user-facing operation messages stabilized in English (backup/Win32/GameMode defaults) for EN UI.
+- Before/After no longer treats a single last value as a “median”.
+- Chart **Y scale** fixed rungs **200 / 500 / 1000 / 2000 / 5000 / 10000 / 15000 µs** (was max 5000).
+- Peak / metrics wire ceiling **15 ms**; probe glitch clamp **20 ms** so real spikes above 10 ms stay visible.
+- Bottom bar no longer shows false “app not responding” during long Enable/Health work — shows **Working…**.
+- Chart keeps polling during apply/revert/health (`keepChart`) for BA sampling and responsive UI.
+- **Full RU localization audit**: natural copy, Health/wizard/diagnostics/tags, first-paint HTML fallbacks in Russian; EN/RU key parity (275 keys).
+- Health Fix recommended: success = audit **and** drift; empty desired-state skips useless drift backup session.
+- Drift **reapply** never mass-writes the full catalog when desired-state is empty.
+- Diagnostics: Explorer only for paths under diagnostics dir; reject path metacharacters; prune old zips.
+- Engine messages English-stable (backup / Win32 / GameMode defaults) so EN UI does not show raw Russian CLR text.
+- `fixAudit` / Fix recommended use typed `FixOpResult` (no reflection on anonymous objects).
 
 ### Changed
-- Product version **1.3.0**.
-- Dashboard layout: latency monitor + three status cards first; BA / What changed / update banner below Enable.
-- Onboarding localStorage key `al_onboard_v2` (wizard).
-- Typed `FixOpResult` for audit/health fix path (no reflection on anonymous payloads).
+- Product version **1.3.0** (`Directory.Build.props`, Inno, UI label, updater UA).
+- Dashboard order: **latency monitor + three status cards first**; Enable CTA; then BA / What changed / update banner.
+- Health primary CTA: Fix recommended; other actions secondary.
+- Onboarding storage key `al_onboard_v2`.
 
 ### Security / trust
-- Diagnostics export is local-only (no cloud); settings redacted; no full backup dump.
+- Diagnostics export local-only (no cloud); settings redacted; no full backup payloads.
 - Drift reapply limited to previously owned desired-state entries only.
+- (Inherits 1.2.2 allowlists: registry path boundary, update URL/PE/size, IPC cmd allowlist, restart confirm.)
+
+### Docs
+- Expanded this changelog entry to cover the full 1.3.0 landings (feature + polish + audit), not only the first feature commit.
 
 ---
 
@@ -246,7 +280,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
-| **1.3.0** | 2026-07-18 | Trust & Clarity + polish: wizard, what-changed, true BA median, chart Y to 15k µs, Health fix recommended, diagnostics, full RU i18n |
+| **1.3.0** | 2026-07-18 | Trust & Clarity (full): wizard, what-changed, true BA median, Y 15k µs, Health fix recommended, diagnostics, RU i18n audit, code harden |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |

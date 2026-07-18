@@ -48,7 +48,16 @@ Smoke tests call real Win32 APIs (timer resolution, power scheme read, registry 
 1. Keep PRs focused (one feature/fix).
 2. Add/adjust unit tests for Core models; add smoke tests for Win32-facing paths when practical.
 3. Update root [README.md](README.md) if user-facing behavior changes.
-4. Do not commit `bin/`, `obj/`, `dist/`, `backups/`, logs, or personal `%APPDATA%` data.
+4. **Update [CHANGELOG.md](CHANGELOG.md) in the same change** — under `## [Unreleased]` with concrete bullets (Added / Fixed / Changed / Security). The changelog must stay complete enough that someone can see the work **without** reading the git log. On release, move Unreleased → a versioned section and clear Unreleased placeholders.
+5. Do not commit `bin/`, `obj/`, `dist/`, `backups/`, logs, or personal `%APPDATA%` data.
+
+## Changelog policy (required)
+
+- **Source of truth** for “what we shipped” is `CHANGELOG.md`, not commit titles alone.
+- Write as you implement: user-visible UX, security, reliability, and notable internal contracts (IPC, allowlists).
+- Prefer full sentences: problem → fix, or feature → user benefit.
+- English changelog body; RU/EN UI strings live in `wwwroot/i18n/` (keep packs in parity via `scripts/check-i18n.ps1`).
+- Do not leave Unreleased empty of real work while main has unreleased commits — either ship a version or list the work under Unreleased.
 
 ## Code style
 
