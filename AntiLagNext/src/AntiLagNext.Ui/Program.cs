@@ -1673,18 +1673,34 @@ internal static class Program
                 canSilent = _lastUpdateCheck.CanSilentInstall,
                 portable = _lastUpdateCheck.IsPortable,
                 releaseUrl = _lastUpdateCheck.ReleaseUrl,
-                error = LocalizeUpdateError(_lastUpdateCheck),
-                errorCode = _lastUpdateCheck.ErrorCode
+                // Only non-empty when check actually failed (never fabricate on success)
+                error = string.IsNullOrEmpty(_lastUpdateCheck.Error)
+                        && string.IsNullOrEmpty(_lastUpdateCheck.ErrorCode)
+                    ? null
+                    : NullIfEmpty(LocalizeUpdateError(_lastUpdateCheck)),
+                errorCode = string.IsNullOrEmpty(_lastUpdateCheck.ErrorCode)
+                    ? null
+                    : _lastUpdateCheck.ErrorCode
             }
         };
     }
 
     private static UpdateCheckResult? _lastUpdateCheck;
 
-    /// <summary>UI/log message for update errors — always respects UiCulture (never OS-locale).</summary>
+    private static string? NullIfEmpty(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s;
+
+    /// <summary>
+    /// UI/log message for update errors — respects UiCulture (never OS-locale).
+    /// Empty string when the check succeeded (no Error / ErrorCode).
+    /// </summary>
     private static string LocalizeUpdateError(UpdateCheckResult? r)
     {
         if (r is null) return "";
+        // Success path: never invent a network error for the settings line
+        if (string.IsNullOrEmpty(r.Error) && string.IsNullOrEmpty(r.ErrorCode))
+            return "";
+
         string code = r.ErrorCode ?? "";
         return code switch
         {

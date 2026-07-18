@@ -11,28 +11,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.2.2] — 2026-07-18
-
-### Fixed
-- Update check **prefers github.com Atom** first (avoids long hang / failure when `api.github.com` DNS is poisoned).
-- Removed always-on custom socket `ConnectCallback` that could break TLS under elevated runs.
-- API path can retry via **known-good GitHub IPs** + SNI when system DNS points `api.github.com` at a black-hole.
-- Check reply no longer fails the whole update flow if `BuildUiState` throws after a successful check.
-- Generic “Update check failed” mapped to the clear network message (EN/RU).
-
-### Changed
-- Product version **1.2.2**.
-
----
-
 ## [1.2.1] — 2026-07-18
 
 ### Fixed
-- **Update check** no longer depends only on `api.github.com` (often blocked/timeout): falls back to GitHub **Atom** feed and `/releases/latest` redirect on `github.com`.
+- **Update check** prefers **github.com Atom** first (many networks poison/block `api.github.com`); API is optional fallback with known-good IPs.
 - Update errors are **localized** (EN/RU) via stable error codes — no more Russian Win32 socket text on the English UI.
-- Failed check no longer shows «You are up to date» next to the error.
+- **Settings line no longer shows a fake network error** after a successful “up to date” check (`LocalizeUpdateError` only when `Error`/`ErrorCode` set).
+- Failed check no longer shows «You are up to date» next to a real error.
 - **Latency chart** no longer freezes while «Check for updates» runs (`busy` + `keepChart`).
-- Failed update checks no longer throttle the next startup check (6 h) so retries still happen.
+- Failed update checks no longer throttle the next startup check (6 h).
+- Check reply no longer fails the whole flow if `BuildUiState` throws after a successful check.
 
 ### Changed
 - Product version **1.2.1**.
@@ -202,8 +190,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
-| **1.2.2** | 2026-07-18 | Atom-first update check, DNS poison resilience for api.github.com |
-| **1.2.1** | 2026-07-18 | Update check fallback (Atom), EN error i18n, chart during check |
+| **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
 | **1.1.0** | 2026-07-17 | Health/Audit/Drift, TweakCatalog, Peak fix, chart scale, NVIDIA DPC |
 | **1.0.3** | 2026-07-15 | Version branding, logo/UI polish, Setup name with version |

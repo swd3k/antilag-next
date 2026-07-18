@@ -776,7 +776,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.2.2</span>
+      <span class="ver" id="appVersion">1.2.1</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -2227,8 +2227,8 @@
           (t('settings.updates.current') || 'Current') + ': ' + local
           + ' → ' + (u.latest || '')
           + (u.canSilent ? '' : ' (' + (t('update.portable') || 'portable') + ')');
-      } else if (u.error || u.errorCode) {
-        // Failed check — never claim "up to date"
+      } else if ((u.error && String(u.error).trim()) || (u.errorCode && String(u.errorCode).trim())) {
+        // Failed check — never claim "up to date" (empty error string is success)
         if (banner) banner.hidden = true;
         if (btn) btn.hidden = true;
         if (status) status.textContent =
@@ -2254,7 +2254,9 @@
           toast(t('toast.error') + (r.error ? ': ' + r.error : ''));
         else if (r && r.hasUpdate)
           toast((t('update.available') || 'Update') + ': ' + (r.latest || ''));
-        else if (r && (r.error || r.errorCode))
+        else if (r && r.success !== false && !(r.error && String(r.error).trim()) && !(r.errorCode && String(r.errorCode).trim()))
+          toast(t('update.uptodate') || 'Up to date');
+        else if (r && ((r.error && String(r.error).trim()) || (r.errorCode && String(r.errorCode).trim())))
           toast(t('toast.error') + ': ' + localizeUpdateError(r));
         else
           toast(t('update.uptodate') || 'Up to date');

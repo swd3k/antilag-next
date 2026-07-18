@@ -412,7 +412,7 @@ public sealed class UpdateService : IUpdateService
                     }
                 };
                 using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
                 client.DefaultRequestHeaders.Host = "api.github.com";
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
 
@@ -541,7 +541,7 @@ public sealed class UpdateService : IUpdateService
     {
         using var handler = CreateHandler(allowAutoRedirect: false);
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
         client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
@@ -702,7 +702,7 @@ public sealed class UpdateService : IUpdateService
             Timeout = TimeSpan.FromSeconds(60)
         };
         // Minimal defaults — per-request Accept avoids fighting Atom vs JSON
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.2");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.2.1");
         c.DefaultRequestHeaders.Accept.ParseAdd("*/*");
         return c;
     }
