@@ -16,19 +16,34 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **First-run wizard** (3 steps): what the app does, what it does not, how to start safely.
 - **What changed** panel after Enable — plain-language list from apply summary (area, risk, reboot hint).
-- **Before / After** latency snapshot on the dashboard (median µs around Enable).
-- **Health → Fix recommended** — Safe catalog fixes + reapply drifted desired-state in one action.
-- **Audit findings grouped by area** (Timer / Power / GPU / Network / …).
-- **Export diagnostics** zip (redacted settings, audit, drift, logs) — Logs + Settings; opens Explorer to the file.
+- **Before / After** latency comparison on the dashboard: true **median over a sample window** (≥12 points / ~3 s before enable; 1.5 s settle + ~3 s collect after).
+- **Health → Fix recommended** — Safe catalog fixes + reapply drifted **desired-state only** in one action.
+- **Audit findings grouped by area** (Timer / Power / GPU / Network / …); single “System” subgroup not duplicated under “System audit”.
+- **Export diagnostics** zip (redacted settings, audit, drift, logs) — Logs + Settings; opens Explorer to the file; keeps last 15 archives.
 - `ApplyChangeSummary` / builder; `AuditFinding.Area`; optional `OperationResult.Code`.
 - IPC: `fixRecommended`, `exportDiagnostics`, `completeFirstRun`; apply payload includes `changeSummary`.
 
+### Fixed
+- Before/After no longer uses a single last sample as a fake “median”.
+- Chart **Y scale** extended to fixed rungs **200 / 500 / 1000 / 2000 / 5000 / 10000 / 15000 µs** (was capped at 5000).
+- Peak / wire display ceiling raised to **15 ms**; probe glitch clamp to **20 ms** so spikes above 10 ms remain visible.
+- Bottom status no longer flashes “app not responding” during long Enable/Health ops (“Working…”).
+- Chart stays live during apply/revert/health (`keepChart`) so BA sampling and UI stay responsive.
+- **RU localization** polish: natural copy (no “Enable” / “scheduling latency” calques), Health/wizard/diagnostics/tags, HTML first-paint fallbacks.
+- Health: Fix recommended success = audit **and** drift; empty desired-state skips unnecessary drift backup session.
+- Drift reapply never mass-applies full catalog when desired-state is empty.
+- Diagnostics export: Explorer open only for paths under the diagnostics directory; unsafe path characters rejected.
+- Engine/user-facing operation messages stabilized in English (backup/Win32/GameMode defaults) for EN UI.
+
 ### Changed
 - Product version **1.3.0**.
+- Dashboard layout: latency monitor + three status cards first; BA / What changed / update banner below Enable.
 - Onboarding localStorage key `al_onboard_v2` (wizard).
+- Typed `FixOpResult` for audit/health fix path (no reflection on anonymous payloads).
 
 ### Security / trust
 - Diagnostics export is local-only (no cloud); settings redacted; no full backup dump.
+- Drift reapply limited to previously owned desired-state entries only.
 
 ---
 
@@ -231,7 +246,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
-| **1.3.0** | 2026-07-18 | Trust & Clarity: wizard, what-changed, before/after, health fix recommended, diagnostics export |
+| **1.3.0** | 2026-07-18 | Trust & Clarity + polish: wizard, what-changed, true BA median, chart Y to 15k µs, Health fix recommended, diagnostics, full RU i18n |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
 | **1.2.0** | 2026-07-18 | In-app auto-update, Inno silent upgrade, stack cleanup |
