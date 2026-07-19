@@ -28,6 +28,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 
 ### Fixed
 - **Single UI instance**: launching AntiLag Next while it is already running focuses the existing window (including from tray) instead of opening another window.
+- Single-instance recovers from **abandoned mutex** after a crash; second launch retries focus while the main window is still starting.
 
 ### Changed
 - *(none yet)*

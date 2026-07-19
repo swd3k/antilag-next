@@ -40,29 +40,55 @@ internal sealed class SingleInstance : IDisposable
     /// <summary>
     /// Try to become the sole UI instance.
     /// Returns null if another instance already owns the mutex (caller should exit after ActivateExisting).
+    /// Handles abandoned mutex after a crash so the app can start again.
     /// </summary>
     public static SingleInstance? TryEnter(Action onShowRequested)
     {
-        var mutex = new Mutex(initiallyOwned: true, MutexName, out bool createdNew);
-        if (!createdNew)
-        {
-            try { mutex.Dispose(); } catch { /* ignore */ }
-            return null;
-        }
-
-        EventWaitHandle showEvent;
+        Mutex? mutex = null;
         try
         {
-            showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+            // initiallyOwned: false — acquire explicitly so AbandonedMutexException is catchable
+            mutex = new Mutex(initiallyOwned: false, MutexName, out _);
+            bool owns;
+            try
+            {
+                owns = mutex.WaitOne(TimeSpan.Zero);
+            }
+            catch (AbandonedMutexException)
+            {
+                // Previous process died without release — we now own the mutex
+                owns = true;
+                Trace.TraceWarning("SingleInstance: recovered abandoned mutex (previous process crashed).");
+            }
+
+            if (!owns)
+            {
+                try { mutex.Dispose(); } catch { /* ignore */ }
+                return null;
+            }
+
+            EventWaitHandle showEvent;
+            try
+            {
+                showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName);
+            }
+            catch
+            {
+                try { mutex.ReleaseMutex(); } catch { /* ignore */ }
+                try { mutex.Dispose(); } catch { /* ignore */ }
+                throw;
+            }
+
+            return new SingleInstance(mutex, showEvent, onShowRequested);
         }
         catch
         {
-            try { mutex.ReleaseMutex(); } catch { /* ignore */ }
-            try { mutex.Dispose(); } catch { /* ignore */ }
+            if (mutex != null)
+            {
+                try { mutex.Dispose(); } catch { /* ignore */ }
+            }
             throw;
         }
-
-        return new SingleInstance(mutex, showEvent, onShowRequested);
     }
 
     /// <summary>Second instance: wake primary + restore window by title if possible.</summary>
@@ -75,30 +101,37 @@ internal sealed class SingleInstance : IDisposable
         }
         catch (WaitHandleCannotBeOpenedException)
         {
-            // Primary may still be starting engine — fall through to FindWindow
+            // Primary may still be starting — fall through to FindWindow retries
         }
         catch (Exception ex)
         {
             Trace.TraceWarning("SingleInstance.ActivateExisting event: {0}", ex.Message);
         }
 
-        // Small delay so primary listener can process Set() when already running
-        Thread.Sleep(80);
-        TryFocusWindowByTitle();
+        // Retry: primary may still be creating the Photino window
+        for (int i = 0; i < 15; i++)
+        {
+            if (TryFocusWindowByTitle())
+                return;
+            Thread.Sleep(100);
+        }
     }
 
-    public static void TryFocusWindowByTitle()
+    /// <returns>true if a matching top-level window was found and restored.</returns>
+    public static bool TryFocusWindowByTitle()
     {
         try
         {
             IntPtr hwnd = FindWindowW(null, WindowTitle);
-            if (hwnd == IntPtr.Zero) return;
+            if (hwnd == IntPtr.Zero) return false;
             TrayService.ShowWindowRestore(hwnd);
             SetForegroundWindow(hwnd);
+            return true;
         }
         catch (Exception ex)
         {
             Trace.TraceWarning("SingleInstance.TryFocusWindowByTitle: {0}", ex.Message);
+            return false;
         }
     }
 
@@ -111,7 +144,8 @@ internal sealed class SingleInstance : IDisposable
             {
                 int which = WaitHandle.WaitAny(handles, Timeout.Infinite);
                 if (which != 0) break; // cancelled
-                try { _onShowRequested(); } catch (Exception ex)
+                try { _onShowRequested(); }
+                catch (Exception ex)
                 {
                     Trace.TraceWarning("SingleInstance show callback: {0}", ex.Message);
                 }

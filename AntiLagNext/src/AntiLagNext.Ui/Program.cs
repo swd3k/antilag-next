@@ -23,6 +23,8 @@ internal static class Program
     private static PhotinoWindow? _window;
     private static TrayService? _tray;
     private static SingleInstance? _singleInstance;
+    /// <summary>Second instance asked to show before Photino window existed.</summary>
+    private static volatile bool _pendingShowFromSecondInstance;
     private static readonly object SendLock = new();
     /// <summary>Serializes engine mutate + BuildUiState (re-entrant Monitor).</summary>
     private static readonly object EngineOpLock = new();
@@ -213,8 +215,14 @@ internal static class Program
                         // Guarantee visible main window (screenshot look) on normal launch
                         window.SetMinimized(false);
                         IntPtr hwnd = window.WindowHandle;
-                        if (hwnd != IntPtr.Zero && !_autostartMode)
+                        if (hwnd != IntPtr.Zero && (!_autostartMode || _pendingShowFromSecondInstance))
                             TrayService.ShowWindowRestore(hwnd);
+                        if (_pendingShowFromSecondInstance)
+                        {
+                            _pendingShowFromSecondInstance = false;
+                            if (hwnd != IntPtr.Zero)
+                                TrayService.ShowWindowRestore(hwnd);
+                        }
                     }
                     catch { /* ignore */ }
                 })
@@ -297,24 +305,30 @@ internal static class Program
         try
         {
             var w = _window;
-            if (w != null)
+            if (w == null)
             {
-                w.Invoke(() =>
-                {
-                    try
-                    {
-                        w.SetMinimized(false);
-                        var hwnd = w.WindowHandle;
-                        if (hwnd != IntPtr.Zero)
-                            TrayService.ShowWindowRestore(hwnd);
-                    }
-                    catch (Exception ex)
-                    {
-                        WriteCrash("BringMainWindowToFront.Invoke", ex);
-                    }
-                });
+                // Engine still starting — focus when Photino is ready
+                _pendingShowFromSecondInstance = true;
+                SingleInstance.TryFocusWindowByTitle();
                 return;
             }
+
+            _pendingShowFromSecondInstance = false;
+            w.Invoke(() =>
+            {
+                try
+                {
+                    w.SetMinimized(false);
+                    var hwnd = w.WindowHandle;
+                    if (hwnd != IntPtr.Zero)
+                        TrayService.ShowWindowRestore(hwnd);
+                }
+                catch (Exception ex)
+                {
+                    WriteCrash("BringMainWindowToFront.Invoke", ex);
+                }
+            });
+            return;
         }
         catch (Exception ex)
         {
