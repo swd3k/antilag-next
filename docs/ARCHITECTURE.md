@@ -4,8 +4,8 @@ Author: [swd3k](https://github.com/swd3k) · Repo: https://github.com/swd3k/anti
 
 ## Goal
 
-Минимальное **ядро** (timer / power / safety / monitoring / profile apply) + **подключаемые модули** (сеть, input hygiene, game hooks, experimental).  
-Снижение input/system latency **без инжекта в процессы игр** (MIT clean-room, безопасный откат).
+Minimum **core** (timer / power / safety / monitoring / profile apply) + **plug-ins** (network, input hygiene, game hooks, experimental).  
+Reducing input/system latency **without injecting into game processes** (MIT clean-room, safe rollback).
 
 ## Scope honesty (2023–2025 techniques)
 
