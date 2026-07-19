@@ -202,34 +202,25 @@
     }
     .hdr-ctrl.danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
     .hdr-ctrl.active { background: var(--hover); color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--border)); }
-    /* Lang RU|EN: fixed equal halves (no border stealing width from EN) */
+    /*
+     * Lang RU|EN: equal halves + full-height 1px gutter.
+     * column-gap is the | line (parent bg) — neither RU nor EN owns that pixel,
+     * so active EN never “captures” the divider.
+     */
     .seg {
-      position: relative;
       display: inline-grid;
-      grid-template-columns: 1fr 1fr; /* true 50/50 of content box */
+      grid-template-columns: 1fr 1fr;
+      column-gap: 1px;               /* tall | between halves */
       height: var(--hdr-h);
-      width: 88px;                   /* even px → 44+44 halves */
+      width: 89px;                   /* 44 + 1 + 44 */
       flex-shrink: 0;
       box-sizing: border-box;
       border: 1px solid var(--border);
       border-radius: 10px;
       overflow: hidden;
-      background: transparent;
-      padding: 0;
-      gap: 0;
-    }
-    /* Center divider as overlay — both buttons keep identical width */
-    .seg::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      top: 18%;
-      bottom: 18%;
-      width: 1px;
-      margin-left: -0.5px;
+      /* Gap color = divider; button cells paint their own fill on top */
       background: var(--border);
-      pointer-events: none;
-      z-index: 1;
+      padding: 0;
     }
     .seg .hdr-ctrl {
       width: 100%;
@@ -238,19 +229,20 @@
       height: 100%;
       margin: 0;
       padding: 0;
-      border: 0 !important;          /* shell owns the outer border */
+      border: 0 !important;
       border-radius: 0 !important;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.04em;
       line-height: 1;
       box-shadow: none;
-      /* Identical label box: two letters centered the same way */
       font-variant-numeric: tabular-nums;
       text-align: center;
+      /* Opaque cell fill so gap stays exactly 1px of parent border color */
+      background: var(--panel);
     }
     .seg .hdr-ctrl + .hdr-ctrl {
-      border-left: 0 !important;     /* was 1px — made EN 1px narrower */
+      border-left: 0 !important;
     }
     .seg .hdr-ctrl:hover {
       background: var(--hover);
@@ -259,12 +251,20 @@
     .seg .hdr-ctrl.active {
       background: color-mix(in srgb, var(--cyan) 14%, var(--hover));
       color: var(--cyan);
-      /* Same weight as inactive — bold active made RU look wider */
       font-weight: 600;
     }
     [data-theme="light"] .seg {
       border-color: var(--border);
+      background: var(--border);     /* gap still full-height | */
+    }
+    [data-theme="light"] .seg .hdr-ctrl {
       background: var(--panel);
+    }
+    [data-theme="light"] .seg .hdr-ctrl:hover {
+      background: var(--hover);
+    }
+    [data-theme="light"] .seg .hdr-ctrl.active {
+      background: color-mix(in srgb, var(--cyan) 14%, var(--hover));
     }
     /* Same geometry as .hdr-ctrl (height/radius/type); keep green/red fills */
     .status-pill {

@@ -46,7 +46,6 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - **Latency chart toggle**: turning the monitor off/on no longer freezes the UI for ~1–2s. Host `setChart` no longer does synchronous settings save + full `BuildUiState` under `EngineOpLock` on the Photino message thread (that blocked `getMetrics`). UI flips the chart optimistically; settings persist in the background.
 - **Chart after display sleep**: on `visibilitychange` (monitor/window wake), metrics poll re-arms immediately so the chart returns without waiting for a stalled timer.
 - **Status «Нет ответа приложения» / App not responding**: false positives during Enable/Reset — `getState` no longer waits forever on `EngineOpLock` (returns lightweight busy snapshot after 300ms). Drift/Audit registry scans are cached (~12s) so the 8s poll does not freeze the Photino message loop. UI only shows the timeout after real host silence (not while busy, not if metrics still arrive, not on a single flaky fail).
-- **Language toggle RU|EN**: equal half-widths — removed the EN-side `border-left` that stole 1px from the right cell; divider is a centered overlay so both labels share the same geometry (active cyan fill no longer looks like a larger button).
 
 ### Changed
 - Product version **1.3.1** (`Directory.Build.props`, Inno, UI label, updater UA).
@@ -299,7 +298,7 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
-| **1.3.1** | 2026-07-19 | Patch: tray Exit, chart toggle IPC, false “app not responding”, RU|EN equal halves |
+| **1.3.1** | 2026-07-19 | Patch: tray Exit, chart toggle IPC, false “app not responding” |
 | **1.3.0** | 2026-07-18 | Trust & Clarity (full): wizard, what-changed, true BA median, Y 15k µs, Health fix recommended, diagnostics, RU i18n audit, code harden |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
