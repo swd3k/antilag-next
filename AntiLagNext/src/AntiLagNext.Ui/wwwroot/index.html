@@ -202,12 +202,13 @@
     }
     .hdr-ctrl.danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
     .hdr-ctrl.active { background: var(--hover); color: var(--cyan); border-color: color-mix(in srgb, var(--cyan) 40%, var(--border)); }
-    /* Lang RU|EN: one outer shell, equal halves, always-visible divider */
+    /* Lang RU|EN: fixed equal halves (no border stealing width from EN) */
     .seg {
+      position: relative;
       display: inline-grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr; /* true 50/50 of content box */
       height: var(--hdr-h);
-      width: 84px;
+      width: 88px;                   /* even px → 44+44 halves */
       flex-shrink: 0;
       box-sizing: border-box;
       border: 1px solid var(--border);
@@ -216,6 +217,19 @@
       background: transparent;
       padding: 0;
       gap: 0;
+    }
+    /* Center divider as overlay — both buttons keep identical width */
+    .seg::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 18%;
+      bottom: 18%;
+      width: 1px;
+      margin-left: -0.5px;
+      background: var(--border);
+      pointer-events: none;
+      z-index: 1;
     }
     .seg .hdr-ctrl {
       width: 100%;
@@ -228,13 +242,15 @@
       border-radius: 0 !important;
       font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.06em;        /* R/U/E/N more even optically */
+      letter-spacing: 0.04em;
       line-height: 1;
       box-shadow: none;
+      /* Identical label box: two letters centered the same way */
+      font-variant-numeric: tabular-nums;
+      text-align: center;
     }
-    /* Permanent center divider — never replaced by active border color */
     .seg .hdr-ctrl + .hdr-ctrl {
-      border-left: 1px solid var(--border) !important;
+      border-left: 0 !important;     /* was 1px — made EN 1px narrower */
     }
     .seg .hdr-ctrl:hover {
       background: var(--hover);
@@ -243,8 +259,8 @@
     .seg .hdr-ctrl.active {
       background: color-mix(in srgb, var(--cyan) 14%, var(--hover));
       color: var(--cyan);
-      border-color: var(--border) !important; /* keep divider neutral */
-      font-weight: 600; /* same as inactive — no width jump */
+      /* Same weight as inactive — bold active made RU look wider */
+      font-weight: 600;
     }
     [data-theme="light"] .seg {
       border-color: var(--border);
@@ -829,7 +845,7 @@
   <div class="app">
     <div class="titlebar">
       <span>ANTILAG NEXT</span>
-      <span class="ver" id="appVersion">1.3.0</span>
+      <span class="ver" id="appVersion">1.3.1</span>
     </div>
     <div class="busy-bar" id="busyBar"></div>
     <div class="body">
@@ -1580,6 +1596,22 @@
     /** When true, metrics poll continues while busy (update check must not freeze chart). */
     let busyKeepChart = false;
     let healthBusy = false;
+    /** Host liveness: getMetrics success clears false «Нет ответа приложения». */
+    let lastHostOkAt = Date.now();
+    let refreshFailStreak = 0;
+    let refreshSeq = 0;
+
+    function noteHostOk() {
+      lastHostOkAt = Date.now();
+      refreshFailStreak = 0;
+    }
+
+    function setEngineStatusLabel() {
+      const eng = document.getElementById('engineLabel');
+      if (!eng) return;
+      if (busy || healthBusy) eng.textContent = t('engine.busy');
+      else eng.textContent = t('engine.ready');
+    }
 
     function syncActionButtons() {
       const blocked = busy || healthBusy;
@@ -1589,11 +1621,7 @@
           const el = document.getElementById(id);
           if (el) el.disabled = blocked;
         });
-      const eng = document.getElementById('engineLabel');
-      if (eng) {
-        if (busy || healthBusy) eng.textContent = t('engine.busy');
-        else eng.textContent = t('engine.ready');
-      }
+      setEngineStatusLabel();
     }
 
     function setBusy(on, opts) {
@@ -1834,19 +1862,32 @@
     }
 
     async function toggleChart(enabled) {
+      // Optimistic UI first — host setChart used to block 1–2s (Save + full getState under lock)
+      setChartUi(enabled);
       try {
         const r = await send('setChart', { enabled: !!enabled });
-        if (r.state) await applyState(r.state);
-        else setChartUi(enabled);
+        if (r && r.success === false) {
+          setChartUi(!enabled);
+          toast(t('toast.error') + (r.error ? ': ' + r.error : ''));
+          return;
+        }
+        if (r && typeof r.chartEnabled === 'boolean' && r.chartEnabled !== enabled)
+          setChartUi(r.chartEnabled);
+        // Do not apply full state here — keeps metrics IPC free and chart body visible immediately
         toast(t(enabled ? 'chart.toastOn' : 'chart.toastOff'));
       } catch (e) {
-        toast(e.message);
         setChartUi(!enabled);
+        toast(e.message || String(e));
       }
     }
 
     function applyMetrics(m) {
       if (!m || !chartEnabled) return;
+      // Host answered — clear false timeout even if periodic getState was slow
+      noteHostOk();
+      const eng = document.getElementById('engineLabel');
+      if (eng && !busy && !healthBusy && eng.textContent === t('engine.timeout'))
+        eng.textContent = t('engine.ready');
       const us = m.v != null ? m.v : m.latencyUs;
       if (us != null) {
         setLatencyDisplay(us);
@@ -1998,7 +2039,9 @@
       }
       updateChartPanels();
       scheduleChartDraw();
-      document.getElementById('engineLabel').textContent = t('engine.ready');
+      noteHostOk();
+      // Do not force «ready» over «Working…» during apply/health
+      setEngineStatusLabel();
     }
 
     function renderPlugins(plugins) {
@@ -2811,20 +2854,38 @@
       }
     }
 
+    /**
+     * Periodic full state pull. «Нет ответа приложения» only after real host silence:
+     * - not while busy/health
+     * - not if getMetrics succeeded recently (host is alive, getState was just slow)
+     * - not on a single flaky failure (need 2 consecutive)
+     */
     async function refresh() {
+      if (busy || healthBusy) return;
+      const seq = ++refreshSeq;
       try {
         const s = await send('getState');
+        if (seq !== refreshSeq) return;
+        // Handler error payloads still resolve — treat hard errors carefully
+        if (s && s.error && s.success === false && !s.optimized && s.hostBusy == null) {
+          throw new Error(s.error || 'host error');
+        }
         await applyState(s);
-        if (!busy && !healthBusy) {
-          const eng = document.getElementById('engineLabel');
-          if (eng) eng.textContent = t('engine.ready');
-        }
+        noteHostOk();
+        if (!busy && !healthBusy) setEngineStatusLabel();
       } catch (e) {
-        // Don't flash "timeout" during a long apply/health op
-        if (!busy && !healthBusy) {
-          const eng = document.getElementById('engineLabel');
-          if (eng) eng.textContent = t('engine.timeout');
+        if (seq !== refreshSeq) return;
+        // Don't flash timeout during / right after a long apply/health op
+        if (busy || healthBusy) return;
+        // Metrics still flowing → host is fine; getState alone was blocked or slow
+        if (Date.now() - lastHostOkAt < 8000) {
+          refreshFailStreak = 0;
+          return;
         }
+        refreshFailStreak++;
+        if (refreshFailStreak < 2) return;
+        const eng = document.getElementById('engineLabel');
+        if (eng) eng.textContent = t('engine.timeout');
       }
     }
 
@@ -3308,6 +3369,7 @@
     async function pollMetricsOnce() {
       // busy without keepChart pauses chart (apply/revert); update check keeps chart alive
       if (!chartEnabled || (busy && !busyKeepChart) || pollInFlight || uiBooting) return;
+      // Skip while tab/window is hidden (power save). Resume is immediate via visibilitychange.
       if (document.hidden) return;
       if (pending.size >= PENDING_CAP - 10) return;
       pollInFlight = true;
@@ -3330,6 +3392,13 @@
     function stopMetricsLoop() {
       if (metricsTimer) { clearTimeout(metricsTimer); metricsTimer = 0; }
     }
+
+    // Physical display off / window minimize can freeze WebView timers; on wake re-arm ASAP
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || !chartEnabled) return;
+      pollMetricsOnce().catch(() => {});
+      armMetricsLoop();
+    });
 
     // boot: state first, then light metrics loop (probe starts on host uiReady)
     (async () => {

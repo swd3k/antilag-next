@@ -429,18 +429,55 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Full process exit (tray «Exit»). Must allow WindowClosing (_forceExit)
+    /// and marshal Close onto the Photino UI thread — tray menu runs on WinForms STA.
+    /// </summary>
     private static void RequestExit()
     {
         _forceExit = true;
+
+        // Best-effort: release held timer before teardown (do not throw into tray handler)
         try
         {
             if (_engine?.Settings.ReleaseTimerOnExit == true)
-            {
                 try { _engine.Timer.Release(); } catch { /* ignore */ }
-            }
         }
         catch { /* ignore */ }
-        try { _window?.Close(); } catch { /* ignore */ }
+
+        var w = _window;
+        if (w == null)
+        {
+            try { Environment.Exit(0); } catch { /* ignore */ }
+            return;
+        }
+
+        void doClose()
+        {
+            try { w.Close(); } catch { /* ignore */ }
+        }
+
+        try
+        {
+            // Tray ContextMenuStrip is not the Photino message loop
+            w.Invoke(doClose);
+        }
+        catch
+        {
+            try { doClose(); } catch { /* ignore */ }
+        }
+
+        // Safety net: if Close is swallowed (race / minimize-to-tray), hard-exit
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(1500).ConfigureAwait(false);
+                if (_forceExit)
+                    Environment.Exit(0);
+            }
+            catch { /* ignore */ }
+        });
     }
 
     private static string ResolveApplyProfileKey()
@@ -1177,7 +1214,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -1316,7 +1353,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -1409,7 +1446,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -1429,6 +1466,13 @@ internal static class Program
             return false;
         }
         return true;
+    }
+
+    /// <summary>Clear heavy-op flag and force next getState to rescan health badges.</summary>
+    private static void EndHeavyOp()
+    {
+        InvalidateHealthSummaryCache();
+        Interlocked.Exchange(ref _heavyOpInFlight, 0);
     }
 
     private static object HandleGetDrift()
@@ -1574,7 +1618,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -1625,7 +1669,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -1841,12 +1885,24 @@ internal static class Program
         return new { success = true, state = BuildUiState() };
     }
 
+    /// <summary>
+    /// Toggle latency chart probe. Must stay off the heavy path:
+    /// no EngineOpLock / full BuildUiState (that stalls getMetrics 1–2s+ under apply).
+    /// Persist settings asynchronously so the Photino message thread stays free.
+    /// </summary>
     private static object HandleSetChart(JsonElement root)
     {
         bool enabled = root.TryGetProperty("enabled", out var en) && en.GetBoolean();
-        _engine!.Settings.MonitoringEnabled = enabled;
-        _engine.Settings.MonitoringIntervalMs = ProbeIntervalMs;
-        _engine.SettingsService.Save();
+        var engine = _engine!;
+        engine.Settings.MonitoringEnabled = enabled;
+        engine.Settings.MonitoringIntervalMs = ProbeIntervalMs;
+
+        // Disk I/O off message thread — serial Save under AV can freeze chart IPC for seconds
+        _ = Task.Run(() =>
+        {
+            try { engine.SettingsService.Save(); }
+            catch { /* best-effort */ }
+        });
 
         if (enabled)
         {
@@ -1864,12 +1920,12 @@ internal static class Program
             AddLog(L("График ВЫКЛ · зонд остановлен", "Chart OFF · probe stopped"), "ok");
         }
 
+        // Slim reply only — UI already flips optimistically; full getState would re-block IPC
         return new
         {
             success = true,
             chartEnabled = enabled,
-            message = enabled ? "Chart enabled" : "Chart disabled",
-            state = BuildUiState()
+            message = enabled ? "Chart enabled" : "Chart disabled"
         };
     }
 
@@ -1904,10 +1960,71 @@ internal static class Program
         };
     }
 
+    /// <summary>
+    /// UI snapshot. Must not block the Photino message loop for long:
+    /// if a heavy apply holds <see cref="EngineOpLock"/>, return a lightweight busy
+    /// payload immediately so getState cannot time out → «Нет ответа приложения».
+    /// </summary>
     private static object BuildUiState()
     {
-        lock (EngineOpLock)
+        bool taken = false;
+        try
+        {
+            // ~300ms: long enough for a quick critical section, short enough to keep IPC alive
+            // Fully-qualified: Photino.NET also has a Monitor type
+            System.Threading.Monitor.TryEnter(EngineOpLock, 300, ref taken);
+            if (!taken)
+                return BuildUiStateHostBusy();
             return BuildUiStateCore();
+        }
+        finally
+        {
+            if (taken)
+                System.Threading.Monitor.Exit(EngineOpLock);
+        }
+    }
+
+    /// <summary>
+    /// Minimal getState while apply/revert holds the engine lock.
+    /// Keeps WebView promises resolving so the status bar does not show a false timeout.
+    /// </summary>
+    private static object BuildUiStateHostBusy()
+    {
+        try
+        {
+            var active = ActiveStateStore.Load();
+            var profile = _engine?.Settings.GetActiveProfile();
+            string profileKey = profile != null ? MapKindToUiId(profile.Kind) : "gaming";
+            string culture = string.IsNullOrWhiteSpace(_engine?.Settings.UiCulture)
+                ? "ru"
+                : _engine!.Settings.UiCulture.ToLowerInvariant();
+            if (culture is not ("ru" or "en")) culture = "ru";
+
+            return new
+            {
+                optimized = active.Active,
+                profileKey,
+                selectedProfileId = profileKey,
+                profileKind = profile?.Kind.ToString(),
+                lang = culture,
+                chartEnabled = ChartIsOn,
+                busy = true,
+                hostBusy = true,
+                appVersion = _engine?.Update.LocalVersion,
+                // Cached health only — never full Scan() while locked out
+                drift = _cachedDriftSummary ?? new { driftedCount = 0, total = 0 },
+                audit = _cachedAuditSummary ?? new { issueCount = 0 }
+            };
+        }
+        catch
+        {
+            return new
+            {
+                busy = true,
+                hostBusy = true,
+                chartEnabled = ChartIsOn
+            };
+        }
     }
 
     /// <summary>Caller must hold EngineOpLock (or be single-threaded startup).</summary>
@@ -2318,7 +2435,7 @@ internal static class Program
             }
             finally
             {
-                Interlocked.Exchange(ref _heavyOpInFlight, 0);
+                EndHeavyOp();
             }
         });
     }
@@ -2342,35 +2459,66 @@ internal static class Program
         }
     }
 
+    /// <summary>
+    /// Drift/audit full registry scans are expensive — never run them on every getState (8s poll).
+    /// Cached results keep dashboard badges fresh enough without freezing the Photino thread.
+    /// </summary>
+    private static object? _cachedDriftSummary;
+    private static object? _cachedAuditSummary;
+    private static long _driftCacheTicks;
+    private static long _auditCacheTicks;
+    private const int HealthSummaryCacheMs = 12_000;
+
     private static object BuildDriftSummary()
     {
+        long now = Environment.TickCount64;
+        if (_cachedDriftSummary != null && now - _driftCacheTicks < HealthSummaryCacheMs)
+            return _cachedDriftSummary;
+
         try
         {
-            if (_engine == null) return new { driftedCount = 0, total = 0 };
+            if (_engine == null)
+                return _cachedDriftSummary ?? new { driftedCount = 0, total = 0 };
             var entries = _engine.Drift.Scan();
             int drifted = entries.Count(e => e.Status is DriftStatus.Drifted or DriftStatus.Missing);
-            return new { driftedCount = drifted, total = entries.Count };
+            _cachedDriftSummary = new { driftedCount = drifted, total = entries.Count };
+            _driftCacheTicks = now;
+            return _cachedDriftSummary;
         }
         catch
         {
-            return new { driftedCount = 0, total = 0 };
+            return _cachedDriftSummary ?? new { driftedCount = 0, total = 0 };
         }
     }
 
     private static object BuildAuditSummary()
     {
+        long now = Environment.TickCount64;
+        if (_cachedAuditSummary != null && now - _auditCacheTicks < HealthSummaryCacheMs)
+            return _cachedAuditSummary;
+
         try
         {
-            if (_engine == null) return new { issueCount = 0 };
+            if (_engine == null)
+                return _cachedAuditSummary ?? new { issueCount = 0 };
             // Exclude always-present active-state heartbeat so badge reflects real issues
             int issues = _engine.Audit.Scan()
                 .Count(f => !string.Equals(f.Id, "audit.active_state", StringComparison.OrdinalIgnoreCase));
-            return new { issueCount = issues };
+            _cachedAuditSummary = new { issueCount = issues };
+            _auditCacheTicks = now;
+            return _cachedAuditSummary;
         }
         catch
         {
-            return new { issueCount = 0 };
+            return _cachedAuditSummary ?? new { issueCount = 0 };
         }
+    }
+
+    /// <summary>Call after apply/revert/fix so the next getState rescans health.</summary>
+    private static void InvalidateHealthSummaryCache()
+    {
+        _driftCacheTicks = 0;
+        _auditCacheTicks = 0;
     }
 
     private static string MapKindToUiId(AntiLagNext.Core.Enums.ProfileKind kind) =>

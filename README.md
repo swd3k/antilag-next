@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x64.exe">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Latest: <strong>1.3.0</strong> · Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x64.exe"><code>AntiLagNext-Setup-1.3.0-win-x64.exe</code></a>
+  <sub>Latest: <strong>1.3.1</strong> · Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe"><code>AntiLagNext-Setup-1.3.1-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -112,15 +112,15 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## 📥 Download
 
-Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** (latest tag: **v1.3.0**).
+Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** (latest tag: **v1.3.1**).
 
 ### Setup installer (recommended)
 
 | Package | Arch | Notes |
 |---------|------|-------|
-| [`AntiLagNext-Setup-1.3.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
-| [`AntiLagNext-Setup-1.3.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x86.exe) | 32-bit | Installer |
-| [`AntiLagNext-Setup-1.3.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-arm64.exe) | ARM64 | Installer |
+| [`AntiLagNext-Setup-1.3.1-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
+| [`AntiLagNext-Setup-1.3.1-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x86.exe) | 32-bit | Installer |
+| [`AntiLagNext-Setup-1.3.1-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-arm64.exe) | ARM64 | Installer |
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
@@ -164,7 +164,7 @@ Silent in-app updates work for **Program Files** installs. Portable builds open 
 | **i18n** | **RU** + **EN** language packs |
 | **Size** | Portable UI ≈ **1.7 MB** FDD (size gate ≤ 5 MB) |
 
-Full history: [CHANGELOG.md](CHANGELOG.md) (**1.3.0**).
+Full history: [CHANGELOG.md](CHANGELOG.md) (**1.3.1**).
 
 ---
 
@@ -197,13 +197,13 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 .\scripts\publish-all.ps1
 
 # Inno Setup installers (requires Inno Setup 6) — framework-dependent (~2–3 MB)
-.\scripts\build-installer.ps1 -Version 1.3.0
+.\scripts\build-installer.ps1 -Version 1.3.1
 
 # publish + all Setup.exe in one go
-.\scripts\build-installer.ps1 -Version 1.3.0 -PublishFirst
+.\scripts\build-installer.ps1 -Version 1.3.1 -PublishFirst
 
 # self-contained Setup (includes .NET runtime, larger ~60–80 MB) → *-SC.exe
-.\scripts\build-setup-selfcontained.ps1 -Version 1.3.0 -Rid win-x64
+.\scripts\build-setup-selfcontained.ps1 -Version 1.3.1 -Rid win-x64
 
 # full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
@@ -217,7 +217,7 @@ Self-contained portable folders only:
 
 Settings auto-migrate on load (schema v2): legacy Russian built-in profile names become stable English labels; the UI always localizes via language packs.
 
-CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.3.0`) with multi-arch **Setup.exe** installers and portable zips attached.
+CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.3.1`) with multi-arch **Setup.exe** installers and portable zips attached.
 
 ---
 
