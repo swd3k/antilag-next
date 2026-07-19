@@ -22,6 +22,7 @@ internal static class Program
     private static EngineBootstrap? _engine;
     private static PhotinoWindow? _window;
     private static TrayService? _tray;
+    private static SingleInstance? _singleInstance;
     private static readonly object SendLock = new();
     /// <summary>Serializes engine mutate + BuildUiState (re-entrant Monitor).</summary>
     private static readonly object EngineOpLock = new();
@@ -107,6 +108,11 @@ internal static class Program
             || a.Equals("/autostart", StringComparison.OrdinalIgnoreCase)
             || a.Equals("-autostart", StringComparison.OrdinalIgnoreCase));
 
+        // Debug / automation escape hatch (not advertised in UI)
+        bool allowMulti = args.Any(a =>
+            a.Equals("--allow-multi", StringComparison.OrdinalIgnoreCase)
+            || a.Equals("/allow-multi", StringComparison.OrdinalIgnoreCase));
+
         if (args.Length > 0 && args.Any(a =>
                 a.StartsWith("--apply", StringComparison.OrdinalIgnoreCase)
                 || a.StartsWith("--revert", StringComparison.OrdinalIgnoreCase)
@@ -117,6 +123,17 @@ internal static class Program
                               || a.Equals("-s", StringComparison.OrdinalIgnoreCase)))
             {
                 Environment.Exit(RunSilentCli(args));
+                return;
+            }
+        }
+
+        // Single UI instance — second launch focuses existing window (incl. tray)
+        if (!allowMulti)
+        {
+            _singleInstance = SingleInstance.TryEnter(BringMainWindowToFront);
+            if (_singleInstance is null)
+            {
+                SingleInstance.ActivateExisting();
                 return;
             }
         }
@@ -269,7 +286,42 @@ internal static class Program
             catch { /* ignore */ }
             _engine?.Dispose();
             _window = null;
+            try { _singleInstance?.Dispose(); } catch { /* ignore */ }
+            _singleInstance = null;
         }
+    }
+
+    /// <summary>Second-instance signal or tray: restore and focus the Photino window.</summary>
+    private static void BringMainWindowToFront()
+    {
+        try
+        {
+            var w = _window;
+            if (w != null)
+            {
+                w.Invoke(() =>
+                {
+                    try
+                    {
+                        w.SetMinimized(false);
+                        var hwnd = w.WindowHandle;
+                        if (hwnd != IntPtr.Zero)
+                            TrayService.ShowWindowRestore(hwnd);
+                    }
+                    catch (Exception ex)
+                    {
+                        WriteCrash("BringMainWindowToFront.Invoke", ex);
+                    }
+                });
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            WriteCrash("BringMainWindowToFront", ex);
+        }
+
+        SingleInstance.TryFocusWindowByTitle();
     }
 
     private static void InitTray()

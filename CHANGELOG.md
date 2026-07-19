@@ -27,7 +27,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - *(none yet)*
 
 ### Fixed
-- *(none yet)*
+- **Single UI instance**: launching AntiLag Next while it is already running focuses the existing window (including from tray) instead of opening another window.
 
 ### Changed
 - *(none yet)*
