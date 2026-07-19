@@ -27,9 +27,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - *(none yet)*
 
 ### Fixed
-- **Single UI instance**: launching AntiLag Next while it is already running focuses the existing window (including from tray) instead of opening another window.
-- Single-instance recovers from **abandoned mutex** after a crash; second launch retries focus while the main window is still starting.
-- **What changed** panel: hide stays collapsed across language switch; **Show** chip to expand again after hide.
+- *(none yet)*
 
 ### Changed
 - *(none yet)*
@@ -45,11 +43,12 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 
 ### Added
 - **First-run wizard** (3 steps): what the app does, what it does not, how to start safely (`al_onboard_v2`).
-- **What changed** panel after Enable — localized titles, area, risk pills, reboot hint (`ApplyChangeSummary` + builder).
+- **What changed** panel after Enable — localized titles, area, risk pills, reboot hint (`ApplyChangeSummary` + builder); **Hide** / **Show** chip (collapse survives language switch).
 - **Before / After** latency comparison: true **median over a sample window** (≥12 chart points / ~3 s before enable; 1.5 s settle + ~3 s collect after; shows sample counts).
 - **Health → Fix recommended** — Safe catalog fixes + reapply drifted **desired-state only** (one CTA).
 - **Audit findings grouped by area**; “Аудит системы” / “System audit” as one section title; hide redundant single System subgroup.
 - **Export diagnostics** zip (redacted settings, audit, drift, logs) from Logs + Settings; opens folder in Explorer; keeps last **15** archives.
+- **Single UI instance** — second launch focuses the existing window (including from tray) instead of spawning another.
 - Models: `ApplyChangeSummary` / `ApplyChangeItem`; `AuditFinding.Area`; optional `OperationResult.Code`.
 - IPC: `fixRecommended`, `exportDiagnostics`, `completeFirstRun`; apply reply includes `changeSummary`.
 - Tests: ApplyChangeSummary builder, audit areas, diagnostics export, empty desired-state reapply safety.
@@ -60,12 +59,13 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - Peak / metrics wire ceiling **15 ms**; probe glitch clamp **20 ms** so real spikes above 10 ms stay visible.
 - Bottom bar no longer shows false “app not responding” during long Enable/Health work — shows **Working…**.
 - Chart keeps polling during apply/revert/health (`keepChart`) for BA sampling and responsive UI.
-- **Full RU localization audit**: natural copy, Health/wizard/diagnostics/tags, first-paint HTML fallbacks in Russian; EN/RU key parity (275 keys).
+- **Full RU localization audit**: natural copy, Health/wizard/diagnostics/tags, first-paint HTML fallbacks in Russian; EN/RU key parity.
 - Health Fix recommended: success = audit **and** drift; empty desired-state skips useless drift backup session.
 - Drift **reapply** never mass-writes the full catalog when desired-state is empty.
 - Diagnostics: Explorer only for paths under diagnostics dir; reject path metacharacters; prune old zips.
 - Engine messages English-stable (backup / Win32 / GameMode defaults) so EN UI does not show raw Russian CLR text.
 - `fixAudit` / Fix recommended use typed `FixOpResult` (no reflection on anonymous objects).
+- Single-instance recovers from **abandoned mutex** after a crash; second launch retries focus while the main window is still starting.
 
 ### Changed
 - Product version **1.3.0** (`Directory.Build.props`, Inno, UI label, updater UA).
@@ -79,7 +79,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - (Inherits 1.2.2 allowlists: registry path boundary, update URL/PE/size, IPC cmd allowlist, restart confirm.)
 
 ### Docs
-- Expanded this changelog entry to cover the full 1.3.0 landings (feature + polish + audit), not only the first feature commit.
+- Expanded this changelog entry to cover the full 1.3.0 landings (feature + polish + audit + single-instance), not only the first feature commit.
 
 ---
 
