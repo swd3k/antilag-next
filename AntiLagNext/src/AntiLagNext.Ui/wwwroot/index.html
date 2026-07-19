@@ -978,6 +978,13 @@
               </div>
               <div class="note" id="baDelta" style="margin-top:8px"></div>
             </div>
+            <div class="card" id="changedCardCollapsed" hidden style="margin-bottom:14px;padding:12px 14px">
+              <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                <div class="metric-label" style="color:var(--cyan);margin:0" data-i18n="changed.title">Что изменилось</div>
+                <button type="button" class="hdr-ctrl primary" id="changedShowBtn" style="width:auto;padding:0 12px;height:28px;font-size:11px"
+                        onclick="showChangedCard()" data-i18n="changed.show">Показать</button>
+              </div>
+            </div>
             <div class="card" id="changedCard" hidden style="margin-bottom:14px">
               <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
                 <div class="metric-label" style="color:var(--cyan)" data-i18n="changed.title">Что изменилось</div>
@@ -1316,6 +1323,9 @@
     const BA_AFTER_SETTLE_MS = 1500; // ignore first 1.5 s after apply (system settling)
     const BA_AFTER_COLLECT_MS = 3000; // then collect ~3 s of samples
     let lastChangeSummary = null;
+    /** User collapsed "What changed" — keep collapsed across language/theme refresh. */
+    let changedCardUserCollapsed = false;
+    try { changedCardUserCollapsed = localStorage.getItem('al_changed_collapsed') === '1'; } catch (e) {}
 
     function t(key, vars) {
       let s = i18n[key] ?? key;
@@ -1442,6 +1452,9 @@
       updateProfileNameDisplay();
       renderPlugins(state.plugins || []);
       renderLogs(state.logs || []);
+      // Re-localize What changed list without re-expanding
+      if (lastChangeSummary)
+        renderChangeSummary(lastChangeSummary, { keepCollapsed: true });
       updateChartPanels();
     }
 
@@ -1965,7 +1978,9 @@
       renderPlugins(s.plugins || []);
       renderLogs(s.logs || []);
       applyHealthSummaryFromState(s);
-      if (s.changeSummary) renderChangeSummary(s.changeSummary);
+      // Refresh What-changed labels; do not force-expand if user collapsed
+      if (s.changeSummary) renderChangeSummary(s.changeSummary, { keepCollapsed: true });
+      else if (lastChangeSummary) renderChangeSummary(lastChangeSummary, { keepCollapsed: true });
       renderBeforeAfter();
       // Re-localize health tables if already loaded
       if (lastAuditFindings.length || lastDriftEntries.length) {
@@ -2610,21 +2625,28 @@
     }
 
     function hideChangedCard() {
-      const card = document.getElementById('changedCard');
-      if (card) card.hidden = true;
+      changedCardUserCollapsed = true;
+      try { localStorage.setItem('al_changed_collapsed', '1'); } catch (e) {}
+      updateChangedCardVisibility();
     }
 
-    function renderChangeSummary(summary) {
-      lastChangeSummary = summary || null;
-      const card = document.getElementById('changedCard');
+    function showChangedCard() {
+      changedCardUserCollapsed = false;
+      try { localStorage.removeItem('al_changed_collapsed'); } catch (e) {}
+      updateChangedCardVisibility();
+    }
+
+    function hasChangeSummary(summary) {
+      return !!(summary && Array.isArray(summary.items) && summary.items.length);
+    }
+
+    function fillChangedList(summary) {
       const list = document.getElementById('changedList');
-      if (!card || !list) return;
-      if (!summary || !Array.isArray(summary.items) || !summary.items.length) {
-        card.hidden = true;
+      if (!list) return;
+      if (!hasChangeSummary(summary)) {
         list.innerHTML = '';
         return;
       }
-      card.hidden = false;
       list.innerHTML = summary.items.map(it => {
         const title = changeItemTitle(it);
         const risk = String(it.risk || 'safe').toLowerCase();
@@ -2642,6 +2664,51 @@
           </div>
         </li>`;
       }).join('');
+    }
+
+    function updateChangedCardVisibility() {
+      const card = document.getElementById('changedCard');
+      const collapsed = document.getElementById('changedCardCollapsed');
+      if (!card) return;
+      if (!hasChangeSummary(lastChangeSummary)) {
+        card.hidden = true;
+        if (collapsed) collapsed.hidden = true;
+        return;
+      }
+      if (changedCardUserCollapsed) {
+        card.hidden = true;
+        if (collapsed) collapsed.hidden = false;
+      } else {
+        card.hidden = false;
+        if (collapsed) collapsed.hidden = true;
+      }
+    }
+
+    /**
+     * @param summary
+     * @param opts.keepCollapsed — language/theme refresh: do not force open
+     * @param opts.forceOpen — new Enable result: always expand
+     */
+    function renderChangeSummary(summary, opts) {
+      opts = opts || {};
+      lastChangeSummary = summary || null;
+      if (opts.forceOpen) {
+        changedCardUserCollapsed = false;
+        try { localStorage.removeItem('al_changed_collapsed'); } catch (e) {}
+      }
+      if (!hasChangeSummary(lastChangeSummary)) {
+        changedCardUserCollapsed = false;
+        try { localStorage.removeItem('al_changed_collapsed'); } catch (e) {}
+        fillChangedList(null);
+        updateChangedCardVisibility();
+        return;
+      }
+      fillChangedList(lastChangeSummary);
+      // Respect user collapse unless this is a fresh apply (forceOpen)
+      if (!opts.keepCollapsed && !opts.forceOpen && !changedCardUserCollapsed) {
+        // default: show when new data and not collapsed
+      }
+      updateChangedCardVisibility();
     }
 
     function localizeUpdateError(u) {
@@ -2775,8 +2842,10 @@
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
           else if (r && r.success !== false)
             toast(t('toast.reset'));
-          hideChangedCard();
           lastChangeSummary = null;
+          changedCardUserCollapsed = false;
+          try { localStorage.removeItem('al_changed_collapsed'); } catch (e) {}
+          updateChangedCardVisibility();
           // Stop After-collection; keep Before for reference until next Enable
           baAfterCollectUntil = 0;
           baAfterSettleUntil = 0;
@@ -2788,8 +2857,10 @@
           if (r && r.state) await applyState(r.state);
           else if (r && (r.success === false || r.busy || r.error))
             toast(t('toast.error') + (r.message ? ': ' + r.message : (r.error ? ': ' + r.error : '')));
-          if (r && r.changeSummary) renderChangeSummary(r.changeSummary);
-          else if (r && r.state && r.state.changeSummary) renderChangeSummary(r.state.changeSummary);
+          // Fresh Enable: always expand What changed (new result)
+          if (r && r.changeSummary) renderChangeSummary(r.changeSummary, { forceOpen: true });
+          else if (r && r.state && r.state.changeSummary)
+            renderChangeSummary(r.state.changeSummary, { forceOpen: true });
           if (r && r.success) {
             toast(t('toast.applied'));
             // After settle, collect a fresh sample window for true post-Enable median

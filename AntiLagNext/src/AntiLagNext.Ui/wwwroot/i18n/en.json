@@ -273,5 +273,6 @@
   "sev.info": "info",
   "sev.warn": "warn",
   "sev.critical": "critical",
-  "aria.chartScale": "Y scale — click to lock"
+  "aria.chartScale": "Y scale — click to lock",
+  "changed.show": "Show"
 }
