@@ -80,6 +80,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 
 ### Docs
 - Expanded this changelog entry to cover the full 1.3.0 landings (feature + polish + audit + single-instance), not only the first feature commit.
+- README refreshed for 1.3.0 (honest scope, features table, security, build versions, single-instance / diagnostics / Health).
 
 ---
 

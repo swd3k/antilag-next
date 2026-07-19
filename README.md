@@ -7,7 +7,7 @@
 <h1 align="center">AntiLag Next</h1>
 
 <p align="center">
-  AntiLag Next makes your system run as smooth as possible with lower input latency and a higher frame rate.
+  Reduce Windows <strong>scheduling latency</strong> with one-click profiles, live µs monitoring, Health audit/drift, and full reset — open source, no inject, no telemetry.
 </p>
 
 <p align="center">
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x64.exe"><code>AntiLagNext-Setup-1.3.0-win-x64.exe</code></a>
+  <sub>Latest: <strong>1.3.0</strong> · Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.0-win-x64.exe"><code>AntiLagNext-Setup-1.3.0-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -53,7 +53,7 @@
 > Clean-room successor to the *ideas* behind [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) (**not a fork**).  
 > **Use at your own risk.** Requires **Administrator** rights (UAC).
 
-Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks (timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry, and related options) to reduce **scheduling latency**. One-click **Enable**, full **Reset all**, optional tray + autostart.
+Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks (timer resolution, power plan, Game Mode / HAGS, GPU low-latency registry, curated latency pack) to reduce **scheduling latency**. One-click **Enable**, **What changed** summary, live chart **Before/After**, **Health** audit/drift, full **Reset all**, optional tray + autostart, in-app update, and local diagnostics export.
 
 ---
 
@@ -68,35 +68,42 @@ Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks 
 > AntiLag Next requests **Administrator (UAC)** and may change power settings, registry keys, and timer resolution. Security software or Windows SmartScreen may flag the unsigned build.  
 > This is **not a virus**: the source is fully open — review it or build it yourself.
 >
-> The executable is **not signed** with a paid code-signing certificate, so you may see *“Windows protected your PC”*. If you trust the source (and verified the download from GitHub Releases), choose **More info → Run anyway**. Add the app folder to antivirus exclusions if needed.
+> The executable is **not signed** with a paid code-signing certificate, so you may see *“Windows protected your PC”*. If you trust the source (and verified the download from GitHub Releases), choose **More info → Run again**. Add the app folder to antivirus exclusions if needed.
 
 > [!IMPORTANT]
 > ### 🔐 What you should know
 > - Prefer builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** only.  
 > - The µs chart is a **scheduling-latency proxy** — **not** kernel DPC and **not** network ping.  
 > - Experimental plugins are **MVP stubs** (disabled in the UI; they do **not** change the system).  
+> - Only **one UI instance** runs at a time — a second launch focuses the existing window (including from tray).  
 > - Always use **Reset all** if something feels wrong. Not sure? Build from source (below).
 
 ---
 
 ## ⚙️ What the app does
 
-On **Enable AntiLag Next**, the app applies the selected profile (Gaming / Office / Max Performance) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, a curated latency registry pack, and optional plugin modules (network hygiene, process priority, safe services, etc.).
+On **Enable AntiLag Next**, the app applies the selected profile (**Gaming** / **Office** / **Max Performance**) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, a curated latency registry pack, and optional plugin modules (network hygiene, process priority, safe services, etc.).
 
-Use the **Health** page to audit key latency settings, detect drift after Windows updates, and re-apply or fix with backup. Changes are stored as **JSON backup** (and optional System Restore when available). **Reset all** / CLI `--revert` restores the previous state as far as the backup allows.
+After Enable you get:
 
-**Before → After** (banner): red / high latency chart when idle → green / optimized after enable.
+- **What changed** — plain-language list of applied areas (hide/show; survives language switch).  
+- **Before / After** — median µs over a real sample window (not a single point).  
+- Optional reboot / autostart prompts (confirm required for autostart).
 
-The monitor probes scheduling latency on a short interval and shows a live chart so you can compare *before vs after* — not absolute input lag in games.
+Use the **Health** page to audit key latency settings, detect **desired-state drift** after Windows updates, **Fix recommended** (Safe + reapply owned state), or Fix safe / Fix all. Changes are stored as **JSON backup** (and optional System Restore when available). **Reset all** / CLI `--revert` restores the previous state as far as the backup allows.
+
+The live chart probes scheduling latency on a short interval so you can compare *before vs after* — not absolute input lag inside games.
 
 ---
 
 ## 🔒 Security notes
 
 - Runs **elevated** by design — treat untrusted binaries of this class as high risk; prefer building from source.  
-- Registry restore uses a **strict path allowlist**; service changes use a **safe-name allowlist**.  
-- External `*.plugin.dll` loading is **opt-in**.  
-- **Start with Windows** creates a Task Scheduler job only after an **explicit confirmation** dialog.  
+- Registry restore uses a **strict path allowlist** (prefix + path boundary); service changes use a **safe-name allowlist**.  
+- External `*.plugin.dll` loading is **opt-in** (default off); plugin id collision rejected.  
+- **Start with Windows** / **reboot** only after **explicit confirmation** in the UI.  
+- In-app update downloads only official Setup URLs (canonical repo + CDN allowlist, size + PE checks).  
+- **Diagnostics export** is local-only (redacted settings; no cloud).  
 - No telemetry; crash notes stay local when written.
 
 See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
@@ -105,7 +112,7 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## 📥 Download
 
-Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
+Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** (latest tag: **v1.3.0**).
 
 ### Setup installer (recommended)
 
@@ -117,8 +124,10 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
-3. Read onboarding → **Enable AntiLag Next**.  
+3. Read the first-run wizard → pick a profile → **Enable AntiLag Next**.  
 4. If anything feels wrong → **Reset all**.
+
+Silent in-app updates work for **Program Files** installs. Portable builds open Releases for manual Setup.
 
 ### Portable zip
 
@@ -138,20 +147,24 @@ Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)**.
 
 ## ✨ Features
 
-- 🚀 One-click profiles: Gaming / Office / Max Performance  
-- ⏱️ Timer resolution + power plan / core parking  
-- 🎮 Game Mode / HAGS / GPU low-latency registry (NVIDIA per-CPU DPC on Gaming/Max)  
-- 📋 **Health** page: latency **audit**, desired-state **drift**, Fix safe / Fix all / Reapply (Admin)  
-- 🔧 Extra latency registry pack with profiles (network, input queues, kernel/power tweaks)  
-- 📊 Live latency chart: area-line, **fixed Y-scale** rungs, Peak = max of last **60 s** (proxy µs, not ping)  
-- 🔄 **Auto-update** from GitHub Releases (silent Setup for Program Files installs)  
-- ♻️ JSON backup + **Reset all** / CLI `--revert`  
-- 🖥️ Tray icon; optional Windows logon autostart (confirm required)  
-- 🧩 Built-in plugins; experimental items marked **stub / soon**  
-- 💻 CLI: `--apply`, `--revert`, `--status`  
-- 📦 Portable UI ≈ **1.5 MB** FDD (≤ 5 MB size gate)  
+| Area | Highlights |
+|------|------------|
+| **Profiles** | One-click Gaming / Office / Max Performance |
+| **Core tweaks** | Timer resolution, power plan / core parking, Game Mode / HAGS / GPU low-latency (NVIDIA per-CPU DPC on Gaming/Max) |
+| **Catalog** | Curated latency registry pack (network, input queues, kernel/power) with backup + allowlist |
+| **Health** | Audit + desired-state **drift**; **Fix recommended** / Fix safe / Fix all / Reapply |
+| **Transparency** | **What changed** after Enable; **Before/After** median µs window |
+| **Chart** | Live area-line; fixed Y rungs **200…15000 µs**; Peak = max of last **60 s** |
+| **Updates** | Check GitHub Releases; silent Setup for Program Files installs |
+| **Safety** | JSON backup + **Reset all** / CLI `--revert` |
+| **Desktop** | Tray icon; optional logon autostart (confirm); **single UI instance** |
+| **Diagnostics** | Export local zip (redacted settings, audit, drift, logs) |
+| **Plugins** | Built-in modules; experimental items marked **stub / soon** |
+| **CLI** | `--apply`, `--revert`, `--status` |
+| **i18n** | **RU** + **EN** language packs |
+| **Size** | Portable UI ≈ **1.7 MB** FDD (size gate ≤ 5 MB) |
 
-Details: [CHANGELOG.md](CHANGELOG.md) (**1.3.0**).
+Full history: [CHANGELOG.md](CHANGELOG.md) (**1.3.0**).
 
 ---
 
@@ -167,7 +180,7 @@ dotnet test AntiLagNext.sln -c Release
 ```
 
 ```powershell
-# Shipping UI (Photino + WebView2)
+# Shipping UI (Photino + WebView2) — UAC as Admin for real tweaks
 dotnet run --project src\AntiLagNext.Ui -c Release
 
 # CLI
@@ -184,13 +197,13 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 .\scripts\publish-all.ps1
 
 # Inno Setup installers (requires Inno Setup 6) — framework-dependent (~2–3 MB)
-.\scripts\build-installer.ps1 -Version 1.0.1
+.\scripts\build-installer.ps1 -Version 1.3.0
 
 # publish + all Setup.exe in one go
-.\scripts\build-installer.ps1 -Version 1.0.1 -PublishFirst
+.\scripts\build-installer.ps1 -Version 1.3.0 -PublishFirst
 
 # self-contained Setup (includes .NET runtime, larger ~60–80 MB) → *-SC.exe
-.\scripts\build-setup-selfcontained.ps1 -Version 1.0.1 -Rid win-x64
+.\scripts\build-setup-selfcontained.ps1 -Version 1.3.0 -Rid win-x64
 
 # full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
@@ -204,7 +217,7 @@ Self-contained portable folders only:
 
 Settings auto-migrate on load (schema v2): legacy Russian built-in profile names become stable English labels; the UI always localizes via language packs.
 
-CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.0.0`) with multi-arch **Setup.exe** installers and portable zips attached.
+CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.3.0`) with multi-arch **Setup.exe** installers and portable zips attached.
 
 ---
 
@@ -215,11 +228,17 @@ cd AntiLagNext
 dotnet restore
 dotnet build AntiLagNext.sln -c Debug
 dotnet test tests\AntiLagNext.Core.Tests\AntiLagNext.Core.Tests.csproj -c Release
+dotnet test tests\AntiLagNext.Infrastructure.Tests\AntiLagNext.Infrastructure.Tests.csproj -c Release
 dotnet test tests\AntiLagNext.SmokeTests\AntiLagNext.SmokeTests.csproj -c Release
 ```
 
-Shipping host: **`AntiLagNext.Ui`** (Photino).  
-Shipping GUI is **Photino** (`AntiLagNext.Ui`) only. Legacy WPF was removed in 1.2.0.
+Shipping host: **`AntiLagNext.Ui`** (Photino). Legacy WPF was removed in **1.2.0**.
+
+i18n parity check:
+
+```powershell
+.\scripts\check-i18n.ps1
+```
 
 ---
 
@@ -232,9 +251,10 @@ Shipping GUI is **Photino** (`AntiLagNext.Ui`) only. Legacy WPF was removed in 1
 │   ├── src/AntiLagNext.Core
 │   ├── src/AntiLagNext.Infrastructure
 │   └── tests/
-├── docs/                        # architecture, plugins, banner
-├── scripts/                     # publish / hard-test
+├── docs/                        # architecture, plugins, banner, QA
+├── scripts/                     # publish / installer / hard-test / i18n
 ├── installer/                   # Inno Setup script → Setup.exe
+├── CHANGELOG.md                 # full product history (Keep a Changelog)
 ├── LICENSE
 └── README.md
 ```
@@ -245,6 +265,7 @@ Shipping GUI is **Photino** (`AntiLagNext.Ui`) only. Legacy WPF was removed in 1
 
 - 💻 Source — https://github.com/swd3k/antilag-next  
 - 📦 Releases — https://github.com/swd3k/antilag-next/releases  
+- 📝 Changelog — [CHANGELOG.md](CHANGELOG.md)  
 - 📐 Architecture — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)  
 - 🔌 Plugins — [docs/PLUGINS.md](docs/PLUGINS.md)  
 - 🔐 Security policy — [SECURITY.md](SECURITY.md)  
