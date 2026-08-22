@@ -38,6 +38,8 @@ Desktop.ini
 *.swp
 *~
 *.lnk
+__pycache__/
+*.pyc
 
 # Secrets / local
 *.pfx

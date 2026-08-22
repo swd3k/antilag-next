@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.jpg" alt="AntiLag Next — hold Windows timer resolution, AC-safe power, Health audit, safe undo" width="100%">
+  <img src="docs/assets/banner.jpg" alt="AntiLag Next — Windows 10/11 scheduling-latency tool. Timer resolution, AC-safe power, Health audit, safe undo." width="100%">
 </p>
 
 <h1 align="center">AntiLag Next</h1>
