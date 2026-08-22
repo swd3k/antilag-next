@@ -108,8 +108,10 @@ def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     banner = clean_banner(SRC_BANNER)
     # Keep the authored pixel size (1118×627). Do not stretch.
+    banner.save(ASSETS / "banner.png", "PNG", optimize=True)
     banner.save(ASSETS / "banner.jpg", "JPEG", quality=95, optimize=True, progressive=True)
     banner.save(ASSETS / "og.jpg", "JPEG", quality=95, optimize=True)
+
 
 
     logo = clean_logo(SRC_LOGO)
