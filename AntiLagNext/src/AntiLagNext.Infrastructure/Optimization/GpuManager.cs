@@ -12,7 +12,7 @@ namespace AntiLagNext.Infrastructure.Optimization;
 /// AMD: похожие ключи в amdkmdag / CCC.
 ///
 /// Полноценный NVAPI/ADLX требует проприетарный SDK и не входит в open-source дистрибутив.
-/// При наличии native DLL AntiLagNext.Native.dll вызываем экспорт SetGpuLowLatency (best-effort).
+/// Реестровые ключи драйвера — единственный поддерживаемый путь (native C++ DLL убран в 1.2.0).
 /// </summary>
 public sealed class GpuManager : IGpuManager
 {
@@ -42,14 +42,6 @@ public sealed class GpuManager : IGpuManager
         try
         {
             string vendor = DetectVendor();
-            // Попытка native DLL
-            try
-            {
-                if (NativeBridge.TrySetGpuLowLatency(enabled, out string nativeMsg))
-                    return OperationResult.Ok($"GPU Low Latency ({vendor}): {nativeMsg}");
-            }
-            catch { /* DLL optional */ }
-
             return vendor switch
             {
                 "NVIDIA" => SetNvidiaLowLatency(enabled),
@@ -213,42 +205,5 @@ public sealed class GpuManager : IGpuManager
         using var write = root.CreateSubKey(keyPath, true)
             ?? throw new InvalidOperationException(keyPath);
         write.SetValue(valueName, value, RegistryValueKind.DWord);
-    }
-}
-
-/// <summary>
-/// Опциональная загрузка AntiLagNext.Native.dll (C++) для NVAPI-подобных вызовов.
-/// </summary>
-internal static class NativeBridge
-{
-    [System.Runtime.InteropServices.DllImport("AntiLagNext.Native.dll", CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
-    private static extern int Aln_SetGpuLowLatency(int enabled);
-
-    [System.Runtime.InteropServices.DllImport("AntiLagNext.Native.dll", CallingConvention = System.Runtime.InteropServices.CallingConvention.Cdecl)]
-    private static extern int Aln_IsAvailable();
-
-    public static bool TrySetGpuLowLatency(bool enabled, out string message)
-    {
-        try
-        {
-            if (Aln_IsAvailable() == 0)
-            {
-                message = "Native DLL without NVAPI.";
-                return false;
-            }
-            int rc = Aln_SetGpuLowLatency(enabled ? 1 : 0);
-            message = rc == 0 ? "OK (native)" : $"native rc={rc}";
-            return rc == 0;
-        }
-        catch (DllNotFoundException)
-        {
-            message = "AntiLagNext.Native.dll not found.";
-            return false;
-        }
-        catch (EntryPointNotFoundException)
-        {
-            message = "Export Aln_SetGpuLowLatency missing.";
-            return false;
-        }
     }
 }

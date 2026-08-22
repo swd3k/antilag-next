@@ -7,6 +7,7 @@ namespace AntiLagNext.Infrastructure.Tests;
 public class AuditAreaTests
 {
     [Theory]
+    [InlineData("audit.global_timer", "timer.global_resolution_requests", null, "Timer")]
     [InlineData("audit.hags", null, null, "Gpu")]
     [InlineData("audit.network_throttling", "network.throttling_index", null, "Network")]
     [InlineData("audit.tcp_ack", "network.tcp_ack_frequency", null, "Network")]

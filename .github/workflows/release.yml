@@ -29,8 +29,15 @@ jobs:
       - name: Unit tests
         run: dotnet test AntiLagNext/tests/AntiLagNext.Core.Tests/AntiLagNext.Core.Tests.csproj -c Release --no-build --verbosity normal
 
+      - name: Infrastructure tests
+        run: dotnet test AntiLagNext/tests/AntiLagNext.Infrastructure.Tests/AntiLagNext.Infrastructure.Tests.csproj -c Release --no-build --verbosity normal
+
       - name: Smoke tests (Win32)
         run: dotnet test AntiLagNext/tests/AntiLagNext.SmokeTests/AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
+
+      - name: i18n parity
+        shell: pwsh
+        run: .\scripts\check-i18n.ps1
 
       - name: Multi-arch publish (x64, x86, ARM64)
         shell: pwsh
@@ -152,6 +159,23 @@ jobs:
             "{0,8:N2} MB  {1}" -f ($_.Length/1MB), $_.Name
           }
 
+      - name: SHA256 checksums
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $files = @()
+          $files += Get-ChildItem dist -File -Filter "AntiLagNext-*.zip"
+          $files += Get-ChildItem dist\installers -File -Filter "AntiLagNext-Setup-*.exe" -ErrorAction SilentlyContinue
+          if ($files.Count -eq 0) { throw "No release artifacts to hash" }
+          $lines = foreach ($f in ($files | Sort-Object Name)) {
+            $hash = (Get-FileHash -Algorithm SHA256 -Path $f.FullName).Hash.ToLowerInvariant()
+            "{0}  {1}" -f $hash, $f.Name
+          }
+          $out = Join-Path "dist" "SHA256SUMS.txt"
+          [System.IO.File]::WriteAllLines($out, $lines)
+          Write-Host "Wrote $out"
+          Get-Content $out
+
       - name: Build release notes from CHANGELOG.md
         shell: pwsh
         run: |
@@ -176,7 +200,7 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: AntiLag Next ${{ github.ref_name }}
           draft: false
-          prerelease: false
+          prerelease: true
           generate_release_notes: false
           body_path: release_body.md
           files: |
@@ -187,5 +211,6 @@ jobs:
             dist/AntiLagNext-cli-win-x86.zip
             dist/AntiLagNext-cli-win-arm64.zip
             dist/installers/AntiLagNext-Setup-*.exe
+            dist/SHA256SUMS.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

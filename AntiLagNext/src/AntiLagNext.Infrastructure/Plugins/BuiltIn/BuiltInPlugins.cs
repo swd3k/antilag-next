@@ -262,9 +262,6 @@ public sealed class ProcessPriorityPlugin : BuiltInPluginBase
     {
         try
         {
-            using var p = System.Diagnostics.Process.GetCurrentProcess();
-            p.PriorityClass = System.Diagnostics.ProcessPriorityClass.High;
-
             int gamesBoosted = 0;
             foreach (var exe in context.Profile.GameExecutables)
             {
@@ -282,9 +279,10 @@ public sealed class ProcessPriorityPlugin : BuiltInPluginBase
                 }
             }
 
+            // Never raise AntiLag itself — it shares the process with WebView2.
             string msg = gamesBoosted > 0
-                ? $"Process: High priority (self + {gamesBoosted} game proc)"
-                : "Process: High priority class set (self)";
+                ? $"Process: High priority on {gamesBoosted} game proc"
+                : "Process: no game executables running (self not boosted)";
             SetStatus(PluginRuntimeState.Applied, msg);
             return Task.FromResult(OperationResult.Ok(msg));
         }

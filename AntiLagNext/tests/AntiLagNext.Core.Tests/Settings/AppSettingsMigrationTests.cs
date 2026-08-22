@@ -50,6 +50,44 @@ public class AppSettingsMigrationTests
     }
 
     [Fact]
+    public void Migrate_V3_TurnsOff_Hags_And_MemoryCleanup_On_BuiltIn_Gaming()
+    {
+        var s = new AppSettings
+        {
+            SchemaVersion = 2,
+            Profiles =
+            {
+                OptimizationProfile.CreatePreset(ProfileKind.Office),
+                new OptimizationProfile
+                {
+                    Kind = ProfileKind.Gaming,
+                    Name = "Gaming",
+                    EnableHags = true,
+                    EnableMemoryCleanup = true,
+                    Description = "legacy"
+                },
+                new OptimizationProfile
+                {
+                    Kind = ProfileKind.Custom,
+                    Name = "My mix",
+                    EnableHags = true,
+                    EnableMemoryCleanup = true
+                }
+            }
+        };
+
+        bool dirty = s.MigrateToCurrentSchema();
+
+        dirty.Should().BeTrue();
+        s.SchemaVersion.Should().Be(3);
+        var gaming = s.Profiles.First(p => p.Kind == ProfileKind.Gaming);
+        gaming.EnableHags.Should().BeFalse();
+        gaming.EnableMemoryCleanup.Should().BeFalse();
+        s.Profiles.First(p => p.Kind == ProfileKind.Custom).EnableHags.Should().BeTrue(
+            "custom profiles must not be rewritten");
+    }
+
+    [Fact]
     public void Migrate_IsIdempotent_WhenAlreadyCurrent()
     {
         var s = AppSettings.CreateDefault();

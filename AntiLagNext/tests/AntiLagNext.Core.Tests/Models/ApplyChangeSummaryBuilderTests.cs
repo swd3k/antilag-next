@@ -19,12 +19,13 @@ public class ApplyChangeSummaryBuilderTests
         summary.Items.Should().NotBeEmpty();
         summary.Items.Select(i => i.Id).Should().Contain(new[]
         {
-            "timer", "power", "parking", "gameMode", "hags", "gpuLowLatency", "memory"
+            "timer", "power", "parking", "gameMode", "gpuLowLatency"
         });
+        summary.Items.Select(i => i.Id).Should().NotContain("hags");
+        summary.Items.Select(i => i.Id).Should().NotContain("memory");
         summary.Items.Should().OnlyContain(i =>
             i.Risk == "safe" || i.Risk == "moderate" || i.Risk == "aggressive");
         summary.Items.Should().Contain(i => i.Id == "timer" && i.Area == "Timer" && i.TitleKey == "changed.timer");
-        summary.Items.Should().Contain(i => i.Id == "hags" && i.RequiresReboot);
         summary.AppliedUtc.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(5));
     }
 

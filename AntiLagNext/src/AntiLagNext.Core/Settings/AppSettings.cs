@@ -11,7 +11,7 @@ namespace AntiLagNext.Core.Settings;
 public sealed class AppSettings
 {
     /// <summary>Latest settings schema version (migrations bump this).</summary>
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
 
     /// <summary>Settings schema version (for migrations).</summary>
     public int SchemaVersion { get; set; } = CurrentSchemaVersion;
@@ -131,6 +131,8 @@ public sealed class AppSettings
         dirty |= EnsureBuiltInPresets();
         dirty |= NormalizeBuiltInProfileLabels();
         dirty |= SanitizeRuntimeLimits();
+        if (SchemaVersion < 3)
+            dirty |= ApplyV3SafePresetDefaults();
 
         if (SchemaVersion < CurrentSchemaVersion)
         {
@@ -192,6 +194,41 @@ public sealed class AppSettings
             if (p.MaxPreRenderedFrames is < 0 or > 8)
             {
                 p.MaxPreRenderedFrames = Math.Clamp(p.MaxPreRenderedFrames, 0, 8);
+                dirty = true;
+            }
+        }
+
+        return dirty;
+    }
+
+    /// <summary>
+    /// 1.4.0: built-in Gaming/Max no longer enable HAGS or working-set trim by default.
+    /// Custom profiles are left alone. Runs once when SchemaVersion is below 3.
+    /// </summary>
+    public bool ApplyV3SafePresetDefaults()
+    {
+        bool dirty = false;
+        foreach (var p in Profiles)
+        {
+            if (p.Kind is not (ProfileKind.Gaming or ProfileKind.MaxPerformance))
+                continue;
+
+            if (p.EnableHags)
+            {
+                p.EnableHags = false;
+                dirty = true;
+            }
+
+            if (p.EnableMemoryCleanup)
+            {
+                p.EnableMemoryCleanup = false;
+                dirty = true;
+            }
+
+            var fresh = OptimizationProfile.CreatePreset(p.Kind);
+            if (!string.Equals(p.Description, fresh.Description, StringComparison.Ordinal))
+            {
+                p.Description = fresh.Description;
                 dirty = true;
             }
         }

@@ -48,12 +48,14 @@ if ($missingRu.Count) {
   $missingRu | ForEach-Object { Write-Host "  $_" }
 }
 if ($onlyEn.Count) {
-  Write-Host "Only in en.json (warn, $($onlyEn.Count)):" -ForegroundColor Yellow
-  $onlyEn | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
+  $fail = $true
+  Write-Host "Only in en.json ($($onlyEn.Count)):" -ForegroundColor Red
+  $onlyEn | ForEach-Object { Write-Host "  $_" }
 }
 if ($onlyRu.Count) {
-  Write-Host "Only in ru.json (warn, $($onlyRu.Count)):" -ForegroundColor Yellow
-  $onlyRu | Select-Object -First 20 | ForEach-Object { Write-Host "  $_" }
+  $fail = $true
+  Write-Host "Only in ru.json ($($onlyRu.Count)):" -ForegroundColor Red
+  $onlyRu | ForEach-Object { Write-Host "  $_" }
 }
 
 if ($fail) {

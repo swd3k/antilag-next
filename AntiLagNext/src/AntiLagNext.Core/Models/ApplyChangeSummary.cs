@@ -81,7 +81,7 @@ public static class ApplyChangeSummaryBuilder
                 Id = "power",
                 Area = "Power",
                 TitleKey = "changed.power",
-                Detail = $"Power scheme → {scheme}; processor min/max 100%; PCIe ASPM off.",
+                Detail = $"Power scheme → {scheme}; processor min/max 100% on AC only (DC unchanged); PCIe ASPM off on AC.",
                 Risk = "safe",
                 RequiresReboot = false
             });

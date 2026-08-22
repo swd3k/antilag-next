@@ -62,6 +62,7 @@ public class TweakCatalogTests
     {
         string[] required =
         {
+            "timer.global_resolution_requests",
             "latency.interrupt_steering",
             "latency.serialize_timer",
             "cpu.win32_priority_separation",

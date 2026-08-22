@@ -36,6 +36,14 @@ try {
   dotnet test tests\AntiLagNext.Core.Tests\AntiLagNext.Core.Tests.csproj -c Release --no-build --verbosity normal
   if ($LASTEXITCODE -ne 0) { throw "unit tests failed" }
 
+  Write-Step "Infrastructure tests"
+  dotnet test tests\AntiLagNext.Infrastructure.Tests\AntiLagNext.Infrastructure.Tests.csproj -c Release --no-build --verbosity normal
+  if ($LASTEXITCODE -ne 0) { throw "infrastructure tests failed" }
+
+  Write-Step "i18n parity"
+  & (Join-Path $root "scripts\check-i18n.ps1")
+  if ($LASTEXITCODE -ne 0) { throw "i18n check failed" }
+
   Write-Step "Hard smoke tests (Win32)"
   dotnet test tests\AntiLagNext.SmokeTests\AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
   if ($LASTEXITCODE -ne 0) { throw "smoke tests failed" }

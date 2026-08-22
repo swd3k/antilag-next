@@ -31,6 +31,22 @@ public static class TweakCatalog
     {
         new()
         {
+            Id = "timer.global_resolution_requests",
+            CategoryId = "timer",
+            NameKey = "tweak.global_timer.name",
+            DescriptionKey = "tweak.global_timer.desc",
+            Risk = TweakRisk.Safe,
+            Impact = LatencyImpact.High,
+            RequiresReboot = true,
+            Hive = "HKLM",
+            KeyPath = @"SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
+            ValueName = "GlobalTimerResolutionRequests",
+            ValueKind = DWord,
+            DesiredValue = 1,
+            Profiles = GamingMaxOffice
+        },
+        new()
+        {
             Id = "latency.interrupt_steering",
             CategoryId = "latency",
             NameKey = "tweak.interrupt_steering.name",

@@ -46,7 +46,7 @@ public enum ProfileKind
     /// <summary>Профиль по умолчанию — все оптимизации выключены, система в исходном состоянии.</summary>
     Default = 0,
 
-    /// <summary>Игровой профиль — таймер 0.5 мс, High Performance, парковка отключена, Game Mode/HAGS.</summary>
+    /// <summary>Игровой профиль — таймер 0.5 мс, High Performance, парковка отключена, Game Mode.</summary>
     Gaming = 1,
 
     /// <summary>Офисный профиль — мягкие настройки, баланс отзывчивости и тишины/энергии.</summary>

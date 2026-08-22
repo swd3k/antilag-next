@@ -55,6 +55,12 @@ public interface IPowerManager
     /// <summary>Записать значение настройки (AC и/или DC) и применить.</summary>
     OperationResult WriteValue(Guid schemeGuid, Guid subGroup, Guid setting, uint acValue, uint dcValue);
 
+    /// <summary>
+    /// Write the AC index only and apply. Use for aggressive min-CPU / ASPM so battery (DC)
+    /// indexes are never poisoned — those persist after unplug.
+    /// </summary>
+    OperationResult WriteAcOnly(Guid schemeGuid, Guid subGroup, Guid setting, uint acValue);
+
     /// <summary>Снять атрибут "скрытая" с настройки (эквивалент powercfg -attributes ... -ATTRIB_HIDE).</summary>
     OperationResult UnhideSetting(Guid subGroup, Guid setting);
 

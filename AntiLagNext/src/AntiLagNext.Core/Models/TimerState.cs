@@ -18,7 +18,7 @@ public sealed class TimerCaps
     /// <summary>Максимальное разрешение в миллисекундах.</summary>
     public double MaximumMs => MaximumPeriod / 10_000.0;
 
-    public override string ToString() => $"{MinimumMs:F3}–{MaximumMs:F3} мс";
+    public override string ToString() => $"{MinimumMs:F3}–{MaximumMs:F3} ms";
 }
 
 /// <summary>
@@ -41,6 +41,15 @@ public sealed class TimerState
     /// <summary>true, если таймер удерживается приложением (фоновый «демон» активен).</summary>
     public bool IsActive { get; init; }
 
+    /// <summary>
+    /// UI/CLI token: released | global | local | pendingReboot.
+    /// Global = games inherit. pendingReboot = Win11 22H2+ key written/needed, kernel still per-process.
+    /// </summary>
+    public string Scope { get; init; } = "released";
+
+    /// <summary>Windows build used for the scope decision (0 if unknown).</summary>
+    public int OsBuild { get; init; }
+
     /// <summary>Запрошенное разрешение в миллисекундах.</summary>
     public double DesiredMs => DesiredPeriod100Ns / 10_000.0;
 
@@ -48,5 +57,7 @@ public sealed class TimerState
     public double ActualMs => ActualPeriod100Ns / 10_000.0;
 
     public override string ToString()
-        => IsActive ? $"Таймер активен: {ActualMs:F3} мс (джиттер {MeasuredJitterUs:F1} мкс)" : "Таймер не активен";
+        => IsActive
+            ? $"Timer held: {ActualMs:F3} ms (jitter {MeasuredJitterUs:F1} µs, scope={Scope})"
+            : "Timer not held";
 }

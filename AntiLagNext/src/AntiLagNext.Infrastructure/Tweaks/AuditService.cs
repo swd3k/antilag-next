@@ -13,19 +13,22 @@ public sealed class AuditService : IAuditService
     {
         var findings = new List<AuditFinding>();
 
-        // HAGS HwSchMode: 2 = On
+        // HAGS: do not recommend ON. When already on, note it can add input lag.
+        CheckHagsInfo(findings);
+
+        // Win11 22H2+ global timer (harmless DWORD on Win10)
         CheckDword(
             findings,
-            id: "audit.hags",
+            id: "audit.global_timer",
             hive: "HKLM",
-            path: @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers",
-            name: "HwSchMode",
-            preferred: "2",
-            titleKey: "audit.hags.title",
-            badDetail: "HAGS (HwSchMode) is off or missing — hardware GPU scheduling may help frame pacing.",
-            severity: "info",
-            suggestedTweakId: null,
-            canFix: false);
+            path: @"SYSTEM\CurrentControlSet\Control\Session Manager\kernel",
+            name: "GlobalTimerResolutionRequests",
+            preferred: "1",
+            titleKey: "audit.global_timer.title",
+            badDetail: "GlobalTimerResolutionRequests is not 1 — on Windows 11 22H2+ games will not inherit the timer hold until this DWORD is set and the PC reboots.",
+            severity: "warn",
+            suggestedTweakId: "timer.global_resolution_requests",
+            canFix: true);
 
         // Network throttling
         CheckDword(
@@ -204,6 +207,28 @@ public sealed class AuditService : IAuditService
             return "System";
 
         return "Other";
+    }
+
+    /// <summary>
+    /// HAGS on is not a recommended default — only note when it is already enabled.
+    /// </summary>
+    private static void CheckHagsInfo(List<AuditFinding> findings)
+    {
+        string? current = ReadNormalized("HKLM", @"SYSTEM\CurrentControlSet\Control\GraphicsDrivers", "HwSchMode");
+        if (current is null) return;
+        if (!TweakValueCodec.ValuesEqual("2", current, "DWord"))
+            return;
+
+        findings.Add(new AuditFinding
+        {
+            Id = "audit.hags",
+            Severity = "info",
+            TitleKey = "audit.hags.title",
+            Detail = "HAGS (HwSchMode=2) is on. On some NVIDIA GPUs this increases input lag — leave off unless you measured a win.",
+            SuggestedTweakId = null,
+            CanFix = false,
+            Area = "Gpu"
+        });
     }
 
     private static void CheckDword(

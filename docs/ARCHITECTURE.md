@@ -11,7 +11,9 @@ Reducing input/system latency **without injecting into game processes** (MIT cle
 
 | Technique | In AntiLag Next? | Why |
 |-----------|------------------|-----|
-| `NtSetTimerResolution` + hold process | **Core** | Real scheduling jitter win |
+| `NtSetTimerResolution` + `timeBeginPeriod` hold | **Core** | Process-local on Win11 22H2+ unless `GlobalTimerResolutionRequests` |
+| `GlobalTimerResolutionRequests` (catalog, reboot) | **Core** | Games inherit the timer hold on Win11 22H2+ |
+
 | Power plan / min CPU / ASPM / core parking | **Core** | C-state / wake latency |
 | Game Mode / DVR / HAGS / GPU LLM registry | **Core** | Documented registry paths |
 | QPC / waitable-timer probe (µs proxy) | **Core** | Measurement, not magic |
@@ -35,7 +37,8 @@ AntiLagNext.Core         Models, contracts, plugin interfaces (no Win32)
 plugins/*.dll            Optional external IAntiLagPlugin assemblies
 ```
 
-**Stack (1.2.0):** C# + Photino HTML/JS + PowerShell (build) + Inno Setup. No Python, no optional native C++ DLL required.
+**Stack (1.2.0+):** C# + Photino HTML/JS + PowerShell (build) + Inno Setup. No Python, no optional native C++ DLL.
+
 
 ## Core (always present)
 
@@ -119,8 +122,8 @@ Forbidden in probe path: `Process.GetProcesses`, LINQ materialization, logging e
 
 ## UI
 
-- Design tokens (zinc/cyan), Photino WebView2 (shipping) + legacy WPF reference
-- **i18n**: JSON language packs `wwwroot/i18n/{culture}.json` (Photino) / `i18n/` (WPF)
+- Design tokens (zinc/cyan), Photino WebView2 (shipping)
+- **i18n**: JSON language packs `wwwroot/i18n/{culture}.json`
 - Themes: Dark / Light / System
 - **Plugins page**: list + enable toggles + plugin-contributed setting rows
 - **System health page**: audit findings + drift table; Refresh / Fix safe / Fix all / Reapply drifted
@@ -130,10 +133,11 @@ Forbidden in probe path: `Process.GetProcesses`, LINQ materialization, logging e
 
 | Phase | Deliverable |
 |-------|-------------|
-| **P0** (this) | Contracts, host, built-in ext plugins, i18n RU/EN, Plugins UI, hot-path buffers, docs |
+| **P0** | Contracts, host, built-in ext plugins, i18n RU/EN, Plugins UI, hot-path buffers, docs |
 | **P1** | ProfileService fully plugin-driven apply pipeline; settings schema per plugin |
 | **P2** | Collectible ALC unload; signed plugins; sample external plugin project |
-| **P3** (partial) | Winrift catalog expand (network Nagle, input); NVIDIA per-CPU DPC; Max preemption off; peak metric fix |
+| **P3** | Win11 global timer (`GlobalTimerResolutionRequests` + `timeBeginPeriod`); AC-only power; HAGS/RAM-trim off by default |
+
 | **Later** | Optional: ETW DPC/ISR viewer; waitable swapchain helper app (not inject) |
 | **Never** | Game memory write, anti-cheat bypass, hidden network MITM |
 
