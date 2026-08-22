@@ -7,10 +7,11 @@ Thanks for helping improve this open-source Windows latency / performance tool.
 ## Ground rules
 
 - **No closed-source AntiLag code.** Original [AmbitiousPilots/AntiLag](https://github.com/AmbitiousPilots/AntiLag) is CC BY-NC-ND; this project is a clean-room reimplementation under **MIT**.
-- Prefer **Win32 APIs** (`powrprof`, `ntdll`, `kernel32`) over shelling out when possible.
+- Prefer **Win32 APIs** (`powrprof`, `ntdll`, `winmm`, `kernel32`) over shelling out when possible.
 - Every system mutation must go through **backup/restore** (`ISafetyService` / `IBackupService`).
 - **Shipping UI** is **Photino + WebView2** (`AntiLagNext.Ui` + `wwwroot`). Domain code lives in `AntiLagNext.Core`.
 - Shipping GUI is Photino (`AntiLagNext.Ui`) only (legacy WPF removed in 1.2.0).
+- Do not advertise **HAGS** or working-set trim as defaults; 1.4.0 turns both off. The µs chart is a scheduling-latency proxy, not kernel DPC.
 
 ## Setup
 

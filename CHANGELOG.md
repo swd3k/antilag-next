@@ -30,7 +30,8 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - *(none yet)*
 
 ### Changed
-- *(none yet)*
+- README and hero banner rewritten for 1.4.0: HAGS is not a headline, the chart is labeled scheduling latency (µs) — not DPC.
+- Brand: new chip/power logo and authored 1.4.0 banner (timer, AC-safe power, Health, safe undo).
 
 ### Security
 - *(none yet)*
