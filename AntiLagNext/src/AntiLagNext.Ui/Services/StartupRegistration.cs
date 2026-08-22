@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using AntiLagNext.Infrastructure.Native;
 
 namespace AntiLagNext.Ui.Services;
 
@@ -20,12 +21,13 @@ internal static class StartupRegistration
         {
             var psi = new ProcessStartInfo
             {
-                FileName = "schtasks.exe",
+                FileName = SystemNative.Exe("schtasks.exe"),
                 Arguments = $"/Query /TN \"{TaskName}\" /FO LIST",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                CreateNoWindow = true
+                CreateNoWindow = true,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
             };
             using var p = Process.Start(psi);
             if (p == null) return false;
@@ -58,7 +60,7 @@ internal static class StartupRegistration
             }
 
             // Reject path metacharacters that would break /TR quoting or inject schtasks args
-            if (exe.IndexOfAny(new[] { '"', '\r', '\n', '\0' }) >= 0)
+            if (exe.IndexOfAny(new[] { '"', '\r', '\n', '\0', '&', '|', '>', '<', '^', '%' }) >= 0)
             {
                 message = "exe path has unsafe characters";
                 return false;
@@ -91,12 +93,13 @@ internal static class StartupRegistration
     {
         var psi = new ProcessStartInfo
         {
-            FileName = "schtasks.exe",
+            FileName = SystemNative.Exe("schtasks.exe"),
             Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            CreateNoWindow = true
+            CreateNoWindow = true,
+            WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
         };
         using var p = Process.Start(psi);
         if (p == null) return -1;

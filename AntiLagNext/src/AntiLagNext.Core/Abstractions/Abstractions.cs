@@ -132,10 +132,10 @@ public interface ISafetyService
     OperationResult CommitChanges(Guid sessionId);
 
     /// <summary>
-    /// Полный сброс всех оптимизаций: восстановить значения из последнего бэкапа,
-    /// отпустить таймер, вернуть схему в Balanced, закрыть точку восстановления.
+    /// Полный сброс: при <paramref name="sessionId"/> — JSON той apply-сессии (crash recovery);
+    /// иначе — последний бэкап. Плюс таймер, плагины, Balanced fallback.
     /// </summary>
-    Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default);
+    Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default, Guid? sessionId = null);
 }
 
 /// <summary>
@@ -166,6 +166,9 @@ public interface IBackupService
 
     /// <summary>Загрузить самый свежий бэкап.</summary>
     OperationResult<BackupRecord> LoadLatest();
+
+    /// <summary>Загрузить бэкап конкретной apply-сессии (crash recovery).</summary>
+    OperationResult<BackupRecord> LoadBySessionId(Guid sessionId);
 
     /// <summary>Загрузить все бэкапы (для UI списка истории).</summary>
     IReadOnlyList<BackupRecord> LoadAll();

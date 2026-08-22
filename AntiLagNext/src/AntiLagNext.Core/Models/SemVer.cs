@@ -21,9 +21,9 @@ public readonly struct SemVer : IComparable<SemVer>
         string s = text.Trim();
         if (s.StartsWith('v') || s.StartsWith('V'))
             s = s[1..];
-        // strip pre-release / build metadata
-        int cut = s.IndexOfAny(new[] { '-', '+' });
-        if (cut >= 0) s = s[..cut];
+        // Pre-release / build metadata is not a shipping release for the updater.
+        if (s.IndexOfAny(['-', '+']) >= 0)
+            return false;
         var parts = s.Split('.');
         if (parts.Length < 2) return false;
         if (!int.TryParse(parts[0], out int maj)) return false;

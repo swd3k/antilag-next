@@ -34,3 +34,5 @@ Treat any untrusted binary of this kind as high risk. Prefer building from sourc
 - Keep **Create restore point** enabled when System Restore is available.
 - Experimental plugins are stubs / disabled in the shipping UI.
 - External `*.plugin.dll` loading is opt-in (`AllowExternalPlugins`).
+- In-app Setup updates verify **SHA256** against `SHA256SUMS.txt` on the same GitHub Release before the installer runs.
+- `powercfg` / `schtasks` / `ipconfig` / `shutdown` are launched from `%SystemRoot%\System32` (not PATH).

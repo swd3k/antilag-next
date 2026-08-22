@@ -30,10 +30,37 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 - *(none yet)*
 
 ### Changed
-- README hero banner replaced with the authored 1146×644 mock (chip logo, before/after scheduling-latency charts).
+- *(none yet)*
 
 ### Security
 - *(none yet)*
+
+---
+
+## [1.4.1] — 2026-08-22
+
+**Theme: security patch + chip logo in the app.**
+
+### Security
+- Silent Setup update now **requires a matching SHA256** from the same release’s `SHA256SUMS.txt` before the installer is launched. Downloads land in `%ProgramData%\AntiLagNext\update`, not `%TEMP%`.
+- `powercfg.exe`, `schtasks.exe`, `ipconfig.exe`, and `shutdown.exe` are resolved under **System32** (PATH hijack under elevation).
+- Autostart task path rejects extra shell metacharacters (`& | < > ^ %`).
+- Plugin toggles no longer interpolate ids into inline `onchange` HTML.
+- Crash recovery restores **only the apply-session backup**, not “newest JSON in AppData” (planted `NameServer` / `ImagePath` no longer auto-applies).
+- Backup restore **refuses persistence values** (`ImagePath`, `NameServer`, `AppInit_DLLs`, `Debugger`, …) even under allowlisted key prefixes.
+- Updater ignores prerelease tags (`1.5.0-rc` is not treated as 1.5.0). PE probe fails closed.
+
+### Fixed
+- Sidebar version placeholder was stuck on **1.3.1** until `getState` (flash).
+- Updater `User-Agent` still said 1.3.1.
+- Window / tray / installer icon now use the cyan CPU/power mark (1.4.0 Setup still shipped the old lightning bolt).
+
+### Changed
+- Product version **1.4.1**.
+- Working-set trim also skips `LsaIso` / `Secure System` / `NisSrv`.
+
+### Docs
+- README hero banner replaced with the authored 1146×644 mock (chip logo, before/after scheduling-latency charts).
 
 ---
 
@@ -326,9 +353,9 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.4.1** | 2026-08-22 | SHA256 Setup verify, System32 tools, chip logo in app |
 | **1.4.0** | 2026-08-22 | Win11 global timer, AC-only power, HAGS/RAM-trim off, CI tests + SHA256 |
 | **1.3.1** | 2026-07-19 | Patch: tray Exit, chart toggle IPC, false “app not responding” |
-
 | **1.3.0** | 2026-07-18 | Trust & Clarity (full): wizard, what-changed, true BA median, Y 15k µs, Health fix recommended, diagnostics, RU i18n audit, code harden |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |
