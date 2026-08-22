@@ -6,5 +6,7 @@
 *.ps1 text eol=crlf
 *.md text eol=lf
 *.png binary
+*.jpg binary
+*.jpeg binary
 *.ico binary
 *.exe binary
