@@ -37,6 +37,7 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 
 ### Docs
 - `docs/ARCHITECTURE.md`: join the Scope honesty and Roadmap tables (blank lines had split them in GitHub).
+- Docs pass for 1.4.1: architecture (plugins, safety, Photino hot path), plugin guide (`*.plugin.dll`, System32), QA smoke (timer / AC / SHA256 / session restore), IMPROVEMENTS recipes.
 
 ---
 

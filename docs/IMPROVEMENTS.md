@@ -1,5 +1,16 @@
 # Improvements backlog & shipped notes
 
+## Shipped (1.4.1)
+
+| Item | Status |
+|------|--------|
+| **SHA256-verified silent Setup** | Matching hash from the same release `SHA256SUMS.txt` required; download under `%ProgramData%\AntiLagNext\update` |
+| **System32 native tools** | `powercfg` / `schtasks` / `ipconfig` / `shutdown` — no PATH |
+| **Session-scoped crash restore** | `LoadBySessionId`; planted “latest” JSON is ignored |
+| **Denied registry values** | `ImagePath`, `NameServer`, `AppInit_DLLs`, `Debugger`, … blocked on restore |
+| **SemVer / PE** | Prerelease tags ignored by updater; PE probe fails closed |
+| **Chip logo in the app** | Window / tray / Inno ICO (DIB 16–48 + PNG 64–256) |
+
 ## Shipped (1.4.0)
 
 | Item | Status |
@@ -38,8 +49,8 @@
 ```powershell
 # Portable multi-arch + FDD Setup.exe
 .\scripts\publish-all.ps1
-.\scripts\build-installer.ps1 -Version 1.4.0
+.\scripts\build-installer.ps1 -Version 1.4.1
 
 # Self-contained Setup (large, no .NET install required)
-.\scripts\build-setup-selfcontained.ps1 -Version 1.4.0 -Rid win-x64
+.\scripts\build-setup-selfcontained.ps1 -Version 1.4.1 -Rid win-x64
 ```
