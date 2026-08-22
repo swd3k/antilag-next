@@ -19,15 +19,15 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe"><img alt="Download Setup win-x64" src="https://img.shields.io/badge/Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" /></a>
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.1-win-x64.exe"><img alt="Download Setup win-x64" src="https://img.shields.io/badge/Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" /></a>
   &nbsp;
   <a href="https://github.com/swd3k/antilag-next/releases/latest"><img alt="All releases" src="https://img.shields.io/badge/All%20releases-gray?style=for-the-badge" /></a>
 </p>
 
 <p align="center">
   <sub>
-    Latest <strong>1.4.0</strong>
-    · <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe"><code>AntiLagNext-Setup-1.4.0-win-x64.exe</code></a>
+    Latest <strong>1.4.1</strong>
+    · <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.1-win-x64.exe"><code>AntiLagNext-Setup-1.4.1-win-x64.exe</code></a>
     · other arch, portable ZIP, CLI, and <code>SHA256SUMS.txt</code> on
     <a href="https://github.com/swd3k/antilag-next/releases">Releases</a>
   </sub>
@@ -41,6 +41,14 @@
 > Requires **Administrator** (UAC). Use at your own risk.
 
 The live chart is a **scheduling-latency proxy in µs** — not kernel DPC/ISR and not network ping.
+
+---
+
+## What's new in 1.4.1
+
+Security patch. Silent in-app Setup **will not run** without a matching SHA256 from that release’s `SHA256SUMS.txt`. Native tools (`powercfg`, `schtasks`, …) are resolved under **System32**. Crash recovery restores **only the apply-session backup**. Window / tray / installer use the cyan chip logo.
+
+Full notes: [CHANGELOG.md](CHANGELOG.md#141--2026-08-22).
 
 ---
 
@@ -96,9 +104,9 @@ Prefer **[GitHub Releases](https://github.com/swd3k/antilag-next/releases/latest
 
 | Package | Arch |
 | ------- | ---- |
-| [`AntiLagNext-Setup-1.4.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe) | Intel / AMD 64-bit |
-| [`AntiLagNext-Setup-1.4.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x86.exe) | 32-bit |
-| [`AntiLagNext-Setup-1.4.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-arm64.exe) | ARM64 |
+| [`AntiLagNext-Setup-1.4.1-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.1-win-x64.exe) | Intel / AMD 64-bit |
+| [`AntiLagNext-Setup-1.4.1-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.1-win-x86.exe) | 32-bit |
+| [`AntiLagNext-Setup-1.4.1-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.1-win-arm64.exe) | ARM64 |
 
 Run Setup (UAC) → first-run wizard → pick a profile → **Enable**. If anything feels wrong → **Reset all**.
 
@@ -131,7 +139,7 @@ Verify downloads against `SHA256SUMS.txt` on the same release.
 - Registry restore uses a **path allowlist**; services use a **safe-name allowlist**.
 - External `*.plugin.dll` loading is **opt-in** (default off).
 - Start with Windows / reboot only after **explicit confirmation**.
-- In-app update pulls official Setup URLs only (repo + CDN allowlist, size + PE checks).
+- In-app update pulls official Setup URLs only (repo + CDN allowlist, size + PE + **SHA256** checks).
 - Diagnostics export is **local** (redacted). No telemetry.
 
 See [SECURITY.md](SECURITY.md) to report vulnerabilities.
@@ -165,8 +173,8 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 ```powershell
 .\scripts\publish.ps1                          # win-x64 portable
 .\scripts\publish-all.ps1                      # x64 + x86 + ARM64
-.\scripts\build-installer.ps1 -Version 1.4.0 -PublishFirst   # Inno Setup 6
-.\scripts\build-setup-selfcontained.ps1 -Version 1.4.0 -Rid win-x64
+.\scripts\build-installer.ps1 -Version 1.4.1 -PublishFirst   # Inno Setup 6
+.\scripts\build-setup-selfcontained.ps1 -Version 1.4.1 -Rid win-x64
 .\scripts\hard-test.ps1                        # restore, build, tests, size gate
 ```
 
