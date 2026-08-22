@@ -26,8 +26,15 @@ jobs:
       - name: Unit tests
         run: dotnet test AntiLagNext/tests/AntiLagNext.Core.Tests/AntiLagNext.Core.Tests.csproj -c Release --no-build --verbosity normal
 
+      - name: Infrastructure tests
+        run: dotnet test AntiLagNext/tests/AntiLagNext.Infrastructure.Tests/AntiLagNext.Infrastructure.Tests.csproj -c Release --no-build --verbosity normal
+
       - name: Smoke tests (Win32)
         run: dotnet test AntiLagNext/tests/AntiLagNext.SmokeTests/AntiLagNext.SmokeTests.csproj -c Release --verbosity normal
+
+      - name: i18n parity
+        shell: pwsh
+        run: .\scripts\check-i18n.ps1
 
       # Shipping host is Photino UI (legacy WPF App is not built by default)
       - name: Publish Photino UI

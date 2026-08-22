@@ -133,6 +133,7 @@ public sealed class EngineBootstrap : IDisposable
             profileName = Settings.GetActiveProfile().Name,
             timerMs = timer.ActualMs,
             timerHeld = timer.IsActive,
+            timerScope = timer.Scope,
             incompleteApply = ApplySessionGuard.HasIncompleteApply(),
             plugins = Plugins.Plugins.Select(p =>
             {

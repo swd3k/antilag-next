@@ -123,6 +123,30 @@ public sealed class PowerManager : IPowerManager
         }
     }
 
+    public OperationResult WriteAcOnly(Guid schemeGuid, Guid subGroup, Guid setting, uint acValue)
+    {
+        try
+        {
+            var sch = schemeGuid;
+            var sg = subGroup;
+            var st = setting;
+
+            uint rcAc = PowrProf.PowerWriteACValueIndex(IntPtr.Zero, ref sch, ref sg, ref st, acValue);
+            if (rcAc != 0)
+                return OperationResult.Fail($"PowerWriteAcOnly: AC={rcAc}");
+
+            uint rcApply = PowrProf.PowerSetActiveScheme(IntPtr.Zero, ref sch);
+            if (rcApply != 0)
+                return OperationResult.Fail("PowerSetActiveScheme (apply): code " + rcApply);
+
+            return OperationResult.Ok("Power AC setting applied (DC unchanged).");
+        }
+        catch (Exception ex)
+        {
+            return OperationResult.Fail("Could not write AC power setting.", detail: ex.Message, ex: ex);
+        }
+    }
+
     public OperationResult UnhideSetting(Guid subGroup, Guid setting)
     {
         // Снятие атрибута ATTRIB_HIDE: powercfg пишет в PolicyRegistry реестра.

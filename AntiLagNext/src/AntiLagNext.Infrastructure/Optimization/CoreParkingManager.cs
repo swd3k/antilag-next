@@ -110,9 +110,10 @@ public sealed class CoreParkingManager : ICoreParkingManager
             var topology = DetectTopology();
             bool isHybrid = topology.Success && topology.Value is { IsHybrid: true };
 
-            // CPMINCORES: 100 = все активны. KeepEfficientIdle на гибриде ≈ 70% (P-cores + часть E).
+            // CPMINCORES: 100 = all unparked on AC. Never pin 100% on DC (laptops).
             uint minCoresAc = mode == CoreParkingMode.AllActive || !isHybrid ? 100u : 70u;
-            uint minCoresDc = mode == CoreParkingMode.AllActive ? 100u : 50u;
+            uint minCoresDc = 50u;
+
 
             var write = _power.WriteValue(
                 schemeGuid,

@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe">
+  <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe">
     <img alt="Download Setup win-x64" src="https://img.shields.io/badge/⬇%20Download-Setup%20win--x64-0969DA?style=for-the-badge&logo=github&logoColor=white" />
   </a>
   &nbsp;
@@ -42,7 +42,7 @@
 </p>
 
 <p align="center">
-  <sub>Latest: <strong>1.3.1</strong> · Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe"><code>AntiLagNext-Setup-1.3.1-win-x64.exe</code></a>
+  <sub>Latest: <strong>1.4.0</strong> · Direct download: <a href="https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe"><code>AntiLagNext-Setup-1.4.0-win-x64.exe</code></a>
   · portable ZIPs and other arch on <a href="https://github.com/swd3k/antilag-next/releases">GitHub Releases</a></sub>
 </p>
 
@@ -74,6 +74,8 @@ Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks 
 > ### 🔐 What you should know
 > - Prefer builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** only.  
 > - The µs chart is a **scheduling-latency proxy** — **not** kernel DPC and **not** network ping.  
+> - On **Windows 11 22H2+** games inherit the timer hold only after `GlobalTimerResolutionRequests` **and a reboot**. The UI shows global / this-process / reboot needed.  
+> - **HAGS** and working-set trim are **off by default** (they often add hitching / input lag).  
 > - Experimental plugins are **MVP stubs** (disabled in the UI; they do **not** change the system).  
 > - Only **one UI instance** runs at a time — a second launch focuses the existing window (including from tray).  
 > - Always use **Reset all** if something feels wrong. Not sure? Build from source (below).
@@ -82,7 +84,7 @@ Desktop app for **Windows 10 / 11** that applies carefully scoped system tweaks 
 
 ## ⚙️ What the app does
 
-On **Enable AntiLag Next**, the app applies the selected profile (**Gaming** / **Office** / **Max Performance**) via Win32 APIs and registry paths: timer resolution hold, power scheme tuning, Game Mode / DVR / HAGS-related keys, GPU low-latency settings where applicable, a curated latency registry pack, and optional plugin modules (network hygiene, process priority, safe services, etc.).
+On **Enable AntiLag Next**, the app applies the selected profile (**Gaming** / **Office** / **Max Performance**) via Win32 APIs and registry paths: timer resolution hold (`timeBeginPeriod` + `NtSetTimerResolution`; Win11 global key + reboot), power scheme tuning **on AC only**, Game Mode / DVR, GPU low-latency where applicable, a curated latency registry pack, and optional plugin modules (network hygiene, process priority, safe services, etc.). HAGS is not turned on unless you opt in.
 
 After Enable you get:
 
@@ -103,6 +105,7 @@ The live chart probes scheduling latency on a short interval so you can compare 
 - External `*.plugin.dll` loading is **opt-in** (default off); plugin id collision rejected.  
 - **Start with Windows** / **reboot** only after **explicit confirmation** in the UI.  
 - In-app update downloads only official Setup URLs (canonical repo + CDN allowlist, size + PE checks).  
+- Release zips/Setup include **SHA256SUMS.txt** — verify the hash before running.  
 - **Diagnostics export** is local-only (redacted settings; no cloud).  
 - No telemetry; crash notes stay local when written.
 
@@ -112,15 +115,15 @@ See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## 📥 Download
 
-Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** (latest tag: **v1.3.1**).
+Get builds from **[Releases](https://github.com/swd3k/antilag-next/releases)** (latest tag: **v1.4.0**).
 
 ### Setup installer (recommended)
 
 | Package | Arch | Notes |
 |---------|------|-------|
-| [`AntiLagNext-Setup-1.3.1-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
-| [`AntiLagNext-Setup-1.3.1-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-x86.exe) | 32-bit | Installer |
-| [`AntiLagNext-Setup-1.3.1-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.3.1-win-arm64.exe) | ARM64 | Installer |
+| [`AntiLagNext-Setup-1.4.0-win-x64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x64.exe) | Intel / AMD 64-bit | **Installer** — *most users* |
+| [`AntiLagNext-Setup-1.4.0-win-x86.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-x86.exe) | 32-bit | Installer |
+| [`AntiLagNext-Setup-1.4.0-win-arm64.exe`](https://github.com/swd3k/antilag-next/releases/latest/download/AntiLagNext-Setup-1.4.0-win-arm64.exe) | ARM64 | Installer |
 
 1. Run the **Setup** `.exe` (UAC / Administrator).  
 2. Finish the wizard → launch **AntiLag Next**.  
@@ -150,13 +153,13 @@ Silent in-app updates work for **Program Files** installs. Portable builds open 
 | Area | Highlights |
 |------|------------|
 | **Profiles** | One-click Gaming / Office / Max Performance |
-| **Core tweaks** | Timer resolution, power plan / core parking, Game Mode / HAGS / GPU low-latency (NVIDIA per-CPU DPC on Gaming/Max) |
+| **Core tweaks** | Timer resolution (`timeBeginPeriod` + `NtSetTimerResolution`; Win11 22H2+ global via `GlobalTimerResolutionRequests` + reboot), power plan / core parking (**AC only** — battery indexes never written), Game Mode, GPU low-latency (NVIDIA per-CPU DPC on Gaming/Max). **HAGS off by default.** |
 | **Catalog** | Curated latency registry pack (network, input queues, kernel/power) with backup + allowlist |
 | **Health** | Audit + desired-state **drift**; **Fix recommended** / Fix safe / Fix all / Reapply |
 | **Transparency** | **What changed** after Enable; **Before/After** median µs window |
 | **Chart** | Live area-line; fixed Y rungs **200…15000 µs**; Peak = max of last **60 s** |
 | **Updates** | Check GitHub Releases; silent Setup for Program Files installs |
-| **Safety** | JSON backup + **Reset all** / CLI `--revert` |
+| **Safety** | JSON backup + **Reset all** / CLI `--revert`; SHA256SUMS on Releases |
 | **Desktop** | Tray icon; optional logon autostart (confirm); **single UI instance** |
 | **Diagnostics** | Export local zip (redacted settings, audit, drift, logs) |
 | **Plugins** | Built-in modules; experimental items marked **stub / soon** |
@@ -164,7 +167,7 @@ Silent in-app updates work for **Program Files** installs. Portable builds open 
 | **i18n** | **RU** + **EN** language packs |
 | **Size** | Portable UI ≈ **1.7 MB** FDD (size gate ≤ 5 MB) |
 
-Full history: [CHANGELOG.md](CHANGELOG.md) (**1.3.1**).
+Full history: [CHANGELOG.md](CHANGELOG.md) (**1.4.0**).
 
 ---
 
@@ -197,13 +200,13 @@ dotnet run --project src\AntiLagNext.Cli -c Release -- --status
 .\scripts\publish-all.ps1
 
 # Inno Setup installers (requires Inno Setup 6) — framework-dependent (~2–3 MB)
-.\scripts\build-installer.ps1 -Version 1.3.1
+.\scripts\build-installer.ps1 -Version 1.4.0
 
 # publish + all Setup.exe in one go
-.\scripts\build-installer.ps1 -Version 1.3.1 -PublishFirst
+.\scripts\build-installer.ps1 -Version 1.4.0 -PublishFirst
 
 # self-contained Setup (includes .NET runtime, larger ~60–80 MB) → *-SC.exe
-.\scripts\build-setup-selfcontained.ps1 -Version 1.3.1 -Rid win-x64
+.\scripts\build-setup-selfcontained.ps1 -Version 1.4.0 -Rid win-x64
 
 # full hard suite: restore, build, tests, publish, size gate
 .\scripts\hard-test.ps1
@@ -215,9 +218,9 @@ Self-contained portable folders only:
 .\scripts\publish-all.ps1 -SelfContained
 ```
 
-Settings auto-migrate on load (schema v2): legacy Russian built-in profile names become stable English labels; the UI always localizes via language packs.
+Settings auto-migrate on load (schema v3): legacy Russian built-in profile names become stable English labels; Gaming/Max HAGS and RAM-trim flags reset once. The UI always localizes via language packs.
 
-CI builds on every push to `main` and on pull requests. Releases are created on tags `v*` (e.g. `v1.3.1`) with multi-arch **Setup.exe** installers and portable zips attached.
+CI builds on every push to `main` and on pull requests (Core + Infrastructure + Smoke + i18n). Releases are created on tags `v*` (e.g. `v1.4.0`) with multi-arch **Setup.exe** installers, portable zips, and **SHA256SUMS.txt**.
 
 ---
 

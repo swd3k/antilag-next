@@ -51,7 +51,14 @@ public class LocalizationSmokeTests
         string? found = null;
         for (int i = 0; i < 8 && dir != null; i++)
         {
-            var candidate = Path.Combine(dir, "src", "AntiLagNext.App", "i18n");
+            var candidate = Path.Combine(dir, "src", "AntiLagNext.Ui", "wwwroot", "i18n");
+            if (File.Exists(Path.Combine(candidate, "ru.json")))
+            {
+                found = candidate;
+                break;
+            }
+
+            candidate = Path.Combine(dir, "AntiLagNext", "src", "AntiLagNext.Ui", "wwwroot", "i18n");
             if (File.Exists(Path.Combine(candidate, "ru.json")))
             {
                 found = candidate;

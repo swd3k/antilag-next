@@ -2095,6 +2095,7 @@ internal static class Program
             probeIntervalMs = ProbeIntervalMs,
             timerMs = timer.IsActive ? timer.ActualMs : 0,
             timerHeld = timer.IsActive,
+            timerScope = timer.Scope,
             latencyUs = chartOn && latency > 0 ? Math.Round(latency, 1) : (double?)null,
             peakUs = chartOn && peak > 0 ? Math.Round(peak, 1) : (double?)null,
             maxUs = chartOn && metrics.MaxUs > 0 ? Math.Round(metrics.MaxUs, 1) : (double?)null,

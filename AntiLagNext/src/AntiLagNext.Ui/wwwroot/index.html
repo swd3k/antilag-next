@@ -1855,8 +1855,18 @@
         hint.textContent = t('hint.idle', { profile: profileLabel(selectedProfile) });
         hint.className = 'hint';
       }
-      document.getElementById('timerHint').textContent =
-        state.timerHeld ? t('metric.timerHeld') : t('metric.timerFree');
+      const hintEl = document.getElementById('timerHint');
+      if (!state.timerHeld) {
+        hintEl.textContent = t('metric.timerFree');
+      } else if (state.timerScope === 'pendingReboot') {
+        hintEl.textContent = t('metric.timerHeld') + ' · ' + t('metric.timerReboot');
+      } else if (state.timerScope === 'local') {
+        hintEl.textContent = t('metric.timerHeld') + ' · ' + t('metric.timerLocal');
+      } else if (state.timerScope === 'global') {
+        hintEl.textContent = t('metric.timerHeld') + ' · ' + t('metric.timerGlobal');
+      } else {
+        hintEl.textContent = t('metric.timerHeld');
+      }
       updateProfileNameDisplay();
       setChartUi(chartEnabled);
     }

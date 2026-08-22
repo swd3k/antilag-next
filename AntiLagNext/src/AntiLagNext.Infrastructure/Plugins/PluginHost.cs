@@ -79,7 +79,8 @@ public sealed class PluginCatalog : IPluginCatalog, IDisposable
             else if (p.Id is "ext.network.qos" or "ext.network.hygiene" or "ext.registry.tweaks")
                 p.IsEnabled = true; // safe hygiene defaults for gaming profile extensions
             else if (p.Id == "ext.process.priority")
-                p.IsEnabled = true;
+                p.IsEnabled = false;
+
             else
                 p.IsEnabled = false;
 

@@ -37,6 +37,34 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 
 ---
 
+## [1.4.0] — 2026-08-22
+
+**Theme: Win11 timer actually works + stop harming laptops.**
+
+### Added
+- **Global timer on Windows 11 22H2+:** catalog tweak `GlobalTimerResolutionRequests=1` (reboot) so games inherit the hold. UI shows timer scope: global / this-process-only / reboot needed.
+- **`timeBeginPeriod`** (winmm) paired with `NtSetTimerResolution` — documented API Windows 11 actually honors.
+- Health audit for the global-timer DWORD (Fix recommended can apply it).
+- **SHA256SUMS.txt** attached to GitHub Releases.
+- Settings schema **v3**: built-in Gaming / Max presets turn off HAGS and working-set trim once (custom profiles untouched).
+
+### Fixed
+- Timer calibration jitter is measured with a **waitable timer** (same family as the live chart), not `SpinWait`.
+- **Power apply never writes DC indexes** for min/max CPU and ASPM — those persisted on battery and cooked laptops. On DC, scheme switch is skipped.
+- Core parking **never pins 100% cores on DC** (50% min cores on battery).
+- **HAGS off by default** (Gaming / Max). Audit no longer treats HAGS-off as a problem; when HAGS is on, it notes possible extra input lag.
+- **Working-set trim off by default** (RAM-cleaner hitching).
+- Process-priority plugin no longer raises AntiLag itself to High (WebView2 shares the process); default off; only listed game executables.
+- Removed dead `AntiLagNext.Native.dll` P/Invoke (C++ stub gone since 1.2.0).
+- Localization smoke test looks at Photino `wwwroot/i18n`, not the deleted WPF path.
+- CI / release / hard-test now run **Infrastructure.Tests** and **check-i18n.ps1**. i18n pack mismatch is a failure.
+
+### Changed
+- Product version **1.4.0**.
+- Power “What changed” detail: AC-only min CPU / ASPM.
+
+---
+
 ## [1.3.1] — 2026-07-19
 
 **Theme: Patch polish** — tray exit, latency chart responsiveness, false “app not responding”, language toggle geometry.
@@ -298,7 +326,9 @@ Internal history before the first public tag (for completeness):
 
 | Version | Date       | Highlights |
 |---------|------------|------------|
+| **1.4.0** | 2026-08-22 | Win11 global timer, AC-only power, HAGS/RAM-trim off, CI tests + SHA256 |
 | **1.3.1** | 2026-07-19 | Patch: tray Exit, chart toggle IPC, false “app not responding” |
+
 | **1.3.0** | 2026-07-18 | Trust & Clarity (full): wizard, what-changed, true BA median, Y 15k µs, Health fix recommended, diagnostics, RU i18n audit, code harden |
 | **1.2.2** | 2026-07-18 | Security: registry prefix boundary, update download hardening, IPC confirm reboot |
 | **1.2.1** | 2026-07-18 | Atom-first update check, EN error i18n, no fake network error on success |

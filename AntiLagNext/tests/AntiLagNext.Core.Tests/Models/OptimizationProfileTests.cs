@@ -37,7 +37,17 @@ public class OptimizationProfileTests
         profile.EnableCoreParkingControl.Should().BeTrue();
         profile.CoreParkingMode.Should().Be(CoreParkingMode.AllActive);
         profile.EnableGameModeTweak.Should().BeTrue();
-        profile.EnableHags.Should().BeTrue();
+        profile.EnableHags.Should().BeFalse("HAGS is opt-in — it can add input lag");
+        profile.EnableMemoryCleanup.Should().BeFalse("working-set trim hitching; opt-in only");
+    }
+
+    [Fact]
+    public void MaxPerformancePreset_DoesNotEnableHagsOrMemoryCleanup()
+    {
+        var profile = OptimizationProfile.CreatePreset(ProfileKind.MaxPerformance);
+        profile.EnableHags.Should().BeFalse();
+        profile.EnableMemoryCleanup.Should().BeFalse();
+        profile.UseUltimatePerformance.Should().BeTrue();
     }
 
     [Fact]

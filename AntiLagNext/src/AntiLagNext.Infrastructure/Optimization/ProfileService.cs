@@ -108,7 +108,9 @@ public sealed class ProfileService : IProfileService
             // 2. Power scheme
             if (profile.EnablePowerScheme)
             {
-                // Снимок текущей схемы и ключевых индексов ДО переключения
+                var source = _power.GetCurrentPowerSource();
+
+                // Snapshot current scheme AC+DC so Reset can restore, even if we skip the switch.
                 var schemeBefore = _power.GetActiveScheme();
                 if (schemeBefore.Success)
                 {
@@ -120,38 +122,40 @@ public sealed class ProfileService : IProfileService
                     SnapshotPower(sessionId, schemeBefore.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, false);
                 }
 
-                Guid target = profile.UseUltimatePerformance
-                    ? PowerGuids.SchemeUltimatePerformance
-                    : PowerGuids.SchemeHighPerformance;
-
-                // Ultimate может отсутствовать — fallback на High Performance
-                var set = _power.SetActiveScheme(target);
-                if (!set.Success && profile.UseUltimatePerformance)
+                if (source == PowerSource.Dc)
                 {
-                    set = _power.SetActiveScheme(PowerGuids.SchemeHighPerformance);
-                    messages.Add("Ultimate Performance unavailable — using High Performance.");
+                    messages.Add("On battery: skipped power-scheme switch / min CPU 100% / ASPM-off (DC indexes never written).");
                 }
-                if (set.Success)
+                else
                 {
-                    messages.Add(set.Message);
-                    okPower = true;
-                }
-                else errors.Add(set.Message);
+                    Guid target = profile.UseUltimatePerformance
+                        ? PowerGuids.SchemeUltimatePerformance
+                        : PowerGuids.SchemeHighPerformance;
 
-                // Min/Max processor state 100% + ASPM Off на целевой (активной) схеме
-                var active = _power.GetActiveScheme();
-                if (active.Success)
-                {
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMinimumState, true);
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMinimumState, false);
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMaximumState, true);
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMaximumState, false);
-                    _power.WriteValue(active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMinimumState, 100, 100);
-                    _power.WriteValue(active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMaximumState, 100, 100);
+                    var set = _power.SetActiveScheme(target);
+                    if (!set.Success && profile.UseUltimatePerformance)
+                    {
+                        set = _power.SetActiveScheme(PowerGuids.SchemeHighPerformance);
+                        messages.Add("Ultimate Performance unavailable — using High Performance.");
+                    }
+                    if (set.Success)
+                    {
+                        messages.Add(set.Message);
+                        okPower = true;
+                    }
+                    else errors.Add(set.Message);
 
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, true);
-                    SnapshotPower(sessionId, active.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, false);
-                    _power.WriteValue(active.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, 0, 0);
+                    // Min/Max processor 100% + ASPM Off — AC index only (never poison DC).
+                    var active = _power.GetActiveScheme();
+                    if (active.Success)
+                    {
+                        SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMinimumState, true);
+                        SnapshotPower(sessionId, active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMaximumState, true);
+                        SnapshotPower(sessionId, active.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, true);
+                        _power.WriteAcOnly(active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMinimumState, 100);
+                        _power.WriteAcOnly(active.Value, PowerGuids.SubProcessor, PowerGuids.ProcessorMaximumState, 100);
+                        _power.WriteAcOnly(active.Value, PowerGuids.SubPciExpress, PowerGuids.PciExpressAspm, 0);
+                    }
                 }
             }
 
