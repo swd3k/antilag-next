@@ -4,6 +4,8 @@ using System.Net.Http.Headers;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using AntiLagNext.Core.Abstractions;
@@ -157,7 +159,10 @@ public sealed class UpdateService : IUpdateService
 
         try
         {
-            string dir = Path.Combine(Path.GetTempPath(), "AntiLagNext-update");
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                "AntiLagNext",
+                "update");
             Directory.CreateDirectory(dir);
             string dest = Path.Combine(dir, fileName);
 
@@ -222,6 +227,34 @@ public sealed class UpdateService : IUpdateService
                 return OperationResult.Fail("Downloaded file is not a valid Windows executable.");
             }
 
+            string sumsUrl = BuildChecksumUrl(version);
+            if (!IsAllowedChecksumUrl(sumsUrl))
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail("Checksum URL rejected.");
+            }
+
+            string sumsText;
+            try
+            {
+                sumsText = await DownloadSmallTextAsync(sumsUrl, MaxChecksumBytes, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail(
+                    "Could not download SHA256SUMS.txt — refusing to run Setup.",
+                    detail: ex.GetType().Name);
+            }
+
+            if (!TryGetExpectedSha256(sumsText, fileName, out string expected)
+                || !FileMatchesSha256(dest, expected))
+            {
+                try { File.Delete(dest); } catch { /* ignore */ }
+                return OperationResult.Fail("Setup hash mismatch — download rejected.");
+            }
+
             string args =
                 "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS";
             var psi = new ProcessStartInfo
@@ -244,6 +277,9 @@ public sealed class UpdateService : IUpdateService
 
     /// <summary>Hard cap for Setup download (disk / DoS protection).</summary>
     public const long MaxSetupBytes = 120L * 1024 * 1024;
+
+    /// <summary>Hard cap for SHA256SUMS.txt.</summary>
+    public const int MaxChecksumBytes = 64 * 1024;
 
     public static string GetCurrentRid()
     {
@@ -293,6 +329,72 @@ public sealed class UpdateService : IUpdateService
     {
         string ver = version.Trim().TrimStart('v', 'V');
         return $"AntiLagNext-Setup-{ver}-{rid}.exe";
+    }
+
+    public static string BuildChecksumUrl(string version)
+    {
+        string ver = version.Trim().TrimStart('v', 'V');
+        return $"https://github.com/{Owner}/{Repo}/releases/download/v{ver}/SHA256SUMS.txt";
+    }
+
+    /// <summary>
+    /// GNU coreutils style: <c>hex  filename</c> (two spaces) or <c>hex *filename</c>.
+    /// </summary>
+    public static bool TryGetExpectedSha256(string sumsText, string assetName, out string hex)
+    {
+        hex = "";
+        if (string.IsNullOrWhiteSpace(sumsText) || string.IsNullOrWhiteSpace(assetName))
+            return false;
+        if (assetName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return false;
+
+        foreach (var raw in sumsText.Split('\n'))
+        {
+            string line = raw.Trim();
+            if (line.Length < 66 || line[0] == '#') continue;
+            int sep = line.IndexOf(' ');
+            if (sep != 64) continue;
+            string candidate = line[..64];
+            if (!IsSha256Hex(candidate)) continue;
+            string name = line[64..].Trim().TrimStart('*');
+            name = name.Replace('\\', '/');
+            int slash = name.LastIndexOf('/');
+            if (slash >= 0) name = name[(slash + 1)..];
+            if (name.Equals(assetName, StringComparison.OrdinalIgnoreCase))
+            {
+                hex = candidate.ToLowerInvariant();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static bool FileMatchesSha256(string path, string expectedHex)
+    {
+        if (string.IsNullOrWhiteSpace(path) || !IsSha256Hex(expectedHex))
+            return false;
+        try
+        {
+            using var fs = File.OpenRead(path);
+            byte[] hash = SHA256.HashData(fs);
+            return Convert.ToHexString(hash).Equals(expectedHex, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static bool IsSha256Hex(string hex)
+    {
+        if (hex is not { Length: 64 }) return false;
+        foreach (char c in hex)
+        {
+            bool ok = c is (>= '0' and <= '9') or (>= 'a' and <= 'f') or (>= 'A' and <= 'F');
+            if (!ok) return false;
+        }
+        return true;
     }
 
     public static bool TryParseLatestTagFromAtom(string atomXml, out string tag)
@@ -458,7 +560,7 @@ public sealed class UpdateService : IUpdateService
                     }
                 };
                 using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(8) };
-                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.3.1");
+                client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/" + ReadLocalVersion());
                 client.DefaultRequestHeaders.Host = "api.github.com";
                 client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
 
@@ -563,7 +665,7 @@ public sealed class UpdateService : IUpdateService
     {
         using var handler = CreateHandler(allowAutoRedirect: false);
         using var client = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.3.1");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/" + ReadLocalVersion());
         client.DefaultRequestHeaders.Accept.ParseAdd("text/html");
         client.DefaultRequestHeaders.Accept.ParseAdd("*/*");
 
@@ -685,6 +787,53 @@ public sealed class UpdateService : IUpdateService
         return false;
     }
 
+    /// <summary>Same hosts as Setup, but the file must be SHA256SUMS.txt on github.com.</summary>
+    public static bool IsAllowedChecksumUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return false;
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        if (!string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (uri.UserInfo.Length > 0)
+            return false;
+
+        string host = uri.Host;
+        string path = uri.AbsolutePath;
+
+        if (host.Equals("github.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("www.github.com", StringComparison.OrdinalIgnoreCase))
+        {
+            string prefix = $"/{Owner}/{Repo}/releases/download/";
+            return path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                   && path.EndsWith("/SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (host.Equals("objects.githubusercontent.com", StringComparison.OrdinalIgnoreCase)
+            || host.Equals("release-assets.githubusercontent.com", StringComparison.OrdinalIgnoreCase))
+        {
+            return path.Length > 1 && path.Length < 2048;
+        }
+
+        return false;
+    }
+
+    private async Task<string> DownloadSmallTextAsync(string url, int maxBytes, CancellationToken cancellationToken)
+    {
+        using var resp = await Http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+            .ConfigureAwait(false);
+        resp.EnsureSuccessStatusCode();
+        string? finalUrl = resp.RequestMessage?.RequestUri?.ToString();
+        if (!string.IsNullOrEmpty(finalUrl) && !IsAllowedChecksumUrl(finalUrl))
+            throw new InvalidOperationException("Checksum redirect rejected.");
+        if (resp.Content.Headers.ContentLength is long declared && declared > maxBytes)
+            throw new InvalidOperationException("Checksum file too large.");
+
+        byte[] bytes = await resp.Content.ReadAsByteArrayAsync(cancellationToken).ConfigureAwait(false);
+        if (bytes.Length > maxBytes)
+            throw new InvalidOperationException("Checksum file too large.");
+        return Encoding.UTF8.GetString(bytes);
+    }
+
     /// <summary>Only official release pages may be opened via shell (no file: / js: / arbitrary hosts).</summary>
     public static bool IsAllowedReleasePageUrl(string url)
     {
@@ -723,15 +872,15 @@ public sealed class UpdateService : IUpdateService
             if (mz[0] != (byte)'M' || mz[1] != (byte)'Z') return false;
 
             // Optional: PE signature at e_lfanew
-            if (fi.Length < 0x40) return true;
+            if (fi.Length < 0x40) return false;
             fs.Seek(0x3C, SeekOrigin.Begin);
             Span<byte> peOffBytes = stackalloc byte[4];
-            if (fs.Read(peOffBytes) != 4) return true;
+            if (fs.Read(peOffBytes) != 4) return false;
             int peOff = BitConverter.ToInt32(peOffBytes);
-            if (peOff <= 0 || peOff > fi.Length - 4) return true;
+            if (peOff < 0x40 || peOff > fi.Length - 4) return false;
             fs.Seek(peOff, SeekOrigin.Begin);
             Span<byte> pe = stackalloc byte[4];
-            if (fs.Read(pe) != 4) return true;
+            if (fs.Read(pe) != 4) return false;
             // PE\0\0
             return pe[0] == (byte)'P' && pe[1] == (byte)'E' && pe[2] == 0 && pe[3] == 0;
         }
@@ -795,7 +944,7 @@ public sealed class UpdateService : IUpdateService
             Timeout = TimeSpan.FromSeconds(60)
         };
         // Minimal defaults — per-request Accept avoids fighting Atom vs JSON
-        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/1.3.1");
+        c.DefaultRequestHeaders.UserAgent.ParseAdd("AntiLagNext-Updater/" + ReadLocalVersion());
         c.DefaultRequestHeaders.Accept.ParseAdd("*/*");
         return c;
     }

@@ -160,12 +160,13 @@ public sealed class PowerManager : IPowerManager
             // (PolicyRegistry layout недокументирован и нестабилен между версиями Windows).
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "powercfg.exe",
+                FileName = Native.SystemNative.Exe("powercfg.exe"),
                 Arguments = $"-attributes {subGroup} {setting} -ATTRIB_HIDE",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardError = true,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.System)
             };
             using var p = System.Diagnostics.Process.Start(psi);
             if (p == null) return OperationResult.Fail("Could not start powercfg.");

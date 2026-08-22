@@ -15,8 +15,9 @@ public sealed class MemoryManager : IMemoryManager
     private static readonly HashSet<string> HardExclusions = new(StringComparer.OrdinalIgnoreCase)
     {
         "System", "Idle", "Registry", "smss", "csrss", "wininit", "services", "lsass",
+        "LsaIso", "Secure System",
         "svchost", "fontdrvhost", "dwm", "winlogon", "Memory Compression",
-        "AntiLagNext", "MsMpEng", "SecurityHealthService", "SearchIndexer"
+        "AntiLagNext", "MsMpEng", "NisSrv", "SecurityHealthService", "SearchIndexer"
     };
 
     public OperationResult<MemoryCleanupStats> EmptyWorkingSets(IReadOnlyCollection<string> exclusions)

@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using AntiLagNext.Core.Abstractions;
 using AntiLagNext.Core.Models;
 using AntiLagNext.Core.Plugins;
+using AntiLagNext.Infrastructure.Native;
 using AntiLagNext.Infrastructure.Safety;
 using Microsoft.Win32;
 
@@ -324,12 +325,7 @@ public sealed class NetworkHygienePlugin : BuiltInPluginBase
     {
         try
         {
-            // Prefer absolute System32 path — avoid PATH hijack under elevation
-            string ipconfig = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "ipconfig.exe");
-            if (!File.Exists(ipconfig))
-                ipconfig = "ipconfig.exe";
+            string ipconfig = SystemNative.Exe("ipconfig.exe");
 
             var psi = new System.Diagnostics.ProcessStartInfo
             {

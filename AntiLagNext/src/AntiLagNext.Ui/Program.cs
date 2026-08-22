@@ -5,6 +5,7 @@ using AntiLagNext.Core.Enums;
 using AntiLagNext.Core.Models;
 using AntiLagNext.Core.Settings;
 using AntiLagNext.Infrastructure.Host;
+using AntiLagNext.Infrastructure.Native;
 using AntiLagNext.Infrastructure.Storage;
 using AntiLagNext.Infrastructure.Tweaks;
 using AntiLagNext.Ui.Services;
@@ -957,12 +958,7 @@ internal static class Program
 
         try
         {
-            // Use System32 path — avoid PATH hijack under elevation
-            string shutdown = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "shutdown.exe");
-            if (!File.Exists(shutdown))
-                shutdown = "shutdown.exe";
+            string shutdown = SystemNative.Exe("shutdown.exe");
 
             string comment = L(
                 "AntiLag Next: перезагрузка для применения части твиков реестра/служб",
@@ -1409,7 +1405,8 @@ internal static class Program
                             string explorer = Path.Combine(
                                 Environment.GetFolderPath(Environment.SpecialFolder.Windows),
                                 "explorer.exe");
-                            if (!File.Exists(explorer)) explorer = "explorer.exe";
+                            if (!File.Exists(explorer))
+                                throw new FileNotFoundException("explorer.exe");
                             Process.Start(new ProcessStartInfo
                             {
                                 FileName = explorer,

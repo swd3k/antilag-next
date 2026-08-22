@@ -9,14 +9,22 @@ public class SemVerTests
     [Theory]
     [InlineData("1.2.0", 1, 2, 0)]
     [InlineData("v1.2.0", 1, 2, 0)]
-    [InlineData("1.1.0+abc", 1, 1, 0)]
-    [InlineData("2.0.0-beta.1", 2, 0, 0)]
+    [InlineData("1.4.1", 1, 4, 1)]
     public void TryParse_ok(string text, int maj, int min, int pat)
     {
         SemVer.TryParse(text, out var v).Should().BeTrue();
         v.Major.Should().Be(maj);
         v.Minor.Should().Be(min);
         v.Patch.Should().Be(pat);
+    }
+
+    [Theory]
+    [InlineData("1.1.0+abc")]
+    [InlineData("2.0.0-beta.1")]
+    [InlineData("v1.5.0-rc.1")]
+    public void TryParse_rejects_prerelease_and_metadata(string text)
+    {
+        SemVer.TryParse(text, out _).Should().BeFalse();
     }
 
     [Fact]

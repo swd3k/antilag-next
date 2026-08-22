@@ -75,10 +75,10 @@ public sealed class SafetyService : ISafetyService
             : OperationResult.Fail("Could not commit backup.", detail: result.Detail);
     }
 
-    public Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default)
-        => _mutationGate.RunAsync(() => ResetAllCoreAsync(cancellationToken), cancellationToken);
+    public Task<OperationResult> ResetAllAsync(CancellationToken cancellationToken = default, Guid? sessionId = null)
+        => _mutationGate.RunAsync(() => ResetAllCoreAsync(cancellationToken, sessionId), cancellationToken);
 
-    private async Task<OperationResult> ResetAllCoreAsync(CancellationToken cancellationToken)
+    private async Task<OperationResult> ResetAllCoreAsync(CancellationToken cancellationToken, Guid? sessionId = null)
     {
         var messages = new List<string>();
         var errors = new List<string>();
@@ -111,11 +111,14 @@ public sealed class SafetyService : ISafetyService
                 errors.Add("Timer: " + ex.Message);
             }
 
-            // 3. Restore last JSON backup (registry + power + original scheme)
+            // 3. Restore JSON backup (crash recovery: the session that was applying, not "newest on disk")
             bool restoredFromBackup = false;
+            OperationResult<BackupRecord> LoadBackup() => sessionId is Guid sid
+                ? _backup.LoadBySessionId(sid)
+                : _backup.LoadLatest();
             try
             {
-                var latest = _backup.LoadLatest();
+                var latest = LoadBackup();
                 if (latest.Success && latest.Value != null)
                 {
                     var restore = await _backup.RestoreAsync(latest.Value, cancellationToken).ConfigureAwait(false);
@@ -151,7 +154,7 @@ public sealed class SafetyService : ISafetyService
             else
             {
                 // Ensure ActiveSchemeGuidBefore was applied; if backup had no scheme field, leave as-is
-                var latest = _backup.LoadLatest();
+                var latest = LoadBackup();
                 if (latest.Success && latest.Value is { ActiveSchemeGuidBefore: { Length: > 0 } schemeStr }
                     && Guid.TryParse(schemeStr, out var scheme))
                 {

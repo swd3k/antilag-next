@@ -65,7 +65,14 @@ public static class ApplySessionGuard
 
         try
         {
-            var reset = await safety.ResetAllAsync(cancellationToken).ConfigureAwait(false);
+            Guid? sessionId = TryReadSessionId();
+            if (sessionId is not Guid sid || sid == Guid.Empty)
+            {
+                MarkComplete();
+                return OperationResult.Fail("Crash recovery: incomplete marker invalid — skipped registry restore.");
+            }
+
+            var reset = await safety.ResetAllAsync(cancellationToken, sid).ConfigureAwait(false);
             MarkComplete();
             return reset.Success
                 ? OperationResult.Ok("Crash recovery: incomplete apply rolled back. " + reset.Message)
@@ -74,6 +81,22 @@ public static class ApplySessionGuard
         catch (Exception ex)
         {
             return OperationResult.Fail("Crash recovery error.", detail: ex.Message, ex: ex);
+        }
+    }
+
+    private static Guid? TryReadSessionId()
+    {
+        try
+        {
+            string json = File.ReadAllText(AppPaths.IncompleteApplyFile);
+            var marker = JsonSerializer.Deserialize<IncompleteMarker>(json);
+            if (marker is null || marker.SessionId == Guid.Empty)
+                return null;
+            return marker.SessionId;
+        }
+        catch
+        {
+            return null;
         }
     }
 }

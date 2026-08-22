@@ -192,25 +192,57 @@ public sealed class BackupService : IBackupService
             if (latest == null)
                 return OperationResult<BackupRecord>.Fail("No backups yet.");
 
-            // Size cap: reject absurd / malicious huge JSON
-            var fi = new FileInfo(latest);
-            if (fi.Length > 2 * 1024 * 1024)
-                return OperationResult<BackupRecord>.Fail("Бэкап слишком большой (лимит 2 МБ).", detail: latest);
-
-            var record = JsonStorage.Load<BackupRecord>(latest);
-            if (record == null)
-                return OperationResult<BackupRecord>.Fail("Бэкап повреждён.", detail: latest);
-
-            // Cap entry counts against DoS
-            if (record.RegistryEntries.Count > 500 || record.PowerEntries.Count > 500 || record.ServiceEntries.Count > 200)
-                return OperationResult<BackupRecord>.Fail("Бэкап содержит слишком много записей.");
-
-            return OperationResult<BackupRecord>.Ok(record);
+            return LoadFromFile(latest);
         }
         catch (Exception ex)
         {
             return OperationResult<BackupRecord>.Fail("Could not read backup.", detail: ex.Message, ex: ex);
         }
+    }
+
+    public OperationResult<BackupRecord> LoadBySessionId(Guid sessionId)
+    {
+        try
+        {
+            if (sessionId == Guid.Empty)
+                return OperationResult<BackupRecord>.Fail("Missing backup session id.");
+            if (!Directory.Exists(BackupDirectory))
+                return OperationResult<BackupRecord>.Fail("No backups yet.", detail: BackupDirectory);
+
+            string prefix = "_" + sessionId.ToString("D")[..8] + ".json";
+            var match = Directory.GetFiles(BackupDirectory, "backup_*.json")
+                .Where(f => f.EndsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .OrderByDescending(File.GetCreationTimeUtc)
+                .FirstOrDefault();
+
+            if (match == null)
+                return OperationResult<BackupRecord>.Fail("No backup for crash session.", detail: sessionId.ToString("D"));
+
+            return LoadFromFile(match);
+        }
+        catch (Exception ex)
+        {
+            return OperationResult<BackupRecord>.Fail("Could not read backup.", detail: ex.Message, ex: ex);
+        }
+    }
+
+    private static OperationResult<BackupRecord> LoadFromFile(string latest)
+    {
+        // Size cap: reject absurd / malicious huge JSON
+        var fi = new FileInfo(latest);
+        if (fi.Length > 2 * 1024 * 1024)
+            return OperationResult<BackupRecord>.Fail("Бэкап слишком большой (лимит 2 МБ).", detail: latest);
+
+        var record = JsonStorage.Load<BackupRecord>(latest);
+        if (record == null)
+            return OperationResult<BackupRecord>.Fail("Бэкап повреждён.", detail: latest);
+
+        // Cap entry counts against DoS
+        if (record.RegistryEntries.Count > 500 || record.PowerEntries.Count > 500 || record.ServiceEntries.Count > 200)
+            return OperationResult<BackupRecord>.Fail("Бэкап содержит слишком много записей.");
+
+        record.SourceFilePath = latest;
+        return OperationResult<BackupRecord>.Ok(record);
     }
 
     public IReadOnlyList<BackupRecord> LoadAll()

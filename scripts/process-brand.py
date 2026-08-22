@@ -81,55 +81,81 @@ def clean_logo(src: Path) -> Image.Image:
     return canvas.resize((512, 512), Image.Resampling.LANCZOS)
 
 
+def dib32(img: Image.Image) -> bytes:
+    """32bpp XOR + empty AND mask (classic ICO DIB, works in LoadImage)."""
+    import struct
+
+    im = img.convert("RGBA")
+    w, h = im.size
+    pix = list(im.getdata())
+    xor = bytearray()
+    for y in range(h - 1, -1, -1):
+        row = y * w
+        for x in range(w):
+            r, g, b, a = pix[row + x]
+            xor += bytes((b, g, r, a))
+    and_stride = ((w + 31) // 32) * 4
+    and_mask = bytes(and_stride * h)
+    header = struct.pack("<IiiHHIIiiii", 40, w, h * 2, 1, 32, 0, len(xor) + len(and_mask), 0, 0, 0, 0)
+    return header + xor + and_mask
+
+
 def save_ico(img: Image.Image, path: Path, sizes=(16, 20, 24, 32, 40, 48, 64, 128, 256)):
-    """PNG-in-ICO (Vista+). Pillow's ICO writer drops extra sizes here."""
+    """DIB for ≤48px (title bar / tray), PNG for larger (Vista+)."""
     import io
     import struct
 
     blobs = []
     for s in sizes:
-        buf = io.BytesIO()
-        img.resize((s, s), Image.Resampling.LANCZOS).save(buf, format="PNG")
-        blobs.append((s, buf.getvalue()))
+        frame = img.resize((s, s), Image.Resampling.LANCZOS)
+        if s <= 48:
+            blobs.append((s, dib32(frame)))
+        else:
+            buf = io.BytesIO()
+            frame.save(buf, format="PNG")
+            blobs.append((s, buf.getvalue()))
     count = len(blobs)
     offset = 6 + 16 * count
     header = struct.pack("<HHH", 0, 1, count)
     directory = b""
     payload = b""
-    for s, png in blobs:
+    for s, blob in blobs:
         w = 0 if s >= 256 else s
         h = 0 if s >= 256 else s
-        directory += struct.pack("<BBBBHHII", w, h, 0, 0, 1, 32, len(png), offset + len(payload))
-        payload += png
+        directory += struct.pack("<BBBBHHII", w, h, 0, 0, 1, 32, len(blob), offset + len(payload))
+        payload += blob
     path.write_bytes(header + directory + payload)
 
 
-def main():
-    ASSETS.mkdir(parents=True, exist_ok=True)
-    banner = clean_banner(SRC_BANNER)
-    # Keep the authored pixel size (1118×627). Do not stretch.
-    banner.save(ASSETS / "banner.png", "PNG", optimize=True)
-    banner.save(ASSETS / "banner.jpg", "JPEG", quality=95, optimize=True, progressive=True)
-    banner.save(ASSETS / "og.jpg", "JPEG", quality=95, optimize=True)
-
-
-
-    logo = clean_logo(SRC_LOGO)
-    logo.save(ROOT / "logo.png", "PNG", optimize=True)
+def write_icons(logo: Image.Image):
     ui_logo = logo.resize((256, 256), Image.Resampling.LANCZOS)
     ui_logo.save(UI / "wwwroot" / "logo.png", "PNG", optimize=True)
-
     ico_dir = UI / "Assets"
     ico_dir.mkdir(parents=True, exist_ok=True)
     save_ico(logo, ico_dir / "app.ico")
     save_ico(logo, ROOT / "logo.ico")
     save_ico(logo, ROOT / "logo-app.ico", sizes=(16, 24, 32, 48, 64, 256))
-
-    print("banner.jpg", (ASSETS / "banner.jpg").stat().st_size)
-    print("og.jpg", (ASSETS / "og.jpg").stat().st_size)
-    print("logo.png", (ROOT / "logo.png").stat().st_size)
     print("wwwroot/logo.png", (UI / "wwwroot" / "logo.png").stat().st_size)
     print("app.ico", (ico_dir / "app.ico").stat().st_size)
+
+
+def main():
+    import sys
+
+    ASSETS.mkdir(parents=True, exist_ok=True)
+    icons_only = "--icons-only" in sys.argv
+    if not icons_only:
+        banner = clean_banner(SRC_BANNER)
+        banner.save(ASSETS / "banner.png", "PNG", optimize=True)
+        banner.save(ASSETS / "banner.jpg", "JPEG", quality=95, optimize=True, progressive=True)
+        banner.save(ASSETS / "og.jpg", "JPEG", quality=95, optimize=True)
+        print("banner.png", (ASSETS / "banner.png").stat().st_size)
+
+    logo = Image.open(ROOT / "logo.png").convert("RGBA") if icons_only else clean_logo(SRC_LOGO)
+    if not icons_only:
+        logo.save(ROOT / "logo.png", "PNG", optimize=True)
+        print("logo.png", (ROOT / "logo.png").stat().st_size)
+    write_icons(logo)
 
 
 if __name__ == "__main__":

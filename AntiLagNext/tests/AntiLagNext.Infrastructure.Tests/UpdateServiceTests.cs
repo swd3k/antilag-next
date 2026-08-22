@@ -1,3 +1,4 @@
+using System.Text;
 using AntiLagNext.Infrastructure.Services;
 using FluentAssertions;
 using Xunit;
@@ -47,6 +48,8 @@ public class UpdateServiceTests
             .Should().Be("https://github.com/swd3k/antilag-next/releases/download/v1.2.1/AntiLagNext-Setup-1.2.1-win-x64.exe");
         UpdateService.BuildSetupAssetName("v1.2.1", "win-arm64")
             .Should().Be("AntiLagNext-Setup-1.2.1-win-arm64.exe");
+        UpdateService.BuildChecksumUrl("1.4.1")
+            .Should().Be("https://github.com/swd3k/antilag-next/releases/download/v1.4.1/SHA256SUMS.txt");
     }
 
     [Theory]
@@ -77,6 +80,49 @@ public class UpdateServiceTests
         UpdateService.IsAllowedReleasePageUrl(url).Should().Be(ok);
     }
 
+    [Theory]
+    [InlineData("https://github.com/swd3k/antilag-next/releases/download/v1.4.0/SHA256SUMS.txt", true)]
+    [InlineData("https://github.com/swd3k/antilag-next/releases/download/v1.4.0/AntiLagNext-Setup-1.4.0-win-x64.exe", false)]
+    [InlineData("https://raw.githubusercontent.com/swd3k/antilag-next/main/SHA256SUMS.txt", false)]
+    [InlineData("http://github.com/swd3k/antilag-next/releases/download/v1.4.0/SHA256SUMS.txt", false)]
+    public void IsAllowedChecksumUrl_policy(string url, bool ok)
+    {
+        UpdateService.IsAllowedChecksumUrl(url).Should().Be(ok);
+    }
+
+    [Fact]
+    public void TryGetExpectedSha256_parses_gnu_coreutils_lines()
+    {
+        const string sums = """
+            9079d75c73d658463a2ea3341370ca719c607b8f9c70bdca93ddcb097a0bf599  AntiLagNext-Setup-1.4.0-win-x64.exe
+            78971e6ee6a7f01087c3bece96b2e6a4893ac7e606a0e5ba92ef88f62cc9ab3e  AntiLagNext-Setup-1.4.0-win-x86.exe
+            """;
+        UpdateService.TryGetExpectedSha256(sums, "AntiLagNext-Setup-1.4.0-win-x64.exe", out var hex)
+            .Should().BeTrue();
+        hex.Should().Be("9079d75c73d658463a2ea3341370ca719c607b8f9c70bdca93ddcb097a0bf599");
+        UpdateService.TryGetExpectedSha256(sums, "evil.exe", out _).Should().BeFalse();
+        UpdateService.TryGetExpectedSha256(sums, "../AntiLagNext-Setup-1.4.0-win-x64.exe", out _)
+            .Should().BeFalse();
+    }
+
+    [Fact]
+    public void FileMatchesSha256_roundtrip()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "antilag-sha-" + Guid.NewGuid().ToString("N") + ".bin");
+        try
+        {
+            byte[] payload = Encoding.UTF8.GetBytes("antilag-next-hash-test");
+            File.WriteAllBytes(path, payload);
+            string hex = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload));
+            UpdateService.FileMatchesSha256(path, hex).Should().BeTrue();
+            UpdateService.FileMatchesSha256(path, new string('0', 64)).Should().BeFalse();
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { /* ignore */ }
+        }
+    }
+
     [Fact]
     public void LooksLikePeExecutable_rejects_text()
     {
@@ -84,6 +130,24 @@ public class UpdateServiceTests
         try
         {
             File.WriteAllText(path, "not a pe");
+            UpdateService.LooksLikePeExecutable(path).Should().BeFalse();
+        }
+        finally
+        {
+            try { File.Delete(path); } catch { /* ignore */ }
+        }
+    }
+
+    [Fact]
+    public void LooksLikePeExecutable_rejects_mz_without_pe()
+    {
+        string path = Path.Combine(Path.GetTempPath(), "antilag-pe-mz-" + Guid.NewGuid().ToString("N") + ".exe");
+        try
+        {
+            var buf = new byte[128];
+            buf[0] = (byte)'M';
+            buf[1] = (byte)'Z';
+            File.WriteAllBytes(path, buf);
             UpdateService.LooksLikePeExecutable(path).Should().BeFalse();
         }
         finally

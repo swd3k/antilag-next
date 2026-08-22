@@ -45,6 +45,8 @@ public static class RegistryPathPolicy
             return false;
         if (valueName is { Length: > 256 } || (valueName?.Contains('\0') ?? false))
             return false;
+        if (IsDeniedValueName(valueName))
+            return false;
 
         // Normalize separators
         string path = keyPath.Replace('/', '\\').TrimStart('\\');
@@ -88,4 +90,20 @@ public static class RegistryPathPolicy
             return true;
         return path[prefix.Length] == '\\';
     }
+
+    /// <summary>
+    /// Persistence / hijack values that must never be written from backup JSON
+    /// even when the key prefix is allowlisted (e.g. Tcpip\Parameters, Services\nvlddmkm).
+    /// </summary>
+    private static readonly HashSet<string> DeniedValueNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "ImagePath", "ObjectName", "FailureCommand",
+        "NameServer", "DhcpNameServer",
+        "AppInit_DLLs", "LoadAppInit_DLLs", "AppCertDlls",
+        "Debugger", "Userinit", "Shell", "Notify",
+        "DisableExceptionChainValidation"
+    };
+
+    internal static bool IsDeniedValueName(string? valueName) =>
+        !string.IsNullOrEmpty(valueName) && DeniedValueNames.Contains(valueName);
 }
