@@ -107,11 +107,10 @@ def save_ico(img: Image.Image, path: Path, sizes=(16, 20, 24, 32, 40, 48, 64, 12
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     banner = clean_banner(SRC_BANNER)
-    # native 1118x627 ≈ 16:9; emit README 1280x720 + OG 1280x640
-    b1280 = banner.resize((1280, 720), Image.Resampling.LANCZOS)
-    b1280.save(ASSETS / "banner.jpg", "JPEG", quality=93, optimize=True, progressive=True)
-    og = banner.resize((1280, 640), Image.Resampling.LANCZOS)
-    og.save(ASSETS / "og.jpg", "JPEG", quality=91, optimize=True)
+    # Keep the authored pixel size (1118×627). Do not stretch.
+    banner.save(ASSETS / "banner.jpg", "JPEG", quality=95, optimize=True, progressive=True)
+    banner.save(ASSETS / "og.jpg", "JPEG", quality=95, optimize=True)
+
 
     logo = clean_logo(SRC_LOGO)
     logo.save(ROOT / "logo.png", "PNG", optimize=True)
