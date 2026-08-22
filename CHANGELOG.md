@@ -35,6 +35,9 @@ Work in progress after the last tagged/versioned section. Move bullets here firs
 ### Security
 - *(none yet)*
 
+### Docs
+- `docs/ARCHITECTURE.md`: join the Scope honesty and Roadmap tables (blank lines had split them in GitHub).
+
 ---
 
 ## [1.4.1] — 2026-08-22

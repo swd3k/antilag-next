@@ -13,7 +13,6 @@ Reducing input/system latency **without injecting into game processes** (MIT cle
 |-----------|------------------|-----|
 | `NtSetTimerResolution` + `timeBeginPeriod` hold | **Core** | Process-local on Win11 22H2+ unless `GlobalTimerResolutionRequests` |
 | `GlobalTimerResolutionRequests` (catalog, reboot) | **Core** | Games inherit the timer hold on Win11 22H2+ |
-
 | Power plan / min CPU / ASPM / core parking | **Core** | C-state / wake latency |
 | Game Mode / DVR / HAGS / GPU LLM registry | **Core** | Documented registry paths |
 | QPC / waitable-timer probe (µs proxy) | **Core** | Measurement, not magic |
@@ -137,7 +136,6 @@ Forbidden in probe path: `Process.GetProcesses`, LINQ materialization, logging e
 | **P1** | ProfileService fully plugin-driven apply pipeline; settings schema per plugin |
 | **P2** | Collectible ALC unload; signed plugins; sample external plugin project |
 | **P3** | Win11 global timer (`GlobalTimerResolutionRequests` + `timeBeginPeriod`); AC-only power; HAGS/RAM-trim off by default |
-
 | **Later** | Optional: ETW DPC/ISR viewer; waitable swapchain helper app (not inject) |
 | **Never** | Game memory write, anti-cheat bypass, hidden network MITM |
 
